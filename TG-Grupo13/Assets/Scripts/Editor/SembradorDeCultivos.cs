@@ -1,18 +1,17 @@
 using UnityEditor;
 using UnityEngine;
 
-
 public class SembradorDeCultivos : EditorWindow
 {
     GameObject _prefab;
-    int _filas = 3;
+    int _filas = 1;
     int _columnas = 10;
-    float _margen = 0.15f;
+    float _margen = 0.05f;
     float _alturaExtra = 0f;
-    float _variacionPosicion = 0.03f;
+    float _variacionPosicion = 0f;
     float _variacionRotacion = 180f;
-    float _variacionEscala = 0.1f;
-    bool _alinearAlPadre = true;
+    float _variacionEscala = 0.08f;
+    bool _apoyarBase = true;
 
     [MenuItem("Herramientas/Invernadero/Sembrador")]
     static void Abrir()
@@ -23,7 +22,7 @@ public class SembradorDeCultivos : EditorWindow
     void OnGUI()
     {
         EditorGUILayout.HelpBox(
-            "1. Selecciona en la jerarquia la cama o malla donde quieres sembrar.\n" +
+            "1. Selecciona la cama donde quieres sembrar.\n" +
             "2. Asigna el prefab del cultivo.\n" +
             "3. Ajusta filas y columnas.\n" +
             "4. Presiona Sembrar.",
@@ -39,6 +38,10 @@ public class SembradorDeCultivos : EditorWindow
         _filas = Mathf.Max(1, EditorGUILayout.IntField("Filas (ancho)", _filas));
         _columnas = Mathf.Max(1, EditorGUILayout.IntField("Columnas (largo)", _columnas));
         _margen = EditorGUILayout.Slider("Margen del borde", _margen, 0f, 0.45f);
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Altura", EditorStyles.boldLabel);
+        _apoyarBase = EditorGUILayout.Toggle("Apoyar base en superficie", _apoyarBase);
         _alturaExtra = EditorGUILayout.FloatField("Altura extra", _alturaExtra);
 
         EditorGUILayout.Space();
@@ -48,19 +51,36 @@ public class SembradorDeCultivos : EditorWindow
         _variacionEscala = EditorGUILayout.Slider("Escala", _variacionEscala, 0f, 0.5f);
 
         EditorGUILayout.Space();
-        _alinearAlPadre = EditorGUILayout.Toggle("Hijo del objeto", _alinearAlPadre);
-
-        EditorGUILayout.Space();
 
         var seleccion = Selection.activeGameObject;
         bool listo = _prefab != null && seleccion != null;
 
         if (seleccion == null)
+        {
             EditorGUILayout.HelpBox("Selecciona un objeto en la jerarquia.", MessageType.Warning);
-        else if (_prefab == null)
-            EditorGUILayout.HelpBox("Asigna un prefab.", MessageType.Warning);
+        }
         else
+        {
             EditorGUILayout.LabelField("Destino:", seleccion.name);
+
+            Vector3 esc = seleccion.transform.lossyScale;
+            bool noUniforme =
+                Mathf.Abs(esc.x - esc.y) > 0.001f ||
+                Mathf.Abs(esc.y - esc.z) > 0.001f;
+
+            if (noUniforme)
+            {
+                EditorGUILayout.HelpBox(
+                    $"'{seleccion.name}' tiene escala no uniforme " +
+                    $"({esc.x:F2}, {esc.y:F2}, {esc.z:F2}).\n" +
+                    "Los cultivos NO se harán hijos de este objeto para evitar deformarse. " +
+                    "Se agruparán en un contenedor aparte en la raiz de la escena.",
+                    MessageType.Info);
+            }
+        }
+
+        if (_prefab == null)
+            EditorGUILayout.HelpBox("Asigna un prefab.", MessageType.Warning);
 
         EditorGUI.BeginDisabledGroup(!listo);
         if (GUILayout.Button("Sembrar", GUILayout.Height(30)))
@@ -69,7 +89,7 @@ public class SembradorDeCultivos : EditorWindow
 
         EditorGUILayout.Space();
         EditorGUI.BeginDisabledGroup(seleccion == null);
-        if (GUILayout.Button("Borrar lo sembrado en el objeto seleccionado"))
+        if (GUILayout.Button("Borrar lo sembrado en este destino"))
             BorrarSembrado(seleccion);
         EditorGUI.EndDisabledGroup();
     }
@@ -101,14 +121,16 @@ public class SembradorDeCultivos : EditorWindow
             alturaSuperficie,
             limites.center.z - largoUtil * 0.5f);
 
-
         float pasoX = _filas > 1 ? anchoUtil / (_filas - 1) : 0f;
         float pasoZ = _columnas > 1 ? largoUtil / (_columnas - 1) : 0f;
 
-        var contenedor = new GameObject("Sembrado_" + _prefab.name);
+        var contenedor = new GameObject(NombreContenedor(destino));
+        contenedor.transform.position = Vector3.zero;
+        contenedor.transform.rotation = Quaternion.identity;
+        contenedor.transform.localScale = Vector3.one;
         Undo.RegisterCreatedObjectUndo(contenedor, "Sembrar cultivos");
-        if (_alinearAlPadre) contenedor.transform.SetParent(destino.transform, true);
 
+        Quaternion rotacionBase = _prefab.transform.rotation;
         int total = 0;
 
         for (int f = 0; f < _filas; f++)
@@ -120,19 +142,30 @@ public class SembradorDeCultivos : EditorWindow
                     0f,
                     _columnas > 1 ? c * pasoZ : largoUtil * 0.5f);
 
-        
                 pos.x += Random.Range(-_variacionPosicion, _variacionPosicion);
                 pos.z += Random.Range(-_variacionPosicion, _variacionPosicion);
 
                 var inst = (GameObject)PrefabUtility.InstantiatePrefab(_prefab);
                 if (inst == null) continue;
 
-                inst.transform.position = pos;
-                inst.transform.rotation = Quaternion.Euler(
-                    0f, Random.Range(-_variacionRotacion, _variacionRotacion), 0f);
-
                 float esc = 1f + Random.Range(-_variacionEscala, _variacionEscala);
                 inst.transform.localScale = _prefab.transform.localScale * esc;
+
+                inst.transform.rotation =
+                    Quaternion.Euler(0f, Random.Range(-_variacionRotacion, _variacionRotacion), 0f)
+                    * rotacionBase;
+
+                inst.transform.position = pos;
+
+                if (_apoyarBase)
+                {
+                    Bounds b;
+                    if (CalcularBounds(inst, out b))
+                    {
+                        float desfase = alturaSuperficie - b.min.y;
+                        inst.transform.position += new Vector3(0f, desfase, 0f);
+                    }
+                }
 
                 inst.transform.SetParent(contenedor.transform, true);
                 Undo.RegisterCreatedObjectUndo(inst, "Sembrar cultivos");
@@ -141,21 +174,49 @@ public class SembradorDeCultivos : EditorWindow
         }
 
         Selection.activeGameObject = contenedor;
-        Debug.Log($"[Sembrador] Se sembraron {total} instancias de {_prefab.name} sobre {destino.name}.");
+        Debug.Log($"[Sembrador] {total} instancias de {_prefab.name} sobre {destino.name}. " +
+                  $"Superficie a Y={alturaSuperficie:F3}");
+    }
+
+    static bool CalcularBounds(GameObject go, out Bounds bounds)
+    {
+        var renderers = go.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+        {
+            bounds = new Bounds();
+            return false;
+        }
+
+        bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+            bounds.Encapsulate(renderers[i].bounds);
+
+        return true;
+    }
+
+    string NombreContenedor(GameObject destino)
+    {
+        string p = _prefab != null ? _prefab.name : "Cultivo";
+        return $"Sembrado_{destino.name}_{p}";
     }
 
     void BorrarSembrado(GameObject destino)
     {
+        string prefijo = $"Sembrado_{destino.name}_";
         int borrados = 0;
-        for (int i = destino.transform.childCount - 1; i >= 0; i--)
+
+       var todos = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+
+        foreach (var t in todos)
         {
-            var hijo = destino.transform.GetChild(i);
-            if (hijo.name.StartsWith("Sembrado_"))
+            if (t == null) continue;
+            if (t.name.StartsWith(prefijo))
             {
-                Undo.DestroyObjectImmediate(hijo.gameObject);
+                Undo.DestroyObjectImmediate(t.gameObject);
                 borrados++;
             }
         }
-        Debug.Log($"[Sembrador] Se borraron {borrados} grupos sembrados.");
+
+        Debug.Log($"[Sembrador] Se borraron {borrados} grupos sembrados de {destino.name}.");
     }
 }
