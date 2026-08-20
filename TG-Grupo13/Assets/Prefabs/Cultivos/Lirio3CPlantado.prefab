@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1001 &5258264543976250516
+--- !u!1001 &2700858013228977223
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -10,15 +10,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 58df98a790365f1458e2f4b926e07d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -2.4008422
+      value: -5.7103662
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 58df98a790365f1458e2f4b926e07d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.9618947
+      value: 0.47679275
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 58df98a790365f1458e2f4b926e07d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -17.157131
+      value: -18.820467
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 58df98a790365f1458e2f4b926e07d99, type: 3}
       propertyPath: m_LocalRotation.w
@@ -50,7 +50,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 58df98a790365f1458e2f4b926e07d99, type: 3}
       propertyPath: m_Name
-      value: Lirio3C
+      value: Lirio3CPlantado
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -58,20 +58,68 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 58df98a790365f1458e2f4b926e07d99, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 139518668800021114}
+      addedObject: {fileID: 2244636232077848957}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 58df98a790365f1458e2f4b926e07d99, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1445977428397674855}
   m_SourcePrefab: {fileID: 100100000, guid: 58df98a790365f1458e2f4b926e07d99, type: 3}
---- !u!1 &4915804817071366597 stripped
+--- !u!1 &3006726542916776214 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 58df98a790365f1458e2f4b926e07d99, type: 3}
-  m_PrefabInstance: {fileID: 5258264543976250516}
+  m_PrefabInstance: {fileID: 2700858013228977223}
   m_PrefabAsset: {fileID: 0}
---- !u!136 &139518668800021114
+--- !u!114 &2244636232077848957
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3006726542916776214}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88787b75943fdb54aa905f717a0cac0b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlantaFlexible
+  detectarAnclaAutomatica: 1
+  anclaLocal: {x: 0, y: 0, z: 0}
+  modoPivote: 1
+  grupos:
+  - prefijo: Stem
+    multiplicador: 1
+    rigidez: 20
+    amortiguacion: 6
+  - prefijo: Petal
+    multiplicador: 1.2
+    rigidez: 10
+    amortiguacion: 2.5
+  - prefijo: Leaf
+    multiplicador: 1.7
+    rigidez: 6
+    amortiguacion: 1.8
+  radioDeteccion: 0.5
+  capasQueEmpujan:
+    serializedVersion: 2
+    m_Bits: 192
+  distanciaCulling: 6
+  capaPlantas:
+    serializedVersion: 2
+    m_Bits: 256
+  radioVecinos: 0.35
+  presionEnReposo: 0.3
+  propagacion: 0.5
+  anguloMaximo: 30
+  rigidez: 14
+  amortiguacion: 3.5
+  vientoActivo: 1
+  amplitudViento: 2
+  velocidadViento: 0.7
+--- !u!136 &1445977428397674855
 CapsuleCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4915804817071366597}
+  m_GameObject: {fileID: 3006726542916776214}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -80,11 +128,11 @@ CapsuleCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.26
-  m_Height: 1.06
+  m_Height: 1.08
   m_Direction: 1
   m_Center: {x: 0.03, y: 0.197, z: -0.136}
