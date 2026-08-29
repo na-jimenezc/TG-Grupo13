@@ -5,18 +5,21 @@ using System.Collections.Generic;
 
 public class AdminListUI : MonoBehaviour
 {
-    [SerializeField] private Transform contenedorLista; // el "Content" del Scroll View
-    [SerializeField] private GameObject filaPrefab;      // el Prefab FilaUsuario
+    //Objetos referenciados de la UI
+    [SerializeField] private Transform contenedorLista; //el "Content" del Scroll View
+    [SerializeField] private GameObject filaPrefab;      //el Prefab FilaUsuario
     [SerializeField] private GameObject panelActualizar;
     [SerializeField] private ActualizarPerfilUI actualizarPerfilUI;
     [SerializeField] private GameObject panelInfo;
     [SerializeField] private VerInfoUI verInfoUI;
 
+    //Se refresca la lista de usuarios cada vez que se activa el panel
     void OnEnable()
     {
         RefrescarLista();
     }
 
+    //Se destruye cada hijo del contenedor y se vuelven a obtener todos los usuarios
     public void RefrescarLista()
     {
         foreach (Transform hijo in contenedorLista)
@@ -30,6 +33,7 @@ public class AdminListUI : MonoBehaviour
         }
     }
 
+    //Se carga la información del usuario seleccionado en el panel de información y se oculta la lista
     public void MostrarInfo(UserProfile usuario)
     {
         gameObject.SetActive(false);
@@ -37,13 +41,15 @@ public class AdminListUI : MonoBehaviour
         verInfoUI.CargarUsuario(usuario, this);
     }
 
+    //Se carga la información del usuario seleccionado en el panel de actualización y se oculta la lista
     public void MostrarActualizar(UserProfile usuario)
     {
-        gameObject.SetActive(false); // oculta la lista (Panel_Admin)
+        gameObject.SetActive(false); //oculta la lista (Panel_Admin)
         panelActualizar.SetActive(true);
         actualizarPerfilUI.CargarUsuario(usuario, this);
     }
 
+    //Se elimina el usuario seleccionado de la base de datos y se refresca la lista 
     public void EliminarUsuario(UserProfile usuario)
     {
         UserDatabase.EliminarUsuario(usuario.Nombre);

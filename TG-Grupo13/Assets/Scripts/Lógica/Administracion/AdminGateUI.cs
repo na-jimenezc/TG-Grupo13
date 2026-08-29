@@ -1,31 +1,33 @@
 using UnityEngine;
 using TMPro;
 
+/*Enlace entre la validación de seguirdad de administrador, obtene los usuarios con los permisos elevados
+ * y les pide las contraseña antes de poder abrir el panel de administración.*/
 public class AdminGateUI : MonoBehaviour
 {
     [Header("UI Elements - Credenciales")]
-    [SerializeField] private TMP_InputField nombreAdminInput;   // Campo de texto para el Usuario/Nombre
-    [SerializeField] private TMP_InputField passwordInput;      // Campo de texto para la Contraseña
+    [SerializeField] private TMP_InputField nombreAdminInput;   //Campo de texto para el Usuario/Nombre
+    [SerializeField] private TMP_InputField passwordInput;      //Campo de texto para la Contraseña
     [SerializeField] private TMP_Text mensajeError;
 
     [Header("Contenedores de Pantalla")]
-    [SerializeField] private GameObject elementosLogin;        // Objeto que agrupa las entradas y el botón "Entrar"
-    [SerializeField] private GameObject panelEnConstruccion;    // Objeto que dice "En Construcción"
+    [SerializeField] private GameObject elementosLogin;        //Objeto que agrupa las entradas y el botón "Entrar"
+    [SerializeField] private GameObject panelEnConstruccion;    //Objeto que dice "En Construcción"
 
+    //Se limpia por default al activar el panel, para evitar que queden datos de intentos anteriores.
     private void OnEnable()
     {
-        // Limpiar inputs y mensajes al activar el panel
+        //Limpiar inputs y mensajes al activar el panel
         if (passwordInput != null) passwordInput.text = "";
         if (mensajeError != null) mensajeError.text = "";
 
-        // Asegurar la vista limpia de login
+        //Asegurar la vista limpia de login
         if (elementosLogin != null) elementosLogin.SetActive(true);
         if (panelEnConstruccion != null) panelEnConstruccion.SetActive(false);
     }
 
-    /// <summary>
-    /// Permite pre-llenar el nombre si se viene desde otra pantalla (como IniciarSesionUI).
-    /// </summary>
+
+    //Permite pre-llenar el nombre si se viene desde otra pantalla (como IniciarSesionUI).
     public void PrepararLoginAdmin(string nombreAdmin)
     {
         if (nombreAdminInput != null)
@@ -34,13 +36,14 @@ public class AdminGateUI : MonoBehaviour
         }
     }
 
+    //Se ejecuta al presionar el botón "Entrar" en la UI de validación de administrador., simpplemente valida que el usuario exista, que sea administrador y que la contraseña sea correcta.
     public void OnValidarPasswordPresionado()
     {
-        // Obtener y limpiar los textos ingresados
+        //Obtener y limpiar los textos ingresados
         string nombre = nombreAdminInput != null ? nombreAdminInput.text.Trim() : "";
         string password = passwordInput != null ? passwordInput.text : "";
 
-        // 1. Validar que no estén vacíos
+        //Se valida que los campos no estén vacios e ingresa los mensajes de error correspondientes.
         if (string.IsNullOrWhiteSpace(nombre))
         {
             mensajeError.color = Color.red;
@@ -55,7 +58,7 @@ public class AdminGateUI : MonoBehaviour
             return;
         }
 
-        // 2. Verificar que el usuario exista
+        //Se verifica que el usuario si exista
         UserProfile adminUser = UserDatabase.ObtenerUsuario(nombre);
         if (adminUser == null)
         {
@@ -64,7 +67,7 @@ public class AdminGateUI : MonoBehaviour
             return;
         }
 
-        // 3. Validar si realmente tiene rol de administrador
+        //Se valida si el usuario es realmente un administrador
         if (!adminUser.EsAdministrador)
         {
             mensajeError.color = Color.red;
@@ -72,7 +75,7 @@ public class AdminGateUI : MonoBehaviour
             return;
         }
 
-        // 4. Validar contraseña contra el Hash guardado
+        //Se valida la contraseña vs el hash guardado en el .json
         if (UserDatabase.ValidarLoginAdmin(nombre, password))
         {
             if (GameFlowManager.Instance != null)
@@ -85,6 +88,7 @@ public class AdminGateUI : MonoBehaviour
             if (mensajeError != null) mensajeError.text = "";
         }
 
+        //Si la contraseña es incorrecta, se muestra un mensaje de error.
         else
         {
             mensajeError.color = Color.red;
@@ -94,7 +98,7 @@ public class AdminGateUI : MonoBehaviour
 
     public void OnVolverPresionado()
     {
-        // Regresar al menú de inicio principal de la PC
+        //Regresar al menú de inicio principal de la PC
         GetComponentInParent<GameMasterUI>()?.MostrarInicio();
     }
 }

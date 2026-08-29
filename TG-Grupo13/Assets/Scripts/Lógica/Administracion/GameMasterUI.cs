@@ -1,7 +1,10 @@
 using UnityEngine;
 
+/*Encargado de ser el controlador de la UI principal del juego para 
+ * el GameMasterrr, manejando la visibilidad de los distintos paneles y la navegación entre ellos.*/
 public class GameMasterUI : MonoBehaviour
 {
+    //Todas las pantallas que se manejan hasta el momenot
     [SerializeField] private GameObject panelInicio;
     [SerializeField] private GameObject panelCrearPerfil;
     [SerializeField] private GameObject panelIniciarSesion;
@@ -11,6 +14,7 @@ public class GameMasterUI : MonoBehaviour
 
     [SerializeField] private GameObject panelInfo;
 
+    //Función para ocultar los objetos de la UI, para que solo se muestre el que se desea
     private void OcultarTodos()
     {
         if (panelInicio) panelInicio.SetActive(false);
@@ -21,6 +25,7 @@ public class GameMasterUI : MonoBehaviour
         if (panelInfo) panelInfo.SetActive(false);
     }
 
+    //De aquí para adelante, se decide cual se quiere mostrar y se ocultan los demás
     public void MostrarInicio()
     {
         OcultarTodos();
@@ -57,7 +62,7 @@ public class GameMasterUI : MonoBehaviour
         if (panelInfo) panelInfo.SetActive(true);
     }
 
-
+    //Función para salir del juego, si se está en el editor de Unity, se detiene la ejecución, si se está en un build, se cierra la aplicación
     public void OnSalirPresionado()
     {
     #if UNITY_EDITOR

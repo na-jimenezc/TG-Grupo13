@@ -7,7 +7,7 @@ public enum TipoActividad { Siembra, Deshierbe, Corte }
 [Serializable]
 public class RebaData
 {
-    //ACÁ IRIAN LOS DATOS DE REBA MÁS ADELANTE, POR AHORA SE DEJAN VACIOS
+    //ACÁ IRIAN LOS DATOS DE REBA MÁS ADELANTE, POR AHORA SE DEJAN VACIOS, MÁS ADELANTE SE PUEDE EXPANDIR A UNA NUEVA CLASE 
 }
 
 [Serializable]
