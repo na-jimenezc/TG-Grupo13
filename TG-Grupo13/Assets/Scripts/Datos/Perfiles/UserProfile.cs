@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 [Serializable]
 public class UserProfile
@@ -9,4 +10,5 @@ public class UserProfile
     public bool EsAdministrador;
     public string Edad;
     public string PasswordHash;
+    public List<Capacitacion> Capacitaciones = new List<Capacitacion>();
 }

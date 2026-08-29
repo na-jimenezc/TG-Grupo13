@@ -1,12 +1,16 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+
+
 public class AdminListUI : MonoBehaviour
 {
     [SerializeField] private Transform contenedorLista; // el "Content" del Scroll View
     [SerializeField] private GameObject filaPrefab;      // el Prefab FilaUsuario
     [SerializeField] private GameObject panelActualizar;
     [SerializeField] private ActualizarPerfilUI actualizarPerfilUI;
+    [SerializeField] private GameObject panelInfo;
+    [SerializeField] private VerInfoUI verInfoUI;
 
     void OnEnable()
     {
@@ -28,7 +32,9 @@ public class AdminListUI : MonoBehaviour
 
     public void MostrarInfo(UserProfile usuario)
     {
-        Debug.Log($"Ver info de: {usuario.Nombre}"); // lo armamos completo en el próximo paso
+        gameObject.SetActive(false);
+        panelInfo.SetActive(true);
+        verInfoUI.CargarUsuario(usuario, this);
     }
 
     public void MostrarActualizar(UserProfile usuario)
@@ -43,5 +49,4 @@ public class AdminListUI : MonoBehaviour
         UserDatabase.EliminarUsuario(usuario.Nombre);
         RefrescarLista();
     }
-
 }
