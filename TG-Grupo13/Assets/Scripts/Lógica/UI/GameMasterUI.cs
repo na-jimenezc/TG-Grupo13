@@ -7,12 +7,15 @@ public class GameMasterUI : MonoBehaviour
     [SerializeField] private GameObject panelIniciarSesion;
     [SerializeField] private GameObject panelAdminGate;
 
+    [SerializeField] private GameObject panelAdmin;
+
     private void OcultarTodos()
     {
         if (panelInicio) panelInicio.SetActive(false);
         if (panelCrearPerfil) panelCrearPerfil.SetActive(false);
         if (panelIniciarSesion) panelIniciarSesion.SetActive(false);
         if (panelAdminGate) panelAdminGate.SetActive(false);
+        if (panelAdmin) panelAdmin.SetActive(false);
     }
 
     public void MostrarInicio()
@@ -38,6 +41,13 @@ public class GameMasterUI : MonoBehaviour
         OcultarTodos();
         if (panelAdminGate) panelAdminGate.SetActive(true);
     }
+
+    public void MostrarPanelAdmin()
+    {
+        OcultarTodos();
+        if (panelAdmin) panelAdmin.SetActive(true);
+    }
+
 
     public void OnSalirPresionado()
     {

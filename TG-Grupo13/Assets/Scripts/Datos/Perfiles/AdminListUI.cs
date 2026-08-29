@@ -5,6 +5,8 @@ public class AdminListUI : MonoBehaviour
 {
     [SerializeField] private Transform contenedorLista; // el "Content" del Scroll View
     [SerializeField] private GameObject filaPrefab;      // el Prefab FilaUsuario
+    [SerializeField] private GameObject panelActualizar;
+    [SerializeField] private ActualizarPerfilUI actualizarPerfilUI;
 
     void OnEnable()
     {
@@ -31,7 +33,9 @@ public class AdminListUI : MonoBehaviour
 
     public void MostrarActualizar(UserProfile usuario)
     {
-        Debug.Log($"Actualizar: {usuario.Nombre}"); // lo armamos completo en el próximo paso
+        gameObject.SetActive(false); // oculta la lista (Panel_Admin)
+        panelActualizar.SetActive(true);
+        actualizarPerfilUI.CargarUsuario(usuario, this);
     }
 
     public void EliminarUsuario(UserProfile usuario)
@@ -39,4 +43,5 @@ public class AdminListUI : MonoBehaviour
         UserDatabase.EliminarUsuario(usuario.Nombre);
         RefrescarLista();
     }
+
 }

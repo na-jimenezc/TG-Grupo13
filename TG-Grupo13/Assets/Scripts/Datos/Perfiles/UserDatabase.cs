@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
@@ -59,8 +60,11 @@ public static class UserDatabase
     {
         CargarSiHaceFalta();
 
+        int nuevoId = _data.usuarios.Count > 0 ? _data.usuarios.Max(u => u.Id) + 1 : 1;
+
         var nuevo = new UserProfile
         {
+            Id = nuevoId,
             Nombre = nombre,
             Correo = correo,
             EsAdministrador = esAdmin,
@@ -107,4 +111,18 @@ public static class UserDatabase
         _data.usuarios.RemoveAll(u => u.Nombre.Equals(nombre, System.StringComparison.OrdinalIgnoreCase));
         Guardar();
     }
+
+    public static void ActualizarUsuario(string nombreOriginal, UserProfile actualizado)
+    {
+        CargarSiHaceFalta();
+        int index = _data.usuarios.FindIndex(u => u.Nombre.Equals(nombreOriginal, System.StringComparison.OrdinalIgnoreCase));
+        if (index >= 0)
+        {
+            _data.usuarios[index] = actualizado;
+            Guardar();
+        }
+    }
+
+    //Exponemos el hash como público para poder usarlo también desde ActualizarPerfilUI
+    public static string HashPassword(string texto) => Hash(texto);
 }

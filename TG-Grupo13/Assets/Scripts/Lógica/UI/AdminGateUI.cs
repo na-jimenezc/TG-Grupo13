@@ -75,18 +75,16 @@ public class AdminGateUI : MonoBehaviour
         // 4. Validar contraseña contra el Hash guardado
         if (UserDatabase.ValidarLoginAdmin(nombre, password))
         {
-            // Login correcto: Iniciar sesión en el manager
             if (GameFlowManager.Instance != null)
             {
                 GameFlowManager.Instance.IniciarSesionConUsuario(adminUser);
             }
 
-            // Cambiar a la vista de "En Construcción"
-            if (elementosLogin != null) elementosLogin.SetActive(false);
-            if (panelEnConstruccion != null) panelEnConstruccion.SetActive(true);
+            GetComponentInParent<GameMasterUI>()?.MostrarPanelAdmin();
 
             if (mensajeError != null) mensajeError.text = "";
         }
+
         else
         {
             mensajeError.color = Color.red;
