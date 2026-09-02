@@ -1,31 +1,27 @@
 using UnityEngine;
+using UnityEngine.SceneManagement; // Importante para manejar escenas
+using System.Collections;
 
-//Este es el encargado de manejar el flujo del juego, incluyendo la gestión de usuarios y la simulación VR.}
-
-/*Actualmente se tienen funciones de mantener la información del usuario logueado, iniciar la simulación VR y cerrar sesión.*/
 public class GameFlowManager : MonoBehaviour
 {
-    //Instancia pública y estática para acceder desde cualquier script
     public static GameFlowManager Instance { get; private set; }
 
     [Header("Estado Actual")]
-    //Para almacenar la información del usuario activo y si hay una simulación en curso
     public UserProfile usuarioActivo;
-
-    //Cambia si la simulación de VR ya inició o si está en espera a que un admin de el inicio de la simulación
     public bool simulacionEnCurso = false;
 
-    //Referencia al canvas de espera que se muestra mientras la simulación no ha iniciado
     [Header("Referencias de la Escena")]
     [SerializeField] private GameObject waitScreenCanvas;
 
-    //Método Awake para asegurar que solo haya una instancia del GameFlowManager
+    [Header("Nombres de Escenas Aditivas")]
+    [SerializeField] private string escenaEsperaNombre = "PantallaEsperaInicial";
+    [SerializeField] private string escenaInvernaderoNombre = "InvernaderoEscenaInicial";
+
     private void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
-            //Persistir este objeto entre escenas
             DontDestroyOnLoad(gameObject);
         }
         else
@@ -34,7 +30,6 @@ public class GameFlowManager : MonoBehaviour
         }
     }
 
-    //Método Start para mostrar la pantalla de espera si no hay simulación en curso
     private void Start()
     {
         if (!simulacionEnCurso && waitScreenCanvas != null)
@@ -43,8 +38,6 @@ public class GameFlowManager : MonoBehaviour
         }
     }
 
-    //Método para iniciar sesión con un usuario específico según el rol que se obtuvo desde la base de datos.
-    //Si es administrador, no se inicia la simulación automáticamente.
     public void IniciarSesionConUsuario(UserProfile usuario)
     {
         usuarioActivo = usuario;
@@ -56,12 +49,12 @@ public class GameFlowManager : MonoBehaviour
         }
     }
 
-    //Método para iniciar la simulación VR, ocultando la pantalla de espera para el jugador y mostrando un mensaje en la consola.
     public void LanzarSimulacionVR()
     {
         simulacionEnCurso = true;
         Debug.Log("[GameFlowManager] Iniciando simulación VR en el invernadero...");
 
+        // Ocultar la UI de espera
         if (waitScreenCanvas != null)
         {
             waitScreenCanvas.SetActive(false);
@@ -70,9 +63,46 @@ public class GameFlowManager : MonoBehaviour
         {
             Debug.LogWarning("[GameFlowManager] No se asignó el WaitScreenCanvas en el Inspector.");
         }
+
+        // Iniciar el intercambio de escenas aditivas de fondo
+        StartCoroutine(RutinaTransicionSimulacion());
     }
 
-    //Método para cerrar sesión, limpiando la información del usuario activo y mostrando la pantalla de espera nuevamente.
+    /// <summary>
+    /// Corrutina que descarga la escena del entorno inicial y carga la escena del invernadero.
+    /// </summary>
+    private IEnumerator RutinaTransicionSimulacion()
+    {
+        // 1. Descargar la escena de entorno de espera si está cargada
+        Scene escenaEspera = SceneManager.GetSceneByName(escenaEsperaNombre);
+        if (escenaEspera.isLoaded)
+        {
+            AsyncOperation unloadOp = SceneManager.UnloadSceneAsync(escenaEsperaNombre);
+            while (!unloadOp.isDone)
+            {
+                yield return null;
+            }
+        }
+
+        // 2. Cargar de forma aditiva la escena del Invernadero
+        Scene escenaInvernadero = SceneManager.GetSceneByName(escenaInvernaderoNombre);
+        if (!escenaInvernadero.isLoaded)
+        {
+            AsyncOperation loadOp = SceneManager.LoadSceneAsync(escenaInvernaderoNombre, LoadSceneMode.Additive);
+            while (!loadOp.isDone)
+            {
+                yield return null;
+            }
+        }
+
+        // 3. Definir la nueva escena como activa para instanciar objetos correctamente
+        Scene nuevaEscena = SceneManager.GetSceneByName(escenaInvernaderoNombre);
+        if (nuevaEscena.isLoaded)
+        {
+            SceneManager.SetActiveScene(nuevaEscena);
+        }
+    }
+
     public void CerrarSesion()
     {
         usuarioActivo = null;
@@ -82,5 +112,7 @@ public class GameFlowManager : MonoBehaviour
         {
             waitScreenCanvas.SetActive(true);
         }
+
+        // (Opcional) Puedes invocar otra corrutina aquí para devolver al usuario a PantallaEsperaInicial
     }
 }

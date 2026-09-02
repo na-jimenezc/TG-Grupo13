@@ -8,6 +8,18 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/Escenas/MenuInicial/InvernaderoEscenaInicial.unity
+    guid: 5e68b2fdafe53c74489258fff8551d8a
+  - enabled: 1
+    path: Assets/Escenas/EscenasCarga/PantallaEsperaInicial.unity
+    guid: 71b98eda7d2d0c743b25372b60d55a6e
+  - enabled: 1
+    path: Assets/Escenas/Core.unity
+    guid: 550e7e739894e2e4bae5d2961a9b93ae
+  - enabled: 1
+    path: Assets/Escenas/Corte/Corte.unity
+    guid: dcca82f2b8345d5409ba24e912adf429
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: 2a26405a06751d84398848e98554ecd9, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
