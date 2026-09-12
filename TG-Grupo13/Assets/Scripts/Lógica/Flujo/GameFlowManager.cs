@@ -45,6 +45,7 @@ public class GameFlowManager : MonoBehaviour
     [SerializeField] private string escenaContinuarNombre = "Continuar";
     [SerializeField] private string escenaResultadosNombre = "PantallaResultados";
     [SerializeField] private string escenaSalirNombre = "SalirSimulacion";
+    [SerializeField] private float duracionPantallaSalida = 4f;
 
     //Cola para las actividades
     private Queue<ActivityType> _colaActividades = new Queue<ActivityType>();
@@ -277,7 +278,15 @@ public class GameFlowManager : MonoBehaviour
     {
         yield return DescargarEscenaSiEstaCargada(escenaResultadosNombre);
         yield return CargarEscenaAditiva(escenaSalirNombre);
+
+        //Deja la pantalla de despedida visible unos segundos antes de resetear la sesión.
+        yield return new WaitForSeconds(duracionPantallaSalida);
+
+        yield return DescargarEscenaSiEstaCargada(escenaSalirNombre);
         CerrarSesion();
+
+        if (gameMasterUI != null)
+            gameMasterUI.MostrarInicio();
     }
 
     //Descarga la escena si está cargada, evitando errores al intentar descargar una escena que no está activa.
