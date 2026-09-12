@@ -18,6 +18,8 @@ public class GameMasterUI : MonoBehaviour
 
     [SerializeField] private GameObject panelControlActividad;
 
+    [SerializeField] private GameObject panelResultados;
+
     //Función para ocultar los objetos de la UI, para que solo se muestre el que se desea
     private void OcultarTodos()
     {
@@ -29,6 +31,7 @@ public class GameMasterUI : MonoBehaviour
         if (panelInfo) panelInfo.SetActive(false);
         if (panelSeleccionActividades) panelSeleccionActividades.SetActive(false);
         if (panelControlActividad) panelControlActividad.SetActive(false);
+        if (panelResultados) panelResultados.SetActive(false);
     }
 
     //De aquí para adelante, se decide cual se quiere mostrar y se ocultan los demás
@@ -78,6 +81,19 @@ public class GameMasterUI : MonoBehaviour
     {
         OcultarTodos();
         if (panelControlActividad) panelControlActividad.SetActive(true);
+    }
+
+    //Se muestra cuando todas las actividades seleccionadas fueron completadas y el usuario ve su Pantalla de Resultados.
+    public void MostrarPanelResultados()
+    {
+        OcultarTodos();
+        if (panelResultados) panelResultados.SetActive(true);
+    }
+
+    //Finaliza la sesión del usuario actual desde la Pantalla de Resultados (botón a conectar en dicho panel).
+    public void OnFinalizarSesionPresionado()
+    {
+        GameFlowManager.Instance?.SalirDeSimulacion();
     }
 
     //Función para salir del juego, si se está en el editor de Unity, se detiene la ejecución, si se está en un build, se cierra la aplicación

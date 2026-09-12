@@ -31,6 +31,21 @@ public class GameFlowManager : MonoBehaviour
     [SerializeField] private string escenaMenuDeshierbeNombre = "MenuDeshierbe";
     [SerializeField] private string escenaMenuCorteNombre = "MenuCorte";
 
+    [Header("Nombres de Escenas de Tutorial")]
+    [SerializeField] private string escenaTutorialSiembraNombre = "TutorialSiembra";
+    [SerializeField] private string escenaTutorialDeshierbeNombre = "TutorialDeshierbe";
+    [SerializeField] private string escenaTutorialCorteNombre = "TutorialCorte";
+
+    [Header("Nombres de Escenas de Actividad")]
+    [SerializeField] private string escenaActividadSiembraNombre = "ActividadSiembra";
+    [SerializeField] private string escenaActividadDeshierbeNombre = "ActividadDeshierbe";
+    [SerializeField] private string escenaActividadCorteNombre = "ActividadCorte";
+
+    [Header("Escenas de Transición y Cierre")]
+    [SerializeField] private string escenaContinuarNombre = "Continuar";
+    [SerializeField] private string escenaResultadosNombre = "PantallaResultados";
+    [SerializeField] private string escenaSalirNombre = "SalirSimulacion";
+
     //Cola para las actividades
     private Queue<ActivityType> _colaActividades = new Queue<ActivityType>();
     /*Bandera para indicar si una secuencia de actividades está en proceso, evitando que se inicie otra mientras la actual no ha terminado
@@ -38,6 +53,13 @@ public class GameFlowManager : MonoBehaviour
     //y confusión en la experiencia del usuario*/
     private bool _secuenciaEnProceso = false;
     private string _escenaActividadActual;
+
+    //Actividad actualmente activa en la cola y escena de Tutorial/Actividad que está mostrándose sobre su Menú.
+    private ActivityType? _actividadActual;
+    private string _escenaContenidoActual;
+
+    //Actividad de la cola que está siendo mostrada actualmente (Siembra, Deshierbe o Corte), null si no hay ninguna en curso.
+    public ActivityType? ActividadActual => _actividadActual;
 
 
     //Mantener la instancia del GameFlowManager a lo largo de las escenas, evitando que se destruya al cargar nuevas escenas.
@@ -128,8 +150,8 @@ public class GameFlowManager : MonoBehaviour
     }
 
 
-    //PENDIENTE -> CONTECTAR A CADA ESCENA DE CADA ACTIVIDAD.
-    //Al final de AvanzarSiguienteActividad, después de cargar la escena con éxito:
+    //Descarga el Menú de la actividad anterior (si había) y carga el Menú de la siguiente actividad en la cola.
+    //Si ya no quedan actividades, se muestra la Pantalla de Resultados de la sesión.
     public IEnumerator AvanzarSiguienteActividad()
     {
         if (_escenaActividadActual != null)
@@ -138,16 +160,21 @@ public class GameFlowManager : MonoBehaviour
         if (_colaActividades.Count == 0)
         {
             Debug.Log("[GameFlowManager] Todas las actividades seleccionadas fueron completadas.");
+            _actividadActual = null;
+            yield return CargarEscenaAditiva(escenaResultadosNombre);
+            if (gameMasterUI != null)
+                gameMasterUI.MostrarPanelResultados();
             yield break;
         }
 
         ActivityType siguiente = _colaActividades.Dequeue();
+        _actividadActual = siguiente;
         _escenaActividadActual = NombreEscenaParaActividad(siguiente);
         yield return CargarEscenaAditiva(_escenaActividadActual);
 
         // Avisa al Game Master que la actividad cambió, mostrando el panel de control (Tutorial/Lanzar)
         if (gameMasterUI != null)
-            gameMasterUI.MostrarControlActividad(); 
+            gameMasterUI.MostrarControlActividad();
     }
 
     //Devuelve el nombre de la escena correspondiente a la actividad seleccionada.
@@ -160,6 +187,97 @@ public class GameFlowManager : MonoBehaviour
             ActivityType.Corte => escenaMenuCorteNombre,
             _ => null
         };
+    }
+
+    //Devuelve el nombre de la escena de Tutorial correspondiente a la actividad indicada.
+    private string NombreEscenaTutorial(ActivityType tipo)
+    {
+        return tipo switch
+        {
+            ActivityType.Siembra => escenaTutorialSiembraNombre,
+            ActivityType.Deshierbe => escenaTutorialDeshierbeNombre,
+            ActivityType.Corte => escenaTutorialCorteNombre,
+            _ => null
+        };
+    }
+
+    //Devuelve el nombre de la escena de la Actividad (práctica real) correspondiente a la actividad indicada.
+    private string NombreEscenaActividad(ActivityType tipo)
+    {
+        return tipo switch
+        {
+            ActivityType.Siembra => escenaActividadSiembraNombre,
+            ActivityType.Deshierbe => escenaActividadDeshierbeNombre,
+            ActivityType.Corte => escenaActividadCorteNombre,
+            _ => null
+        };
+    }
+
+    //Llamado por el Menú de cada actividad (MenuSiembraUI/MenuDeshierbeUI/MenuCorteUI) al presionar "Tutorial"
+    //en el panel de control del Game Master. Descarga el Menú de la actividad y muestra su Tutorial.
+    public void MostrarTutorialActividad(ActivityType tipo)
+    {
+        StartCoroutine(RutinaMostrarContenidoActividad(NombreEscenaTutorial(tipo)));
+    }
+
+    //Llamado por el Menú de cada actividad al presionar "Lanzar" en el panel de control del Game Master.
+    //Descarga el Menú de la actividad (o su Tutorial, si estaba activo) y carga la Actividad real.
+    public void LanzarActividadDirecta(ActivityType tipo)
+    {
+        StartCoroutine(RutinaMostrarContenidoActividad(NombreEscenaActividad(tipo)));
+    }
+
+    //Descarga el Menú de la actividad (la primera vez) y el Tutorial/Actividad mostrado anteriormente (si aplica),
+    //y carga la escena de contenido solicitada (Tutorial o Actividad) de forma aditiva.
+    private IEnumerator RutinaMostrarContenidoActividad(string nombreEscena)
+    {
+        if (string.IsNullOrEmpty(nombreEscena)) yield break;
+
+        if (_escenaActividadActual != null)
+            yield return DescargarEscenaSiEstaCargada(_escenaActividadActual);
+
+        if (_escenaContenidoActual != null)
+            yield return DescargarEscenaSiEstaCargada(_escenaContenidoActual);
+
+        _escenaContenidoActual = nombreEscena;
+        yield return CargarEscenaAditiva(nombreEscena);
+    }
+
+    //Llamado desde el botón "Continuar" del panel de control del Game Master para pasar a la siguiente
+    //actividad de la cola (o a la Pantalla de Resultados si ya no quedan actividades).
+    public void ContinuarConSiguienteActividad()
+    {
+        StartCoroutine(RutinaContinuarConSiguienteActividad());
+    }
+
+    private IEnumerator RutinaContinuarConSiguienteActividad()
+    {
+        if (_escenaContenidoActual != null)
+        {
+            yield return DescargarEscenaSiEstaCargada(_escenaContenidoActual);
+            _escenaContenidoActual = null;
+        }
+
+        if (!string.IsNullOrEmpty(escenaContinuarNombre))
+            yield return CargarEscenaAditiva(escenaContinuarNombre);
+
+        yield return AvanzarSiguienteActividad();
+
+        if (!string.IsNullOrEmpty(escenaContinuarNombre))
+            yield return DescargarEscenaSiEstaCargada(escenaContinuarNombre);
+    }
+
+    //Llamado al finalizar la consulta de resultados, para despedir al usuario y reiniciar el estado de la simulación.
+    public void SalirDeSimulacion()
+    {
+        StartCoroutine(RutinaSalirDeSimulacion());
+    }
+
+    private IEnumerator RutinaSalirDeSimulacion()
+    {
+        yield return DescargarEscenaSiEstaCargada(escenaResultadosNombre);
+        yield return CargarEscenaAditiva(escenaSalirNombre);
+        CerrarSesion();
     }
 
     //Descarga la escena si está cargada, evitando errores al intentar descargar una escena que no está activa.
