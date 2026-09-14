@@ -2382,6 +2382,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: b4de76b799b204e4fa75598e7ca221a0, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1540227418}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: b4de76b799b204e4fa75598e7ca221a0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1540227423}
   m_SourcePrefab: {fileID: 100100000, guid: b4de76b799b204e4fa75598e7ca221a0, type: 3}
 --- !u!4 &1540227416 stripped
 Transform:
@@ -2471,9 +2474,9 @@ MonoBehaviour:
   _addNewPointsToFront: 0
   _forwardElement: {fileID: 0}
   _oneGrabTransformer: {fileID: 0}
-  _twoGrabTransformer: {fileID: 0}
+  _twoGrabTransformer: {fileID: 1540227423}
   _targetTransform: {fileID: 0}
-  _maxGrabPoints: -1
+  _maxGrabPoints: 2
   _rigidbody: {fileID: 1540227421}
   _kinematicWhileSelected: 1
   _throwWhenUnselected: 1
@@ -2526,6 +2529,29 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.002980006, y: 0.0040800422, z: 0.0026416949}
   m_Center: {x: 0, y: 0.000000029802322, z: 0.0013208473}
+--- !u!114 &1540227423
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1540227417}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b053556d972eae24b947c1477538bff1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Oculus.Interaction::Oculus.Interaction.TwoGrabFreeTransformer
+  _constraints:
+    ConstraintsAreRelative: 0
+    MinScale:
+      Constrain: 0
+      Value: 0
+    MaxScale:
+      Constrain: 0
+      Value: 0
+    ConstrainXScale: 1
+    ConstrainYScale: 0
+    ConstrainZScale: 0
 --- !u!1 &1565370081
 GameObject:
   m_ObjectHideFlags: 0
