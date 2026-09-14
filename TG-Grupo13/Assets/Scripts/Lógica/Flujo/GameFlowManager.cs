@@ -1,7 +1,8 @@
-using UnityEngine;
-using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using static UnityEngine.Rendering.DebugUI;
 
 /* El gameflow manager es el encargado de administrar las escenas y el flujo de la simulación VR, 
  * incluyendo la gestión de usuarios y la transición entre escenas. */
@@ -117,8 +118,8 @@ public class GameFlowManager : MonoBehaviour
     //Rutina de selección de actividades
     private IEnumerator RutinaIrASeleccionActividades()
     {
-        yield return DescargarEscenaSiEstaCargada(escenaEsperaNombre);
         yield return CargarEscenaAditiva(escenaSeleccionActividadesNombre);
+        yield return DescargarEscenaSiEstaCargada(escenaEsperaNombre);
     }
 
     //Llamado por SeleccionActividadesUI al presionar el botón de comenzar
@@ -145,8 +146,8 @@ public class GameFlowManager : MonoBehaviour
     //Descarga de la escena de selección de actividades y carga de la primera actividad en la cola.
     private IEnumerator RutinaIniciarPrimeraActividad()
     {
-        yield return DescargarEscenaSiEstaCargada(escenaSeleccionActividadesNombre);
         yield return AvanzarSiguienteActividad();
+        yield return DescargarEscenaSiEstaCargada(escenaSeleccionActividadesNombre);
         _secuenciaEnProceso = false;
     }
 
@@ -155,14 +156,17 @@ public class GameFlowManager : MonoBehaviour
     //Si ya no quedan actividades, se muestra la Pantalla de Resultados de la sesión.
     public IEnumerator AvanzarSiguienteActividad()
     {
-        if (_escenaActividadActual != null)
-            yield return DescargarEscenaSiEstaCargada(_escenaActividadActual);
+        string escenaAnterior = _escenaActividadActual;
 
         if (_colaActividades.Count == 0)
         {
             Debug.Log("[GameFlowManager] Todas las actividades seleccionadas fueron completadas.");
             _actividadActual = null;
+
             yield return CargarEscenaAditiva(escenaResultadosNombre);
+            if (escenaAnterior != null)
+                yield return DescargarEscenaSiEstaCargada(escenaAnterior);
+
             if (gameMasterUI != null)
                 gameMasterUI.MostrarPanelResultados();
             yield break;
@@ -171,9 +175,11 @@ public class GameFlowManager : MonoBehaviour
         ActivityType siguiente = _colaActividades.Dequeue();
         _actividadActual = siguiente;
         _escenaActividadActual = NombreEscenaParaActividad(siguiente);
-        yield return CargarEscenaAditiva(_escenaActividadActual);
 
-        // Avisa al Game Master que la actividad cambió, mostrando el panel de control (Tutorial/Lanzar)
+        yield return CargarEscenaAditiva(_escenaActividadActual);
+        if (escenaAnterior != null)
+            yield return DescargarEscenaSiEstaCargada(escenaAnterior);
+
         if (gameMasterUI != null)
             gameMasterUI.MostrarControlActividad();
     }
@@ -234,6 +240,8 @@ public class GameFlowManager : MonoBehaviour
     {
         if (string.IsNullOrEmpty(nombreEscena)) yield break;
 
+        yield return CargarEscenaAditiva(nombreEscena);
+
         if (_escenaActividadActual != null)
             yield return DescargarEscenaSiEstaCargada(_escenaActividadActual);
 
@@ -241,7 +249,6 @@ public class GameFlowManager : MonoBehaviour
             yield return DescargarEscenaSiEstaCargada(_escenaContenidoActual);
 
         _escenaContenidoActual = nombreEscena;
-        yield return CargarEscenaAditiva(nombreEscena);
     }
 
     //Llamado desde el botón "Continuar" del panel de control del Game Master para pasar a la siguiente
@@ -253,20 +260,21 @@ public class GameFlowManager : MonoBehaviour
 
     private IEnumerator RutinaContinuarConSiguienteActividad()
     {
+        if (!string.IsNullOrEmpty(escenaContinuarNombre))
+            yield return CargarEscenaAditiva(escenaContinuarNombre);
+
         if (_escenaContenidoActual != null)
         {
             yield return DescargarEscenaSiEstaCargada(_escenaContenidoActual);
             _escenaContenidoActual = null;
         }
 
-        if (!string.IsNullOrEmpty(escenaContinuarNombre))
-            yield return CargarEscenaAditiva(escenaContinuarNombre);
-
         yield return AvanzarSiguienteActividad();
 
         if (!string.IsNullOrEmpty(escenaContinuarNombre))
             yield return DescargarEscenaSiEstaCargada(escenaContinuarNombre);
     }
+
 
     //Llamado al finalizar la consulta de resultados, para despedir al usuario y reiniciar el estado de la simulación.
     public void SalirDeSimulacion()
@@ -276,8 +284,8 @@ public class GameFlowManager : MonoBehaviour
 
     private IEnumerator RutinaSalirDeSimulacion()
     {
-        yield return DescargarEscenaSiEstaCargada(escenaResultadosNombre);
         yield return CargarEscenaAditiva(escenaSalirNombre);
+        yield return DescargarEscenaSiEstaCargada(escenaResultadosNombre);
 
         //Deja la pantalla de despedida visible unos segundos antes de resetear la sesión.
         yield return new WaitForSeconds(duracionPantallaSalida);

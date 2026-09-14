@@ -8,7 +8,7 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
-  - enabled: 0
+  - enabled: 1
     path: Assets/Escenas/MenuInicial/InvernaderoEscenaInicial.unity
     guid: 5e68b2fdafe53c74489258fff8551d8a
   - enabled: 1
@@ -37,7 +37,7 @@ EditorBuildSettings:
     guid: 08dd62a501a05ce4bacc1682524e76d8
   - enabled: 1
     path: Assets/Escenas/Siembra/ActividadSiembra.unity
-    guid: 9e4f503dfe7c8644dbd9bfaa416acba8
+    guid: 10682c3e5cf28a34eaf880d093db3fe2
   - enabled: 1
     path: Assets/Escenas/Deshierbe/TutorialDeshierbe.unity
     guid: b8143257793a42f41b3b30e2686c345f
