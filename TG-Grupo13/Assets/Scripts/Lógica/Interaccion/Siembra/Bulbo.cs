@@ -22,6 +22,7 @@ public class Bulbo : MonoBehaviour
         if (_slotDebajo != null && _slotDebajo.Sembrar())
         {
             SiembraActivityManager.Instance.RegistrarPlantaSembrada();
+            gameObject.SetActive(false); 
             Destroy(gameObject, 0.1f);
         }
         //Si no había slot válido o ya estaba sembrado, simplemente cae/queda ahí
