@@ -5,7 +5,7 @@ using Oculus.Interaction;
 public class Ortiga : MonoBehaviour
 {
     [Tooltip("Distancia mínima en metros que hay que 'tirar' para considerarse extraída")]
-    [SerializeField] private float distanciaExtraccion = 0.12f;
+    [SerializeField] private float distanciaExtraccion = 0.08f;
 
     private Grabbable _grabbable;
     private Vector3 _posicionOriginal;
