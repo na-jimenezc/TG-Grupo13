@@ -3,8 +3,6 @@ using UnityEngine;
 public class TalloEnPlantacion : MonoBehaviour
 {
     [SerializeField] private GameObject prefabTalloCortado; //MODELO DEL LIRIO CORTADO
-    [SerializeField] private Transform puntoAnclaManoSecundaria; //ASIGNACIÓN PARA LA MANO
-
     private bool _cortado = false;
 
     public void Cortar()

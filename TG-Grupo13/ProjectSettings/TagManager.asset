@@ -32,6 +32,7 @@ TagManager:
   - QDSUIToggleCheckboxRadio
   - QDSUIToggleThumbnail
   - Bolsa
+  - ManoDominante
   layers:
   - Default
   - TransparentFX
