@@ -1,0 +1,7 @@
+using UnityEngine;
+
+public class ZonaDeposito : MonoBehaviour
+{
+    [Tooltip("true = zona de la malla de entutorado (recibe ramos individuales). false = el balde (recibe la recolección final).")]
+    public bool EsZonaDeRamos = true;
+}
