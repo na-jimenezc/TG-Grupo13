@@ -4,9 +4,9 @@ public class TalloCortado : MonoBehaviour
 {
     [SerializeField] private GameObject modeloConHojas;
     [SerializeField] private GameObject modeloDeshojado;
-    [SerializeField] private Collider zonaDeshoje; //COLIDER PARA EL TALLO
+    [SerializeField] private Collider zonaDeshoje;
 
-    private bool _entroMano = false;
+    private bool _manoDentro = false;
     private bool _deshojado = false;
 
     private void Awake()
@@ -18,17 +18,23 @@ public class TalloCortado : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (_deshojado) return;
-        if (other.CompareTag("ManoDominante")) _entroMano = true;
+        if (other.CompareTag("ManoDominante")) _manoDentro = true;
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (_deshojado) return;
-        if (other.CompareTag("ManoDominante") && _entroMano)
-        {
-            //ACCIÓN DEL SWIPE
+        if (other.CompareTag("ManoDominante")) _manoDentro = false;
+    }
+
+    private void Update()
+    {
+        if (_deshojado || !_manoDentro) return;
+
+        bool trigger = OVRInput.Get(OVRInput.Button.PrimaryIndexTrigger)
+                    || OVRInput.Get(OVRInput.Button.SecondaryIndexTrigger);
+
+        if (trigger)
             Deshojar();
-        }
     }
 
     private void Deshojar()

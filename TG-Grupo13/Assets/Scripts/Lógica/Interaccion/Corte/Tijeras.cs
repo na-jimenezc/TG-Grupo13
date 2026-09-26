@@ -24,6 +24,9 @@ public class Tijeras : MonoBehaviour
     private bool _enHolster = false;
     private float _tiempoCaida = 0f;
 
+    private float _tiempoSeleccionado = 0f;
+    private const float TIEMPO_MINIMO_PARA_DESENGANCHAR = 0.15f;
+
     private void Awake()
     {
         _grabbable = GetComponent<Grabbable>();
@@ -38,7 +41,7 @@ public class Tijeras : MonoBehaviour
         if (evt.Type == PointerEventType.Select)
         {
             _equipadas = true;
-            if (_enHolster) DesengancharDeHolster();
+            _tiempoSeleccionado = 0f; 
         }
         else if (evt.Type == PointerEventType.Unselect)
         {
@@ -76,6 +79,13 @@ public class Tijeras : MonoBehaviour
                 if (_talloCercano != null) _talloCercano.Cortar();
                 else if (_ramoCercano != null) _ramoCercano.CortarParejo();
             }
+
+            if (_equipadas && _enHolster)
+            {
+                _tiempoSeleccionado += Time.deltaTime;
+                if (_tiempoSeleccionado >= TIEMPO_MINIMO_PARA_DESENGANCHAR)
+                    DesengancharDeHolster();
+            }
         }
 
         // Si quedaron "perdidas" (se cayeron de la mesa, rodaron lejos) por más de X segundos, vuelven solas
@@ -98,12 +108,18 @@ public class Tijeras : MonoBehaviour
     {
         _tiempoCaida = 0f;
         transform.SetParent(null);
-        transform.position = puntoSpawnMesa.position;
-        transform.rotation = puntoSpawnMesa.rotation;
+
         if (_rb != null)
         {
             _rb.linearVelocity = Vector3.zero;
             _rb.angularVelocity = Vector3.zero;
+            _rb.position = puntoSpawnMesa.position;   
+            _rb.rotation = puntoSpawnMesa.rotation;  
+        }
+        else
+        {
+            transform.position = puntoSpawnMesa.position;
+            transform.rotation = puntoSpawnMesa.rotation;
         }
     }
 
@@ -118,4 +134,6 @@ public class Tijeras : MonoBehaviour
         if (other.TryGetComponent<TalloEnPlantacion>(out var tallo) && tallo == _talloCercano) _talloCercano = null;
         if (other.TryGetComponent<RamoEnProgreso>(out var ramo) && ramo == _ramoCercano) _ramoCercano = null;
     }
+
+    
 }

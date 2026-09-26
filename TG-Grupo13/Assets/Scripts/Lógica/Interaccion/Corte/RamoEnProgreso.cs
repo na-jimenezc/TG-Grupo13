@@ -5,22 +5,42 @@ public class RamoEnProgreso : MonoBehaviour
 {
     public static RamoEnProgreso Instance { get; private set; }
 
-    [SerializeField] private Transform puntoAgrupacion; //PUNTO PARA JUNTAR TALLOS
+    [SerializeField] private Transform puntoAgrupacion;
     [SerializeField] private int tallosParaNivelar = 5;
-    [SerializeField] private GameObject prefabCapuchon; //PREFAB DEL CAPUCHÓN QUE SE PUEDE TOMAR DESPUÉS DE NIVELAR
 
     private readonly List<TalloCortado> _tallos = new List<TalloCortado>();
     public bool Nivelado { get; private set; } = false;
 
-    private void Awake() => Instance = this;
+    private void Awake()
+    {
+        Instance = this;
+    }
+
+    private void Start()
+    {
+        // Se ejecuta en Start (no en Awake) para garantizar que ManoSecundaria,
+        // que vive en Core y se carga antes, ya haya corrido su propio Awake.
+        AnclarseALaMano();
+    }
+
+    private void AnclarseALaMano()
+    {
+        if (ManoSecundaria.Instance == null)
+        {
+            Debug.LogWarning("[RamoEnProgreso] ManoSecundaria.Instance es null — no se pudo anclar a la mano.");
+            return;
+        }
+
+        transform.SetParent(ManoSecundaria.Instance.transform, worldPositionStays: false);
+        transform.localPosition = new Vector3(0f, 0.05f, 0f); //REVISAR SI QUEDÓ EN LA PALMA
+        transform.localRotation = Quaternion.identity;
+    }
 
     public void AgregarTallo(TalloCortado tallo)
     {
-        // Saca el tallo de la mano y lo agrupa en el punto del ramo en progreso
         ManoSecundaria.Instance.Soltar();
         tallo.transform.SetParent(puntoAgrupacion, worldPositionStays: false);
 
-        // Distribución simple en abanico para que se vean como manojo, no superpuestos
         int index = _tallos.Count;
         tallo.transform.localPosition = new Vector3(index * 0.015f, 0, 0);
 
@@ -30,14 +50,10 @@ public class RamoEnProgreso : MonoBehaviour
     public void CortarParejo()
     {
         if (Nivelado) return;
-        if (_tallos.Count < tallosParaNivelar) return; // aún no hay suficientes tallos
+        if (_tallos.Count < tallosParaNivelar) return;
 
         Nivelado = true;
-        //HACER SONIDO
-
-        //SPAWNEAR EL CAPUCHÓN EN EL PUNTO DE AGRUPACIÓN
-        if (prefabCapuchon != null)
-            Instantiate(prefabCapuchon, puntoAgrupacion.position, Quaternion.identity);
+        //HACER EL SONIDO DE NIVELADO
     }
 
     public bool PuedeArmarseConCapuchon => Nivelado;
@@ -47,7 +63,7 @@ public class RamoEnProgreso : MonoBehaviour
     public void Reiniciar()
     {
         foreach (var t in _tallos)
-            if (t != null) Destroy(t.gameObject); // ya se consumieron al armar el ramo terminado
+            if (t != null) Destroy(t.gameObject);
 
         _tallos.Clear();
         Nivelado = false;

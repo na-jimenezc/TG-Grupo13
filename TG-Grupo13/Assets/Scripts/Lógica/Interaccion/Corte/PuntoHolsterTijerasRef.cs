@@ -2,6 +2,7 @@ using UnityEngine;
 
 public class PuntoHolsterTijerasRef : MonoBehaviour
 {
+
     public static Transform Instance { get; private set; }
 
     private void Awake() => Instance = transform;

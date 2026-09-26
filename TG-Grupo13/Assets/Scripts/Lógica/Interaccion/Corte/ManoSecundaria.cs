@@ -18,6 +18,17 @@ public class ManoSecundaria : MonoBehaviour
         objeto.transform.SetParent(puntoAnclaje, worldPositionStays: false);
         objeto.transform.localPosition = Vector3.zero;
         objeto.transform.localRotation = Quaternion.identity;
+
+        Renderer[] renderers = objeto.GetComponentsInChildren<Renderer>();
+        if (renderers.Length > 0)
+        {
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+                bounds.Encapsulate(renderers[i].bounds);
+
+            Vector3 offsetPivotACentro = objeto.transform.position - bounds.center;
+            objeto.transform.position += offsetPivotACentro;
+        }
     }
 
     public void Soltar()
