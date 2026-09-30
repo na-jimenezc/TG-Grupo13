@@ -1310,8 +1310,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HombroAcumulador
   puntoApilado: {fileID: 1736703778}
-  radioDeteccionTransferencia: 0.7
+  radioDeteccionTransferencia: 0.09
   separacionApilado: 0.06
+  direccionApilado: {x: 0, y: 1, z: 0}
+  rotacionLocalRamo: {x: 0, y: 0, z: 0}
+  requerirBotonAlApilar: 1
+  botonMano: 8192
 --- !u!1 &135725153
 GameObject:
   m_ObjectHideFlags: 0
@@ -6141,6 +6145,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 651ec5b124d78cd48a87c11833b60440, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ActividadCardUI
+  tipo: 0
+  boton: {fileID: 0}
+  iconoCheck: {fileID: 0}
+  iconoX: {fileID: 0}
 --- !u!114 &556111661
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8254,6 +8262,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 651ec5b124d78cd48a87c11833b60440, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ActividadCardUI
+  tipo: 0
+  boton: {fileID: 0}
+  iconoCheck: {fileID: 0}
+  iconoX: {fileID: 0}
 --- !u!114 &745782482
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14864,6 +14876,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 651ec5b124d78cd48a87c11833b60440, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ActividadCardUI
+  tipo: 0
+  boton: {fileID: 0}
+  iconoCheck: {fileID: 0}
+  iconoX: {fileID: 0}
 --- !u!114 &1262632404
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -21657,6 +21673,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ManoIzquierdaController
   acumulador: {fileID: 131089218}
+  ramosRequeridos: 5
 --- !u!114 &1954951882
 MonoBehaviour:
   m_ObjectHideFlags: 0

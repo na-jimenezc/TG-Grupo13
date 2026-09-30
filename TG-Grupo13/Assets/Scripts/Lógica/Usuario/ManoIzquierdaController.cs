@@ -3,31 +3,32 @@ using UnityEngine;
 public class ManoIzquierdaController : MonoBehaviour
 {
     [SerializeField] private HombroAcumulador acumulador;
-    private bool _dentroDelBalde = false;
+    [Tooltip("Ramos que deben estar apilados para poder descargar. Debe coincidir con 'Ramos Para Completar' del CorteActivityManager.")]
+    [SerializeField] private int ramosRequeridos = 5;
+
+    private int _zonasBaldeDentro = 0; //Contador: tolera varios colliders / entradas y salidas seguidas
 
     private void Update()
     {
-        if (!_dentroDelBalde || acumulador.CantidadApilada == 0) return;
+        if (_zonasBaldeDentro <= 0 || acumulador == null) return;
+        if (acumulador.CantidadApilada < ramosRequeridos) return;
 
-        bool soltando = OVRInput.GetUp(OVRInput.Button.PrimaryHandTrigger)
-                      || OVRInput.GetUp(OVRInput.Button.SecondaryHandTrigger);
+        if (!acumulador.BotonSoltado) return;
 
-        if (soltando)
-        {
-            acumulador.DepositarTodoEnBalde();
-            CorteActivityManager.Instance.RegistrarRecoleccionFinal();
-        }
+        acumulador.DepositarTodoEnBalde();
+        CorteActivityManager.Instance.RegistrarRecoleccionFinal();
+        _zonasBaldeDentro = 0;
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.TryGetComponent<ZonaDeposito>(out var zona) && !zona.EsZonaDeRamos)
-            _dentroDelBalde = true;
+        var zona = other.GetComponentInParent<ZonaDeposito>();
+        if (zona != null && !zona.EsZonaDeRamos) _zonasBaldeDentro++;
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.TryGetComponent<ZonaDeposito>(out var zona) && !zona.EsZonaDeRamos)
-            _dentroDelBalde = false;
+        var zona = other.GetComponentInParent<ZonaDeposito>();
+        if (zona != null && !zona.EsZonaDeRamos) _zonasBaldeDentro = Mathf.Max(0, _zonasBaldeDentro - 1);
     }
 }
