@@ -49,8 +49,10 @@ public class RamoEnProgreso : MonoBehaviour
     }
 
     //Recibe un nuevo tallo deshojado y lo integra visual y lógicamente al ramo.
-    public void AgregarTallo(TalloCortado tallo)
+    public bool AgregarTallo(TalloCortado tallo)
     {
+        if (_tallos.Count >= tallosParaNivelar) return false;
+
         //Obliga a la mano a "soltar" su único objeto para que pase a formar parte del grupo
         ManoSecundaria.Instance.Soltar();
         tallo.transform.SetParent(puntoAgrupacion, worldPositionStays: false);
@@ -58,10 +60,12 @@ public class RamoEnProgreso : MonoBehaviour
         //Se agrega un desplazamiento en el eje X por cada tallo añadido para simular volumen
         int index = _tallos.Count;
         tallo.transform.localPosition = new Vector3(index * 0.015f, 0, 0);
+        AlineadorPivote.CorregirPivote(tallo.gameObject);
 
         ReproducirSonido(sonidoAgregarTallo);
 
         _tallos.Add(tallo);
+        return true;
     }
 
     //Acción de las tijeras sobre el grupo. Iguala las puntas de todos los tallos.
@@ -73,6 +77,17 @@ public class RamoEnProgreso : MonoBehaviour
 
         Nivelado = true;
         ReproducirSonido(sonidoNivelado);
+
+        //Se alineala altura de todos los tallos para simular el corte parejo
+        foreach (var tallo in _tallos)
+        {
+            if (tallo != null)
+            {
+                Vector3 pos = tallo.transform.localPosition;
+                // Se iguala el eje Y a 0 (o la altura base que prefieras) para emparejarlos
+                tallo.transform.localPosition = new Vector3(pos.x, 0f, pos.z);
+            }
+        }
     }
 
     //Bandera para el ensamble

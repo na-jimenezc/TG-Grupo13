@@ -54,6 +54,10 @@ public class TalloCortado : MonoBehaviour
     //Deshoja el tallo, cambiando el modelo y registrando el evento
     private void Deshojar()
     {
+        if (RamoEnProgreso.Instance == null) return;
+
+        Debug.Log("[TalloCortado] Deshojar() ejecutado.");
+
         _deshojado = true;
         modeloConHojas.SetActive(false);
         modeloDeshojado.SetActive(true);
@@ -62,7 +66,12 @@ public class TalloCortado : MonoBehaviour
             audioSource.PlayOneShot(sonidoDeshoje);
 
         //Transfiere este tallo deshojado al agrupador general y suma al progreso
-        RamoEnProgreso.Instance.AgregarTallo(this);
-        CorteActivityManager.Instance.RegistrarTalloDeshojado();
+        bool agregado = RamoEnProgreso.Instance.AgregarTallo(this);
+        if (!agregado) return;
+
+        if (agregado)
+        {
+            CorteActivityManager.Instance.RegistrarTalloDeshojado();
+        }
     }
 }

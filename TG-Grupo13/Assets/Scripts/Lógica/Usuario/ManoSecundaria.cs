@@ -27,13 +27,7 @@ public class ManoSecundaria : MonoBehaviour
         Renderer[] renderers = objeto.GetComponentsInChildren<Renderer>();
         if (renderers.Length > 0)
         {
-            Bounds bounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++)
-                bounds.Encapsulate(renderers[i].bounds); //Encapsulamiento de mallas para obtener el centro total del objeto
-
-            //Se calcula la diferencia entre el pivote original y el centro real de las mallas
-            Vector3 offsetPivotACentro = objeto.transform.position - bounds.center;
-            objeto.transform.position += offsetPivotACentro;
+            AlineadorPivote.CorregirPivote(objeto); 
         }
     }
 
