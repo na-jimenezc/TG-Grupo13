@@ -6,13 +6,18 @@ public class TalloEnPlantacion : MonoBehaviour
     [SerializeField] private GameObject prefabTalloCortado; //MODELO DEL LIRIO CORTADO
     private bool _cortado = false;
 
+    [Header("Efectos de Sonido")]
+    [SerializeField] private AudioClip sonidoCorte;
+
     //Ejecuta la acción de corte sobre la planta viva.
     public void Cortar()
     {
         if (_cortado) return;
         _cortado = true;
 
-        /*AGREGAR SONIDO DE CORTE*/
+        //Reproduce el sonido de corte en la posición del tallo
+        if (sonidoCorte != null)
+            AudioSource.PlayClipAtPoint(sonidoCorte, transform.position);
 
         var manoSecundaria = ManoSecundaria.Instance;
         if (manoSecundaria != null && !manoSecundaria.TieneAlgoEnMano)

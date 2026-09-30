@@ -152,3 +152,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TalloEnPlantacion
   prefabTalloCortado: {fileID: 4018054787908440531, guid: 8d29f4619bc9a1b43ab71c3a587750a9, type: 3}
+  sonidoCorte: {fileID: 8300000, guid: f65933e13c9c86f4090e0238c7c866b2, type: 3}

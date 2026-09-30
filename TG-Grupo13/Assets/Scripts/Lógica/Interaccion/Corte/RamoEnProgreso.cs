@@ -13,9 +13,17 @@ public class RamoEnProgreso : MonoBehaviour
     private readonly List<TalloCortado> _tallos = new List<TalloCortado>();
     public bool Nivelado { get; private set; } = false;
 
+    //Efectos de Sonido
+    [Header("Efectos de Sonido")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip sonidoAgregarTallo;
+    [SerializeField] private AudioClip sonidoNivelado;
+
     private void Awake()
     {
         Instance = this;
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
     }
 
     private void Start()
@@ -51,6 +59,8 @@ public class RamoEnProgreso : MonoBehaviour
         int index = _tallos.Count;
         tallo.transform.localPosition = new Vector3(index * 0.015f, 0, 0);
 
+        ReproducirSonido(sonidoAgregarTallo);
+
         _tallos.Add(tallo);
     }
 
@@ -62,7 +72,7 @@ public class RamoEnProgreso : MonoBehaviour
         if (_tallos.Count < tallosParaNivelar) return;
 
         Nivelado = true;
-        //HACER EL SONIDO DE NIVELADO
+        ReproducirSonido(sonidoNivelado);
     }
 
     //Bandera para el ensamble
@@ -78,5 +88,12 @@ public class RamoEnProgreso : MonoBehaviour
 
         _tallos.Clear();
         Nivelado = false;
+    }
+
+    //Método privado para reproducir un clip de sonido usando el AudioSource asignado.
+    private void ReproducirSonido(AudioClip clip)
+    {
+        if (audioSource != null && clip != null)
+            audioSource.PlayOneShot(clip);
     }
 }

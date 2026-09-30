@@ -11,11 +11,19 @@ public class TalloCortado : MonoBehaviour
     private bool _manoDentro = false;
     private bool _deshojado = false;
 
+    [Header("Efectos de Sonido")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip sonidoDeshoje;
+
     private void Awake()
     {
         modeloConHojas.SetActive(true);
         modeloDeshojado.SetActive(false);
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
     }
+
 
     //Detecta si la mano dominante con la que se limpia cruza el área requerida
     private void OnTriggerEnter(Collider other)
@@ -49,7 +57,9 @@ public class TalloCortado : MonoBehaviour
         _deshojado = true;
         modeloConHojas.SetActive(false);
         modeloDeshojado.SetActive(true);
-        //HACER EL SONIDO DE DESHOJE
+
+        if (audioSource != null && sonidoDeshoje != null)
+            audioSource.PlayOneShot(sonidoDeshoje);
 
         //Transfiere este tallo deshojado al agrupador general y suma al progreso
         RamoEnProgreso.Instance.AgregarTallo(this);
