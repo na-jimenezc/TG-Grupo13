@@ -15,12 +15,20 @@ public class Canasta : MonoBehaviour
 
     [Header("Dispersión")]
     [SerializeField] private Transform areaEsparcido; //Hacia dónde caen al vaciarse
-    [SerializeField] private float radioEsparcido = 0.6f;
-    [SerializeField] private float anguloInclinacionMinimo = 90f; //Grados necesarios para que caigan
+    [SerializeField] private float radioEsparcido = 0.3f;
+    [SerializeField] private float anguloInclinacionMinimo = 70f; //Grados necesarios para que caigan
 
     [Header("Efectos de Sonido")]
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip sonidoEsparcir;
+
+    [Header("Sensibilidad")]
+    [Tooltip("Manos que deben sostener la canasta a la vez para que pueda vaciarse.")]
+    [SerializeField] private int manosRequeridas = 2;
+    [Tooltip("Segundos que debe mantenerse inclinada para vaciarse (evita picos al agarrarla o al moverla rápido).")]
+    [SerializeField] private float tiempoMinimoInclinada = 0.25f;
+    [Tooltip("Segundos tras agarrar/cambiar de mano durante los que se ignora la inclinación (el agarre puede reorientar la canasta).")]
+    [SerializeField] private float retardoTrasAgarre = 0.5f;
 
     private Vector3 _escalaOriginalBulbo;
 
@@ -31,6 +39,12 @@ public class Canasta : MonoBehaviour
     private readonly List<GameObject> _bulbos = new List<GameObject>(); //Permite saber si el usuario la está manipulando
 
     private Quaternion _rotacionReposo; //Rotación inicial de referencia
+
+    //Eje de la "boca" de la canasta en espacio LOCAL. Se calcula en reposo (boca hacia arriba),
+    //así no depende de la rotación con la que se importó el modelo (-90, 0, -90).
+    private Vector3 _ejeBocaLocal;
+    private float _tiempoInclinada = 0f;
+    private float _tiempoUltimoCambioAgarre = -999f;
 
     private void Awake()
     {
@@ -96,26 +110,51 @@ public class Canasta : MonoBehaviour
     }
 
     //Cuenta cuántas manos están sosteniendo la canasta para evitar que se vacíe mientras se manipula
+    //Cuenta cuántas manos están sosteniendo la canasta para evitar que se vacíe mientras no se manipula
     private void OnPointerEvent(PointerEvent evt)
     {
-        //Lleva un conteo (útil por si se agarra con dos manos o se pasa de una a otra)
-        if (evt.Type == PointerEventType.Select) _manosSosteniendo++;
-        else if (evt.Type == PointerEventType.Unselect)
+        switch (evt.Type)
         {
-            _manosSosteniendo = Mathf.Max(0, _manosSosteniendo - 1);
+            case PointerEventType.Select:
+                _manosSosteniendo++;
+                _tiempoUltimoCambioAgarre = Time.time;
+                _tiempoInclinada = 0f;
+                break;
+
+            case PointerEventType.Unselect:
+            case PointerEventType.Cancel:
+                _manosSosteniendo = Mathf.Max(0, _manosSosteniendo - 1);
+                _tiempoUltimoCambioAgarre = Time.time;
+                _tiempoInclinada = 0f;
+                break;
         }
     }
 
     //Verifica cada frame si la canasta está inclinada lo suficiente para vaciarse y si no está siendo sostenida
+    //Mide la inclinación de la boca respecto a la vertical del MUNDO (ignora giros sobre el eje vertical)
     private void Update()
     {
-        if (_manosSosteniendo == 0 || _esparcido) return;
+        //Solo se puede vaciar si la sostienen las manos requeridas (2) a la vez
+        if (_manosSosteniendo < manosRequeridas || _esparcido) { _tiempoInclinada = 0f; return; }
 
-        float angulo = Quaternion.Angle(transform.rotation, _rotacionReposo);
+        //Justo al agarrar, el SDK puede reorientar la canasta hacia la mano: se ignora ese momento
+        if (Time.time - _tiempoUltimoCambioAgarre < retardoTrasAgarre) { _tiempoInclinada = 0f; return; }
+
+        Vector3 bocaMundo = transform.TransformDirection(_ejeBocaLocal);
+        float angulo = Vector3.Angle(bocaMundo, Vector3.up);
+
         if (angulo >= anguloInclinacionMinimo)
         {
-            _inclinadaLoSuficiente = true;
-            Esparcir();   
+            _tiempoInclinada += Time.deltaTime;
+            if (_tiempoInclinada >= tiempoMinimoInclinada)
+            {
+                Debug.Log($"[Canasta] Esparcir: inclinación {angulo:F0}° sostenida {_tiempoInclinada:F2}s");
+                Esparcir();
+            }
+        }
+        else
+        {
+            _tiempoInclinada = 0f;
         }
     }
 

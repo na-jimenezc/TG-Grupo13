@@ -385,7 +385,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -631.46, y: -11.999939}
+  m_AnchoredPosition: {x: -631.45996, y: -12}
   m_SizeDelta: {x: -1820, y: -977}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &12430691
@@ -1310,12 +1310,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HombroAcumulador
   puntoApilado: {fileID: 1736703778}
-  radioDeteccionTransferencia: 0.09
   separacionApilado: 0.06
   direccionApilado: {x: 0, y: 1, z: 0}
   rotacionLocalRamo: {x: 0, y: 0, z: 0}
-  requerirBotonAlApilar: 1
-  botonMano: 8192
+  botonTrigger: 8192
+  botonGrab: 16384
 --- !u!1 &135725153
 GameObject:
   m_ObjectHideFlags: 0

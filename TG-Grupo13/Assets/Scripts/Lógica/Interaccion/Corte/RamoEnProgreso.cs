@@ -84,8 +84,8 @@ public class RamoEnProgreso : MonoBehaviour
             if (tallo != null)
             {
                 Vector3 pos = tallo.transform.localPosition;
-                // Se iguala el eje Y a 0 (o la altura base que prefieras) para emparejarlos
-                tallo.transform.localPosition = new Vector3(pos.x, 0f, pos.z);
+                //Se iguala el eje Y a 0 (o la altura base que prefieras) para emparejarlos
+                tallo.transform.localPosition = new Vector3(pos.x, 0.5f, pos.z);
             }
         }
     }

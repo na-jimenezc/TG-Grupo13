@@ -8,7 +8,7 @@ public class RamoTerminado : MonoBehaviour
     private Grabbable _grabbable;
     private ZonaDeposito _zonaDebajo;
 
-    private int _agarres = 0;                  //Cuántos interactores lo sostienen ahora mismo
+    private int _agarres = 0;                  //Cuántos interactores lo sostienen ahora mismo (derecha, izquierda o ambas)
     private bool _registradoEnMalla = false;   //Evita que se cuente dos veces
     private bool _apiladoEnHombro = false;     //Marca de transición
 
@@ -23,6 +23,24 @@ public class RamoTerminado : MonoBehaviour
         if (_grabbable != null) _grabbable.WhenPointerEventRaised -= OnPointerEvent;
     }
 
+    private void Update()
+    {
+        //FASE FINAL: mientras el ramo está agarrado (por la mano que sea), si se presiona
+        //trigger + grab izquierdos a la vez, pasa al hombro.
+        if (_agarres <= 0 || _apiladoEnHombro) return;
+
+        var manager = CorteActivityManager.Instance;
+        var hombro = HombroAcumulador.Instance;
+        if (manager == null || hombro == null || !manager.RamosListos) return;
+
+        if (hombro.GestoApilarPresionado)
+        {
+            _apiladoEnHombro = true;
+            Debug.Log($"[RamoTerminado] Apilado en hombro: {name}");
+            hombro.Apilar(gameObject);
+        }
+    }
+
     private void OnPointerEvent(PointerEvent evt)
     {
         switch (evt.Type)
@@ -34,31 +52,12 @@ public class RamoTerminado : MonoBehaviour
             case PointerEventType.Unselect:
             case PointerEventType.Cancel:
                 _agarres = Mathf.Max(0, _agarres - 1);
-                if (_agarres == 0) AlSoltar();
+                if (_agarres == 0) IntentarRegistrarEnMalla();
                 break;
         }
     }
 
-    private void AlSoltar()
-    {
-        if (_apiladoEnHombro) return;
-
-        //FASE FINAL: con todos los ramos listos, se transfieren a la mano izquierda
-        var manager = CorteActivityManager.Instance;
-        if (manager != null && manager.RamosListos
-            && HombroAcumulador.Instance != null
-            && HombroAcumulador.Instance.PuedeRecibir(transform.position))
-        {
-            _apiladoEnHombro = true;
-            HombroAcumulador.Instance.Apilar(gameObject);
-            return;
-        }
-
-        //FASE NORMAL: puede que ya esté sobre la malla...
-        IntentarRegistrarEnMalla();
-    }
-
-    //Se puede llamar desde varios sitios: solo cuenta una vez y solo si NO está agarrado
+    //Solo cuenta una vez y solo si NO está agarrado
     private void IntentarRegistrarEnMalla()
     {
         if (_registradoEnMalla || _apiladoEnHombro || _agarres > 0) return;
@@ -69,6 +68,7 @@ public class RamoTerminado : MonoBehaviour
         CorteActivityManager.Instance.RegistrarRamoCompletado();
     }
 
+    //También se revisa al entrar/permanecer en la zona, por si el ramo llega DESPUÉS de soltarse
     private void OnTriggerEnter(Collider other)
     {
         var zona = other.GetComponentInParent<ZonaDeposito>();

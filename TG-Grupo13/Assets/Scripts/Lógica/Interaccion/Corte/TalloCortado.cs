@@ -17,11 +17,28 @@ public class TalloCortado : MonoBehaviour
 
     private void Awake()
     {
+        ValidarReferencias();
+
         modeloConHojas.SetActive(true);
         modeloDeshojado.SetActive(false);
 
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
+    }
+
+    //Si una referencia apunta a un asset del Project (y no a un hijo de este objeto),
+    //SetActive cambia el asset, no la instancia que ves en la escena.
+    private void ValidarReferencias()
+    {
+        if (modeloConHojas == null || modeloDeshojado == null)
+        {
+            Debug.LogError($"[TalloCortado] '{name}': faltan referencias de modelo.", this);
+            return;
+        }
+        if (!modeloConHojas.transform.IsChildOf(transform))
+            Debug.LogError($"[TalloCortado] '{name}': Modelo Con Hojas NO es hijo de este objeto (¿es un asset del Project?).", this);
+        if (!modeloDeshojado.transform.IsChildOf(transform))
+            Debug.LogError($"[TalloCortado] '{name}': Modelo Deshojado NO es hijo de este objeto (¿es un asset del Project?).", this);
     }
 
 
