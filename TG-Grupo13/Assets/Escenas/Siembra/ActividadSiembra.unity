@@ -12431,12 +12431,13 @@ MonoBehaviour:
   radioInterior: 0.15
   areaEsparcido: {fileID: 926866445}
   radioEsparcido: 0.3
-  anguloInclinacionMinimo: 90
+  anguloInclinacionMinimo: 50
   audioSource: {fileID: 1268529590}
   sonidoEsparcir: {fileID: 8300000, guid: e6c847581ab89a844a32098bdef983a3, type: 3}
   manosRequeridas: 2
   tiempoMinimoInclinada: 0.25
   retardoTrasAgarre: 0.5
+  logDiagnostico: 1
 --- !u!1 &1274205993
 GameObject:
   m_ObjectHideFlags: 0
