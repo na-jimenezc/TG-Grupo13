@@ -6144,6 +6144,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 651ec5b124d78cd48a87c11833b60440, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ActividadCardUI
+  tipo: 0
+  boton: {fileID: 0}
+  iconoCheck: {fileID: 0}
+  iconoX: {fileID: 0}
 --- !u!114 &556111661
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8257,6 +8261,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 651ec5b124d78cd48a87c11833b60440, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ActividadCardUI
+  tipo: 0
+  boton: {fileID: 0}
+  iconoCheck: {fileID: 0}
+  iconoX: {fileID: 0}
 --- !u!114 &745782482
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14867,6 +14875,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 651ec5b124d78cd48a87c11833b60440, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ActividadCardUI
+  tipo: 0
+  boton: {fileID: 0}
+  iconoCheck: {fileID: 0}
+  iconoX: {fileID: 0}
 --- !u!114 &1262632404
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -21661,6 +21673,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ManoIzquierdaController
   acumulador: {fileID: 131089218}
   ramosRequeridos: 5
+  retardoAntesDeAvanzar: 1.5
 --- !u!114 &1954951882
 MonoBehaviour:
   m_ObjectHideFlags: 0
