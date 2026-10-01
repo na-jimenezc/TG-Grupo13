@@ -4,12 +4,12 @@ using UnityEngine;
 public class ManoIzquierdaController : MonoBehaviour
 {
     [SerializeField] private HombroAcumulador acumulador;
-    [Tooltip("Ramos que deben estar apilados para poder descargar. Debe coincidir con 'Ramos Para Completar' del CorteActivityManager.")]
+    [Tooltip("Ramos que deben estar apilados para poder descargar. Coincide con Ramos Para Completar del Manager")]
     [SerializeField] private int ramosRequeridos = 5;
-    [Tooltip("Segundos que se espera, con el balde lleno a la vista, antes de avanzar a la siguiente actividad.")]
+    [Tooltip("Segundos que se espera antes de avanzar a la siguiente actividad")]
     [SerializeField] private float retardoAntesDeAvanzar = 1.5f;
 
-    private int _zonasBaldeDentro = 0; //Contador: tolera varios colliders / entradas y salidas seguidas
+    private int _zonasBaldeDentro = 0; //Contador para controlar entradas y salidas del trigger del balde
     private BaldeContenedor _baldeActual; //Balde en el que está la mano ahora mismo
 
     private void Update()
@@ -17,7 +17,7 @@ public class ManoIzquierdaController : MonoBehaviour
         if (_zonasBaldeDentro <= 0 || acumulador == null) return;
         if (acumulador.CantidadApilada < ramosRequeridos) return;
 
-        //Solo el botón de la mano IZQUIERDA
+        //Solo cuenta soltar el botón de agarre
         if (!acumulador.BotonSoltado) return;
 
         acumulador.DepositarTodoEnBalde();
@@ -30,6 +30,7 @@ public class ManoIzquierdaController : MonoBehaviour
         StartCoroutine(AvanzarTrasRetardo());
     }
 
+    //Manda el mensaje para indicar que se puede pasar a la siguiente actividad o terminar la simulación
     private IEnumerator AvanzarTrasRetardo()
     {
         yield return new WaitForSeconds(retardoAntesDeAvanzar);
@@ -37,6 +38,7 @@ public class ManoIzquierdaController : MonoBehaviour
             CorteActivityManager.Instance.RegistrarRecoleccionFinal();
     }
 
+    //Detecta si la mano entra en el trigger de un balde y si es así, aumenta el contador de zonas dentro y guarda el balde actual
     private void OnTriggerEnter(Collider other)
     {
         var zona = other.GetComponentInParent<ZonaDeposito>();
@@ -47,6 +49,7 @@ public class ManoIzquierdaController : MonoBehaviour
         if (balde != null) _baldeActual = balde;
     }
 
+    //Detecta si la mano sale del trigger de un balde y si es así, disminuye el contador de zonas dentro
     private void OnTriggerExit(Collider other)
     {
         var zona = other.GetComponentInParent<ZonaDeposito>();

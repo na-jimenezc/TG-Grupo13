@@ -23,16 +23,12 @@ public class Canasta : MonoBehaviour
     [SerializeField] private AudioClip sonidoEsparcir;
 
     [Header("Sensibilidad")]
-    [Tooltip("Manos que deben sostener la canasta a la vez para que pueda vaciarse. (Pon 1 para probar solo el ángulo.)")]
+    [Tooltip("Manos para sostener la canasta")]
     [SerializeField] private int manosRequeridas = 2;
-    [Tooltip("Segundos que debe mantenerse inclinada para vaciarse (evita picos al agarrarla o al moverla rápido).")]
+    [Tooltip("Segundos para mantener inclinada la canasta")]
     [SerializeField] private float tiempoMinimoInclinada = 0.25f;
-    [Tooltip("Segundos tras agarrar/cambiar de mano durante los que se ignora la inclinación (el agarre puede reorientar la canasta).")]
+    [Tooltip("Segundos tras agarrar la caasta para no contar la iclinación")]
     [SerializeField] private float retardoTrasAgarre = 0.5f;
-
-    [Header("Diagnóstico")]
-    [Tooltip("Imprime cada 0.5 s (mientras la sostienes) manos, inclinación y estado. Desactívalo al terminar.")]
-    [SerializeField] private bool logDiagnostico = true;
 
     private Vector3 _escalaOriginalBulbo;
 
@@ -41,9 +37,9 @@ public class Canasta : MonoBehaviour
     private int _manosSosteniendo = 0;
     private readonly List<GameObject> _bulbos = new List<GameObject>();
 
-    //Eje de la "boca" de la canasta en espacio LOCAL (el vector que apunta hacia arriba cuando está en reposo).
-    //Se calcula en Awake y se RECALIBRA una sola vez en el primer agarre, por si algún script
-    //(carga de la actividad, spawn) movió o rotó la canasta después de Awake.
+    //Eje de la "boca" de la canasta en espacio local del objeto
+    //Se calcula en Awake y se RECALIBRA una sola vez en el primer agarre para asegurar el 
+    //eje correcto
     private Vector3 _ejeBocaLocal;
     private bool _ejeCalibradoEnAgarre = false;
 
@@ -117,13 +113,13 @@ public class Canasta : MonoBehaviour
         if (bulbo.TryGetComponent<Rigidbody>(out var rb)) rb.isKinematic = false;
     }
 
-    //Cuenta cuántas manos están sosteniendo la canasta (útil si se agarra con dos manos o se pasa de una a otra)
+    //Cuenta cuántas manos están sosteniendo la canasta
     private void OnPointerEvent(PointerEvent evt)
     {
         switch (evt.Type)
         {
             case PointerEventType.Select:
-                //Primer agarre: la canasta aún está en reposo, es el mejor momento para calibrar el eje de la boca
+                //Primer agarre: la canasta aún está en reposo, se calcula el eje de la boca
                 if (!_ejeCalibradoEnAgarre && _manosSosteniendo == 0)
                 {
                     _ejeBocaLocal = transform.InverseTransformDirection(Vector3.up);
@@ -132,7 +128,6 @@ public class Canasta : MonoBehaviour
                 _manosSosteniendo++;
                 _tiempoUltimoCambioAgarre = Time.time;
                 _tiempoInclinada = 0f;
-                if (logDiagnostico) Debug.Log($"[Canasta] Select -> manos={_manosSosteniendo}");
                 break;
 
             case PointerEventType.Unselect:
@@ -140,28 +135,20 @@ public class Canasta : MonoBehaviour
                 _manosSosteniendo = Mathf.Max(0, _manosSosteniendo - 1);
                 _tiempoUltimoCambioAgarre = Time.time;
                 _tiempoInclinada = 0f;
-                if (logDiagnostico) Debug.Log($"[Canasta] {evt.Type} -> manos={_manosSosteniendo}");
                 break;
         }
     }
 
-    //Mide la inclinación de la boca respecto a la vertical del MUNDO (ignora giros sobre el eje vertical)
+    //Mide la inclinación de la boca respecto a la vertical del mundo y, si se mantiene inclinada el tiempo suficiente, vacía la canasta
     private void Update()
     {
         Vector3 bocaMundo = transform.TransformDirection(_ejeBocaLocal);
         float angulo = Vector3.Angle(bocaMundo, Vector3.up);
 
-        if (logDiagnostico && _manosSosteniendo > 0 && Time.time >= _proximoLog)
-        {
-            _proximoLog = Time.time + 0.5f;
-            bool enRetardo = Time.time - _tiempoUltimoCambioAgarre < retardoTrasAgarre;
-            Debug.Log($"[Canasta] manos={_manosSosteniendo}/{manosRequeridas} | inclinación={angulo:F0}° (umbral {anguloInclinacionMinimo:F0}°) | esparcido={_esparcido} | enRetardo={enRetardo} | tiempoInclinada={_tiempoInclinada:F2}s");
-        }
-
         //Solo se puede vaciar si la sostienen las manos requeridas a la vez
         if (_manosSosteniendo < manosRequeridas || _esparcido) { _tiempoInclinada = 0f; return; }
 
-        //Justo al agarrar, el SDK puede reorientar la canasta hacia la mano: se ignora ese momento
+        //Se ignora la orientación del SDK hacia la mano para tener bien el eje a la hora de soltar los bulbos
         if (Time.time - _tiempoUltimoCambioAgarre < retardoTrasAgarre) { _tiempoInclinada = 0f; return; }
 
         if (angulo >= anguloInclinacionMinimo)

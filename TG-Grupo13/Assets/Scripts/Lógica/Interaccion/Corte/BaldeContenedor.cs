@@ -1,17 +1,17 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-/*Se coloca en el balde (en el mismo GameObject que su ZonaDeposito con EsZonaDeRamos = false, o en un padre).
- *Al descargar todos los ramos, muestra el prefab "balde con lirios" en lugar del balde vacío.*/
+/*Se coloca en el balde sirve como contenedor de los ramos que se van a descargar. Cuando la mano deposita todos los ramos, se llama al método MostrarLleno() 
+ * para mostrar el prefab del balde lleno de lirios en vez del balde vacio*/
 public class BaldeContenedor : MonoBehaviour
 {
-    [Tooltip("Prefab del balde ya lleno de lirios (solo visual: sin scripts, Rigidbody ni Grabbable).")]
+    [Tooltip("Prefab del balde ya lleno de lirios.")]
     [SerializeField] private GameObject prefabBaldeLleno;
 
-    [Tooltip("Dónde aparece el prefab. Si se deja vacío, usa la posición y rotación de este objeto.")]
+    [Tooltip("Punto de aparicion del prefab")]
     [SerializeField] private Transform puntoAparicion;
 
-    [Tooltip("Modelo del balde vacío (solo el visual). Se ocultan sus Renderers; el objeto NO se desactiva para no perder el trigger.")]
+    [Tooltip("Modelo del balde vacío")]
     [SerializeField] private GameObject modeloBaldeVacio;
 
     private bool _lleno = false;
@@ -34,7 +34,7 @@ public class BaldeContenedor : MonoBehaviour
         Transform punto = puntoAparicion != null ? puntoAparicion : transform;
         _instancia = Instantiate(prefabBaldeLleno, punto.position, punto.rotation);
 
-        //Instantiate crea el objeto en la escena ACTIVA (que puede ser Core). Se mueve a la escena del balde
+        //Se crea un objeto en la escena activa. Se mueve a la escena del balde
         //para que se descargue junto con la actividad y no quede huérfano en las siguientes.
         SceneManager.MoveGameObjectToScene(_instancia, gameObject.scene);
 
