@@ -12,7 +12,6 @@ public abstract class TutorialManagerBase : MonoBehaviour
     [Header("UI común")]
     [SerializeField] protected TMP_Text textoInstruccion;
     [SerializeField] protected Image[] iconosBotonUI;
-    [SerializeField] protected Button botonSiguiente;
     [SerializeField] protected TMP_Text contadorText;
 
     [Header("Maniquí")]
@@ -20,6 +19,7 @@ public abstract class TutorialManagerBase : MonoBehaviour
 
     protected int _pasoActual = 0;
     private readonly List<GameObject> _posesInstanciadas = new List<GameObject>();
+    private Coroutine _esperaTiempo;
 
     protected virtual void Start() => MostrarPaso(0);
 
@@ -33,10 +33,9 @@ public abstract class TutorialManagerBase : MonoBehaviour
         ActualizarTextoEIconos(paso);
         DesuscribirEventosDePractica(); // cada subclase implementa qué desuscribir
 
-        botonSiguiente.gameObject.SetActive(paso.tipoEspera == TipoEsperaTutorial.Tiempo);
-
+        //Avance manual
         if (paso.tipoEspera == TipoEsperaTutorial.Tiempo)
-            StartCoroutine(HabilitarAvanceTrasEspera(paso.duracionMinima));
+            _esperaTiempo = StartCoroutine(AvanzarTrasEspera(paso.duracionMinima));
         else
             SuscribirEventoDelPaso(paso.tipoEspera); // cada subclase implementa el switch propio
     }
@@ -46,6 +45,13 @@ public abstract class TutorialManagerBase : MonoBehaviour
 
     protected void AvanzarPaso()
     {
+        //Se cancela para que no se petatee por temas de tempo
+        if (_esperaTiempo != null)
+        {
+            StopCoroutine(_esperaTiempo);
+            _esperaTiempo = null;
+        }
+
         DesuscribirEventosDePractica();
         int siguiente = _pasoActual + 1;
         if (siguiente >= pasos.Length) FinalizarTutorial();
@@ -84,14 +90,14 @@ public abstract class TutorialManagerBase : MonoBehaviour
         }
     }
 
-    private IEnumerator HabilitarAvanceTrasEspera(float segundos)
+    // Único caso en que el avance no depende de un objeto real: el paso de Tiempo
+    // avanza solo al cumplirse la espera, sin que el usuario tenga que presionar nada.
+    private IEnumerator AvanzarTrasEspera(float segundos)
     {
-        botonSiguiente.interactable = false;
         yield return new WaitForSeconds(segundos);
-        botonSiguiente.interactable = true;
+        _esperaTiempo = null;
+        AvanzarPaso();
     }
-
-    public void OnSiguientePresionado() => AvanzarPaso();
 
     protected virtual void FinalizarTutorial()
     {

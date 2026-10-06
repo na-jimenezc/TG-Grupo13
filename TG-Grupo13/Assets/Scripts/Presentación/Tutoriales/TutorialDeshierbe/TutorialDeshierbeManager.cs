@@ -1,13 +1,15 @@
 using UnityEngine;
 
-/*Tutorial de la actividad de Deshierbe. Usa las instancias de Bolsa y Ortiga
-// colocadas en la escena de tutorial, suscribiéndose a sus
-// eventos opcionales para avanzar de paso cuando el usuario realiza el gesto real*/
+// Tutorial de la actividad de Deshierbe. Usa las instancias reales de Bolsa y Ortiga
+// colocadas en la escena de tutorial (no las del maniquí/poses), suscribiéndose a sus
+// eventos opcionales para avanzar de paso cuando el usuario realiza el gesto real.
 public class TutorialDeshierbeManager : TutorialManagerBase
 {
     [Header("Objetos reales de práctica (escena de tutorial)")]
     [SerializeField] private Bolsa bolsaPractica;
-    [SerializeField] private Ortiga ortigaPractica;
+
+    [Tooltip("Son varias ortigas repartidas en la escena de tutorial: cualquiera que el usuario agarre/extraiga/deposite dispara el avance de ese paso")]
+    [SerializeField] private Ortiga[] ortigasPractica;
 
     protected override void SuscribirEventoDelPaso(TipoEsperaTutorial tipo)
     {
@@ -18,15 +20,15 @@ public class TutorialDeshierbeManager : TutorialManagerBase
                 break;
 
             case TipoEsperaTutorial.EsperaAgarrarOrtiga:
-                ortigaPractica.OnAgarrada += AvanzarPaso;
+                SuscribirTodasLasOrtigas(o => o.OnAgarrada += AvanzarPaso);
                 break;
 
             case TipoEsperaTutorial.EsperaExtraerOrtiga:
-                ortigaPractica.OnExtraida += AvanzarPaso;
+                SuscribirTodasLasOrtigas(o => o.OnExtraida += AvanzarPaso);
                 break;
 
             case TipoEsperaTutorial.EsperaDepositarOrtiga:
-                ortigaPractica.OnDepositada += AvanzarPaso;
+                SuscribirTodasLasOrtigas(o => o.OnDepositada += AvanzarPaso);
                 break;
 
             default:
@@ -40,11 +42,22 @@ public class TutorialDeshierbeManager : TutorialManagerBase
         if (bolsaPractica != null)
             bolsaPractica.OnAgarrada -= AvanzarPaso;
 
-        if (ortigaPractica != null)
+        SuscribirTodasLasOrtigas(o =>
         {
-            ortigaPractica.OnAgarrada -= AvanzarPaso;
-            ortigaPractica.OnExtraida -= AvanzarPaso;
-            ortigaPractica.OnDepositada -= AvanzarPaso;
+            o.OnAgarrada -= AvanzarPaso;
+            o.OnExtraida -= AvanzarPaso;
+            o.OnDepositada -= AvanzarPaso;
+        });
+    }
+
+    //Aplica la acción dada a cada ortiga viva del arreglo. Varias pueden haberse destruido
+    //(ya fueron depositadas) a lo largo del tutorial, por eso el chequeo de null en cada una.
+    private void SuscribirTodasLasOrtigas(System.Action<Ortiga> accion)
+    {
+        if (ortigasPractica == null) return;
+        foreach (var ortiga in ortigasPractica)
+        {
+            if (ortiga != null) accion(ortiga);
         }
     }
 }

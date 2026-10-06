@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
+  m_Name: 4.DejarOrtiga
+  m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
+  instruccion: 'Suelte la ortiga en la bolsa '
+  prefabsPose:
+  - {fileID: 1596937425818047783, guid: c383fc7976e2b42488b2127baeacdd24, type: 3}
+  - {fileID: 183632143128711186, guid: f1dbb959642cc9f43afb48e68a62fb4d, type: 3}
+  iconosBoton: []
+  tipoEspera: 4
+  duracionMinima: 3
