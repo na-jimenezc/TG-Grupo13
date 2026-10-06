@@ -1,5 +1,6 @@
 using UnityEngine;
 using Oculus.Interaction;
+using System;
 
 /*Simulación de la maleza para la actividad de deshierbe. 
  * Se considera extraída si el usuario la agarra y la aleja de su posición original más de cierta distancia*/
@@ -7,7 +8,7 @@ using Oculus.Interaction;
 [RequireComponent(typeof(Grabbable))]
 public class Ortiga : MonoBehaviour
 {
-    [Tooltip("Distancia mínima en metros que hay que 'tirar' para considerarse extraída")]
+    [Tooltip("Distancia en Metros para Jalar la Ortiga")]
     [SerializeField] private float distanciaExtraccion = 0.08f; //8 cm
 
     private Grabbable _grabbable;
@@ -23,6 +24,11 @@ public class Ortiga : MonoBehaviour
     [Header("Feedback Audio y Efectos")]
     [SerializeField] private AudioClip sonidoExtraccion;
     [SerializeField] private AudioClip sonidoDeposito;
+
+    //EVENTOS ADICIONALES PARA EL TUTORIAL
+    public event Action OnAgarrada;
+    public event Action OnExtraida;
+    public event Action OnDepositada;
 
     private void Awake()
     {
@@ -43,6 +49,7 @@ public class Ortiga : MonoBehaviour
         {
             case PointerEventType.Select:
                 _agarrada = true; //Inicia el rastreo del tirón
+                OnAgarrada?.Invoke(); //Dispara evento para el tutorial
                 break;
 
             case PointerEventType.Unselect:
@@ -56,6 +63,7 @@ public class Ortiga : MonoBehaviour
                     {
                         DeshierbeActivityManager.Instance.RegistrarOrtigaDepositada();
                     }
+                    OnDepositada?.Invoke(); //Dispara evento para el tutorial
                     Destroy(gameObject, 0.1f);
                 }
                 //Caso B: Se soltó sin haber superado la distancia de extracción
@@ -76,6 +84,7 @@ public class Ortiga : MonoBehaviour
             if (distancia >= distanciaExtraccion)
             {
                 _extraida = true;
+                OnExtraida?.Invoke(); //Dispara evento para el tutorial
 
                 //Audio 3D en la posición de la mano
                 if (sonidoExtraccion != null)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Oculus.Interaction;
@@ -45,7 +46,11 @@ public class Canasta : MonoBehaviour
 
     private float _tiempoInclinada = 0f;
     private float _tiempoUltimoCambioAgarre = -999f;
-    private float _proximoLog = 0f;
+
+
+    //EVENTOS DEL TUTORIAL
+    public event Action OnAgarradaDosManos;
+    public event Action OnEsparcida;
 
     private void Awake()
     {
@@ -72,10 +77,10 @@ public class Canasta : MonoBehaviour
         for (int i = 0; i < bulbosDentro; i++)
         {
             //Posicionamiento aleatorio en círculo 2D transformado a espacio 3D interno
-            Vector2 offset = Random.insideUnitCircle * radioInterior;
-            Vector3 posicionMundo = puntoInterior.position + new Vector3(offset.x, Random.Range(0f, 0.05f), offset.y);
+            Vector2 offset = UnityEngine.Random.insideUnitCircle * radioInterior;
+            Vector3 posicionMundo = puntoInterior.position + new Vector3(offset.x, UnityEngine.Random.Range(0f, 0.05f), offset.y);
 
-            GameObject bulbo = Instantiate(prefabBulboFisico, posicionMundo, Random.rotation);
+            GameObject bulbo = Instantiate(prefabBulboFisico, posicionMundo, UnityEngine.Random.rotation);
             bulbo.transform.SetParent(puntoInterior, worldPositionStays: true);
 
             //Apaga físicas e interacción temporalmente
@@ -104,7 +109,7 @@ public class Canasta : MonoBehaviour
     {
         bulbo.transform.SetParent(null, worldPositionStays: true); //Lo saca de la canasta
         bulbo.transform.position = posicionMundo;
-        bulbo.transform.rotation = Random.rotation;
+        bulbo.transform.rotation = UnityEngine.Random.rotation;
         bulbo.transform.localScale = _escalaOriginalBulbo;
 
         foreach (var col in bulbo.GetComponentsInChildren<Collider>()) col.enabled = true;
@@ -128,6 +133,11 @@ public class Canasta : MonoBehaviour
                 _manosSosteniendo++;
                 _tiempoUltimoCambioAgarre = Time.time;
                 _tiempoInclinada = 0f;
+
+                //Evento de sostener la canasta con las manos requeridas para el tutorial
+                if (_manosSosteniendo == manosRequeridas)
+                    OnAgarradaDosManos?.Invoke();
+
                 break;
 
             case PointerEventType.Unselect:
@@ -170,6 +180,7 @@ public class Canasta : MonoBehaviour
     private void Esparcir()
     {
         _esparcido = true;
+        OnEsparcida?.Invoke(); //Dispara el evento del tutorial
 
         Transform destino = areaEsparcido;
         if (destino == null)
@@ -183,7 +194,7 @@ public class Canasta : MonoBehaviour
             if (bulbo == null) continue;
 
             //Calcula una posición aleatoria de caída sobre el área de esparcido
-            Vector2 offset = Random.insideUnitCircle * radioEsparcido;
+            Vector2 offset = UnityEngine.Random.insideUnitCircle * radioEsparcido;
             Vector3 posicion = destino.position + new Vector3(offset.x, 0.3f, offset.y);
             ActivarComoBulboFisico(bulbo, posicion);
         }

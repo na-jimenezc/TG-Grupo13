@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Audio;
+using System;
 
 //Máquina de estados para los espacios del terreno donde se puede sembrar un bulbo. Cada espacio puede estar en uno de los siguientes estados:
 public enum EstadoSlot { Vacio, Cavado, Sembrado }
@@ -21,6 +22,10 @@ public class PlantingSlot : MonoBehaviour
     [SerializeField] private AudioClip sonidoCavar;
     [SerializeField] private AudioClip sonidoSembrar;
 
+    //EVENTOS PARA EL TUTORIAL
+    public event Action OnCavado;
+    public event Action OnSembrado;
+
     private void Start()
     {
         if (audioSource == null)
@@ -36,6 +41,7 @@ public class PlantingSlot : MonoBehaviour
         Estado = EstadoSlot.Cavado;
         ActualizarVisual();
         ReproducirSonido(sonidoCavar);
+        OnCavado?.Invoke(); //Dipara el evento del tutorial
         return true;
     }
 
@@ -47,6 +53,7 @@ public class PlantingSlot : MonoBehaviour
         Estado = EstadoSlot.Sembrado;
         ActualizarVisual();
         ReproducirSonido(sonidoSembrar);
+        OnSembrado?.Invoke(); //Dispara el evento del tutorial
         return true;
     }
 

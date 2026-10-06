@@ -1,0 +1,100 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+public abstract class TutorialManagerBase : MonoBehaviour
+{
+    [Header("Secuencia de pasos")]
+    [SerializeField] protected TutorialStepData[] pasos;
+
+    [Header("UI común")]
+    [SerializeField] protected TMP_Text textoInstruccion;
+    [SerializeField] protected Image[] iconosBotonUI;
+    [SerializeField] protected Button botonSiguiente;
+    [SerializeField] protected TMP_Text contadorText;
+
+    [Header("Maniquí")]
+    [SerializeField] protected Transform[] puntosAparicionMuñeco;
+
+    protected int _pasoActual = 0;
+    private readonly List<GameObject> _posesInstanciadas = new List<GameObject>();
+
+    protected virtual void Start() => MostrarPaso(0);
+
+    protected void MostrarPaso(int index)
+    {
+        _pasoActual = index;
+        var paso = pasos[index];
+
+        LimpiarPosesAnteriores();
+        InstanciarPoses(paso.prefabsPose);
+        ActualizarTextoEIconos(paso);
+        DesuscribirEventosDePractica(); // cada subclase implementa qué desuscribir
+
+        botonSiguiente.gameObject.SetActive(paso.tipoEspera == TipoEsperaTutorial.Tiempo);
+
+        if (paso.tipoEspera == TipoEsperaTutorial.Tiempo)
+            StartCoroutine(HabilitarAvanceTrasEspera(paso.duracionMinima));
+        else
+            SuscribirEventoDelPaso(paso.tipoEspera); // cada subclase implementa el switch propio
+    }
+
+    protected abstract void SuscribirEventoDelPaso(TipoEsperaTutorial tipo);
+    protected abstract void DesuscribirEventosDePractica();
+
+    protected void AvanzarPaso()
+    {
+        DesuscribirEventosDePractica();
+        int siguiente = _pasoActual + 1;
+        if (siguiente >= pasos.Length) FinalizarTutorial();
+        else MostrarPaso(siguiente);
+    }
+
+    protected void ActualizarContador(int actual, int objetivo)
+    {
+        if (contadorText != null) contadorText.text = $"{actual}/{objetivo}";
+    }
+
+    private void InstanciarPoses(GameObject[] prefabs)
+    {
+        if (prefabs == null) return;
+        for (int i = 0; i < prefabs.Length && i < puntosAparicionMuñeco.Length; i++)
+        {
+            if (prefabs[i] == null) continue;
+            _posesInstanciadas.Add(Instantiate(prefabs[i], puntosAparicionMuñeco[i].position, puntosAparicionMuñeco[i].rotation));
+        }
+    }
+
+    private void LimpiarPosesAnteriores()
+    {
+        foreach (var p in _posesInstanciadas) if (p != null) Destroy(p);
+        _posesInstanciadas.Clear();
+    }
+
+    private void ActualizarTextoEIconos(TutorialStepData paso)
+    {
+        textoInstruccion.text = paso.instruccion;
+        for (int i = 0; i < iconosBotonUI.Length; i++)
+        {
+            bool hay = paso.iconosBoton != null && i < paso.iconosBoton.Length;
+            iconosBotonUI[i].gameObject.SetActive(hay);
+            if (hay) iconosBotonUI[i].sprite = paso.iconosBoton[i];
+        }
+    }
+
+    private IEnumerator HabilitarAvanceTrasEspera(float segundos)
+    {
+        botonSiguiente.interactable = false;
+        yield return new WaitForSeconds(segundos);
+        botonSiguiente.interactable = true;
+    }
+
+    public void OnSiguientePresionado() => AvanzarPaso();
+
+    protected virtual void FinalizarTutorial()
+    {
+        GameFlowManager.Instance?.MostrarTutorialActividad(default);
+    }
+}
