@@ -50,10 +50,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 51387359a433efb41bed8cab8ecb51b3, type: 3}
       propertyPath: m_Name
-      value: 3_Pose_ArrancarOrtiga2
+      value: 3A_Pose_ArrancarOrtiga2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 65702495048144492, guid: 51387359a433efb41bed8cab8ecb51b3, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 51387359a433efb41bed8cab8ecb51b3, type: 3}

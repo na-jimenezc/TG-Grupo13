@@ -17,6 +17,10 @@ public abstract class TutorialManagerBase : MonoBehaviour
     [Header("Maniquí")]
     [SerializeField] protected Transform[] puntosAparicionMuñeco;
 
+    [Header("Actividad")]
+    [Tooltip("A qué actividad real pertenece este tutorial (Deshierbe, Siembra, Corte). Se usa para pedirle al GameFlowManager que lance la actividad correcta al terminar.")]
+    [SerializeField] protected ActivityType tipoActividad;
+
     protected int _pasoActual = 0;
     private readonly List<GameObject> _posesInstanciadas = new List<GameObject>();
     private Coroutine _esperaTiempo;
@@ -33,7 +37,8 @@ public abstract class TutorialManagerBase : MonoBehaviour
         ActualizarTextoEIconos(paso);
         DesuscribirEventosDePractica(); // cada subclase implementa qué desuscribir
 
-        //Avance manual
+        // El avance NUNCA es manual: o lo dispara el evento real del objeto de práctica
+        // (SuscribirEventoDelPaso), o -solo para pasos de Tiempo- se dispara solo tras esperar.
         if (paso.tipoEspera == TipoEsperaTutorial.Tiempo)
             _esperaTiempo = StartCoroutine(AvanzarTrasEspera(paso.duracionMinima));
         else
@@ -45,7 +50,8 @@ public abstract class TutorialManagerBase : MonoBehaviour
 
     protected void AvanzarPaso()
     {
-        //Se cancela para que no se petatee por temas de tempo
+        // Si veníamos de un paso de Tiempo que aún no terminaba de esperar, se cancela
+        // para que no dispare un segundo avance más adelante.
         if (_esperaTiempo != null)
         {
             StopCoroutine(_esperaTiempo);
@@ -101,6 +107,9 @@ public abstract class TutorialManagerBase : MonoBehaviour
 
     protected virtual void FinalizarTutorial()
     {
-        GameFlowManager.Instance?.MostrarTutorialActividad(default);
+        if (GameFlowManager.Instance != null)
+        {
+            GameFlowManager.Instance.LanzarActividadDirecta(tipoActividad);
+        }
     }
 }

@@ -1,15 +1,16 @@
 using UnityEngine;
 
-// Tutorial de la actividad de Deshierbe. Usa las instancias reales de Bolsa y Ortiga
-// colocadas en la escena de tutorial (no las del maniquí/poses), suscribiéndose a sus
-// eventos opcionales para avanzar de paso cuando el usuario realiza el gesto real.
 public class TutorialDeshierbeManager : TutorialManagerBase
 {
-    [Header("Objetos reales de práctica (escena de tutorial)")]
+    [Header("Bolsa de práctica")]
     [SerializeField] private Bolsa bolsaPractica;
 
-    [Tooltip("Son varias ortigas repartidas en la escena de tutorial: cualquiera que el usuario agarre/extraiga/deposite dispara el avance de ese paso")]
+    [Tooltip("Ortigas de práctica")]
     [SerializeField] private Ortiga[] ortigasPractica;
+
+    [Header("Configuración de Meta")]
+    [SerializeField] private int metaOrtigasTutorial = 8;
+    private int _ortigasDepositadas = 0;
 
     protected override void SuscribirEventoDelPaso(TipoEsperaTutorial tipo)
     {
@@ -28,12 +29,29 @@ public class TutorialDeshierbeManager : TutorialManagerBase
                 break;
 
             case TipoEsperaTutorial.EsperaDepositarOrtiga:
-                SuscribirTodasLasOrtigas(o => o.OnDepositada += AvanzarPaso);
+                _ortigasDepositadas = 0; // Reinicio de seguridad
+                ActualizarContador(_ortigasDepositadas, metaOrtigasTutorial);
+
+                // Se suscribe a un método intermedio en lugar de avanzar de inmediato
+                SuscribirTodasLasOrtigas(o => o.OnDepositada += ContarOrtigaYAvanzar);
                 break;
 
             default:
-                Debug.LogWarning($"[TutorialDeshierbeManager] TipoEsperaTutorial '{tipo}' no está mapeado a ningún evento de práctica.");
+                Debug.LogWarning($"[TutorialDeshierbeManager] '{tipo}' no está mapeado.");
                 break;
+        }
+    }
+
+    // Intercepta el evento de depósito para contar antes de permitir el avance
+    private void ContarOrtigaYAvanzar()
+    {
+        _ortigasDepositadas++;
+        ActualizarContador(_ortigasDepositadas, metaOrtigasTutorial);
+
+        if (_ortigasDepositadas >= metaOrtigasTutorial)
+        {
+            DesuscribirEventosDePractica();
+            AvanzarPaso();
         }
     }
 
@@ -47,11 +65,10 @@ public class TutorialDeshierbeManager : TutorialManagerBase
             o.OnAgarrada -= AvanzarPaso;
             o.OnExtraida -= AvanzarPaso;
             o.OnDepositada -= AvanzarPaso;
+            o.OnDepositada -= ContarOrtigaYAvanzar; // Obligatorio limpiar la suscripción del contador
         });
     }
 
-    //Aplica la acción dada a cada ortiga viva del arreglo. Varias pueden haberse destruido
-    //(ya fueron depositadas) a lo largo del tutorial, por eso el chequeo de null en cada una.
     private void SuscribirTodasLasOrtigas(System.Action<Ortiga> accion)
     {
         if (ortigasPractica == null) return;
