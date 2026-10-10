@@ -6,20 +6,19 @@ using UnityEngine;
 //para avanzar de paso cuando el usuario realiza el gesto real*/
 public class TutorialSiembraManager : TutorialManagerBase
 {
-    [Header("Objetos reales de práctica (escena de tutorial)")]
+    [Header("Objetos reales de práctica")]
     [SerializeField] private Canasta canastaPractica;
     [SerializeField] private Pala palaPractica;
 
-    [Tooltip("Slots de práctica: cualquiera que el usuario cave dispara el avance de ese paso")]
+    [Tooltip("Slots de práctica")]
     [SerializeField] private PlantingSlot[] slotsPractica;
 
     [Header("Configuración de Meta")]
     [SerializeField] private int metaBulbosTutorial = 5;
     private int _bulbosSembrados = 0;
 
-    //Los bulbos reales no existen antes de Play (la Canasta los crea e instancia en tiempo de
-    //ejecución al vaciarse), así que no se pueden pre-asignar en el Inspector: la Canasta nos
-    //avisa cuáles son justo cuando los activa, vía OnBulbosEsparcidos.
+    //Los bulbos reales no existen antes de Play, la canasta avisa cuales son los objetos Bulbo que contiene al esparcirlos
+    //, y se guardan en esta lista para suscribirse a sus eventos
     private List<Bulbo> _bulbosPractica = new List<Bulbo>();
 
     private void Awake()
@@ -28,19 +27,23 @@ public class TutorialSiembraManager : TutorialManagerBase
             canastaPractica.OnBulbosEsparcidos += RecibirBulbosEsparcidos;
     }
 
+    //Se desuscribe de los eventos de la canasta para evitar fugas de memoria
     private void OnDestroy()
     {
         if (canastaPractica != null)
             canastaPractica.OnBulbosEsparcidos -= RecibirBulbosEsparcidos;
     }
 
+    //Recibe la lista de bulbos esparcidos por la canasta y los guarda para suscribirse a sus eventos
     private void RecibirBulbosEsparcidos(List<Bulbo> bulbos)
     {
         _bulbosPractica = bulbos;
     }
 
+    //Suscribe a los eventos de los objetos de práctica según el tipo de espera del paso actual
     protected override void SuscribirEventoDelPaso(TipoEsperaTutorial tipo)
     {
+        
         switch (tipo)
         {
             case TipoEsperaTutorial.EsperaAgarrarCanastaDosManos:
@@ -67,7 +70,7 @@ public class TutorialSiembraManager : TutorialManagerBase
                 _bulbosSembrados = 0; // Reinicio de seguridad
                 ActualizarContador(_bulbosSembrados, metaBulbosTutorial);
 
-                // Se suscribe a un método intermedio en lugar de avanzar de inmediato
+                //Se suscribe a un método intermedio en lugar de avanzar de inmediato
                 SuscribirTodosLosSlots(s => s.OnSembrado += ContarBulboYAvanzar);
                 break;
 
@@ -77,9 +80,10 @@ public class TutorialSiembraManager : TutorialManagerBase
         }
     }
 
-    // Intercepta el evento de siembra para contar antes de permitir el avance
+    //Intercepta el evento de siembra para contar antes de permitir el avance
     private void ContarBulboYAvanzar()
     {
+        //Se cuenta el bulbo sembrado y se actualiza el contador en pantalla
         _bulbosSembrados++;
         ActualizarContador(_bulbosSembrados, metaBulbosTutorial);
 
@@ -90,6 +94,7 @@ public class TutorialSiembraManager : TutorialManagerBase
         }
     }
 
+    //Desuscribe de todos los eventos de práctica para evitar fugas de memoria y suscripciones duplicadas
     protected override void DesuscribirEventosDePractica()
     {
         if (canastaPractica != null)
@@ -107,10 +112,11 @@ public class TutorialSiembraManager : TutorialManagerBase
         {
             s.OnCavado -= AvanzarPaso;
             s.OnSembrado -= AvanzarPaso;
-            s.OnSembrado -= ContarBulboYAvanzar; // Obligatorio limpiar la suscripción del contador
+            s.OnSembrado -= ContarBulboYAvanzar; 
         });
     }
 
+    //Métodos auxiliares para suscribirse a todos los bulbos o slots de práctica, evitando null reference exceptions
     private void SuscribirTodosLosBulbos(System.Action<Bulbo> accion)
     {
         if (_bulbosPractica == null) return;
@@ -119,7 +125,6 @@ public class TutorialSiembraManager : TutorialManagerBase
             if (bulbo != null) accion(bulbo);
         }
     }
-
     private void SuscribirTodosLosSlots(System.Action<PlantingSlot> accion)
     {
         if (slotsPractica == null) return;
