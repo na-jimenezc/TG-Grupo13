@@ -13,6 +13,9 @@ public class TutorialStepData : ScriptableObject
     [Tooltip("Íconos de Interacción")]
     public Sprite[] iconosBoton;
 
+    [Tooltip("Modelos 3D de mano + control (prefabs con IlustracionControl3D) que muestran qué botón usar")]
+    public GameObject[] prefabsControles;
+
     [Tooltip("Condición para Avanzar")]
     public TipoEsperaTutorial tipoEspera;
 

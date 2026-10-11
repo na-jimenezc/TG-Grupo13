@@ -17,6 +17,10 @@ public abstract class TutorialManagerBase : MonoBehaviour
     [Header("Maniquí")]
     [SerializeField] protected Transform[] puntosAparicionMuñeco;
 
+    [Header("Controles 3D")]
+    [Tooltip("Puntos (junto al panel de instrucciones) donde aparecen los modelos 3D de mano + control de cada paso")]
+    [SerializeField] protected Transform[] puntosControles;
+
     [Header("Actividad")]
     [Tooltip("A qué actividad real pertenece este tutorial (Deshierbe, Siembra, Corte). Se usa para pedirle al GameFlowManager que lance la actividad correcta al terminar.")]
     [SerializeField] protected ActivityType tipoActividad;
@@ -34,6 +38,7 @@ public abstract class TutorialManagerBase : MonoBehaviour
 
         LimpiarPosesAnteriores();
         InstanciarPoses(paso.prefabsPose);
+        InstanciarControles(paso.prefabsControles);
         ActualizarTextoEIconos(paso);
         DesuscribirEventosDePractica(); // cada subclase implementa qué desuscribir
 
@@ -76,6 +81,17 @@ public abstract class TutorialManagerBase : MonoBehaviour
         {
             if (prefabs[i] == null) continue;
             _posesInstanciadas.Add(Instantiate(prefabs[i], puntosAparicionMuñeco[i].position, puntosAparicionMuñeco[i].rotation));
+        }
+    }
+
+    // Los controles se crean como hijos del punto para que hereden su escala y sigan al panel si este se mueve
+    private void InstanciarControles(GameObject[] prefabs)
+    {
+        if (prefabs == null || puntosControles == null) return;
+        for (int i = 0; i < prefabs.Length && i < puntosControles.Length; i++)
+        {
+            if (prefabs[i] == null) continue;
+            _posesInstanciadas.Add(Instantiate(prefabs[i], puntosControles[i], false));
         }
     }
 
