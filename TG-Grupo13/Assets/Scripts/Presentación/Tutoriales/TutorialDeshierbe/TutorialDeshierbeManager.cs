@@ -1,5 +1,7 @@
 using UnityEngine;
 
+/*Tutorial de la actividad de Deshierbe. Usa las instancias reales de Bolsa y Ortiga y capta sus eventos para
+ asegurar de que se esté avanzando*/
 public class TutorialDeshierbeManager : TutorialManagerBase
 {
     [Header("Bolsa de práctica")]
@@ -12,8 +14,10 @@ public class TutorialDeshierbeManager : TutorialManagerBase
     [SerializeField] private int metaOrtigasTutorial = 8;
     private int _ortigasDepositadas = 0;
 
+    /* Suscribe a los eventos de los objetos de práctica según el tipo de espera del paso actual*/
     protected override void SuscribirEventoDelPaso(TipoEsperaTutorial tipo)
     {
+        //Se recibe le tipo de evento y se avanza al siguiente paso cuando se cumple la condición de ese evento
         switch (tipo)
         {
             case TipoEsperaTutorial.EsperaAgarrarBolsa:
@@ -29,10 +33,10 @@ public class TutorialDeshierbeManager : TutorialManagerBase
                 break;
 
             case TipoEsperaTutorial.EsperaDepositarOrtiga:
-                _ortigasDepositadas = 0; // Reinicio de seguridad
+                _ortigasDepositadas = 0; //Reinicio de seguridad
                 ActualizarContador(_ortigasDepositadas, metaOrtigasTutorial);
 
-                // Se suscribe a un método intermedio en lugar de avanzar de inmediato
+                //Se suscribe a un método intermedio en lugar de avanzar de inmediato
                 SuscribirTodasLasOrtigas(o => o.OnDepositada += ContarOrtigaYAvanzar);
                 break;
 
@@ -42,7 +46,7 @@ public class TutorialDeshierbeManager : TutorialManagerBase
         }
     }
 
-    // Intercepta el evento de depósito para contar antes de permitir el avance
+    //Intercepta el evento de depósito para contar antes de permitir el avance
     private void ContarOrtigaYAvanzar()
     {
         _ortigasDepositadas++;
@@ -55,6 +59,7 @@ public class TutorialDeshierbeManager : TutorialManagerBase
         }
     }
 
+    //Desuscribe a todos los eventos de los objetos de práctica para evitar que se avance de manera incorrecta
     protected override void DesuscribirEventosDePractica()
     {
         if (bolsaPractica != null)
@@ -65,10 +70,11 @@ public class TutorialDeshierbeManager : TutorialManagerBase
             o.OnAgarrada -= AvanzarPaso;
             o.OnExtraida -= AvanzarPaso;
             o.OnDepositada -= AvanzarPaso;
-            o.OnDepositada -= ContarOrtigaYAvanzar; // Obligatorio limpiar la suscripción del contador
+            o.OnDepositada -= ContarOrtigaYAvanzar; //Se limpia la sección del contador
         });
     }
 
+    //Suscribe a todos los eventos de las ortigas de práctica para el evento
     private void SuscribirTodasLasOrtigas(System.Action<Ortiga> accion)
     {
         if (ortigasPractica == null) return;

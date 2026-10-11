@@ -5,20 +5,20 @@ using UnityEngine;
 
 /*Apila los ramos terminados en la mano/hombro izquierdo durante la fase de recolección final.
  *El apilado se dispara con el gesto: trigger + grab de la mano izquierda presionados a la vez,
- *mientras el ramo está agarrado. NO depende de la distancia al PuntoApilado.*/
+ *mientras el ramo está agarrado.*/
 public class HombroAcumulador : MonoBehaviour
 {
     public static HombroAcumulador Instance { get; private set; }
 
-    [Tooltip("Punto en la mano izquierda (o zona del hombro) donde se apilan los ramos")]
+    [Tooltip("Punto cerca del hombro")]
     [SerializeField] private Transform puntoApilado;
     [SerializeField] private float separacionApilado = 0.06f;
-    [Tooltip("Eje LOCAL de PuntoApilado en el que crece la pila")]
+    [Tooltip("Eje local de la pila")]
     [SerializeField] private Vector3 direccionApilado = Vector3.up;
-    [Tooltip("Rotación LOCAL que se le da a cada ramo al apilarlo")]
+    [Tooltip("Rotación local del ramo")]
     [SerializeField] private Vector3 rotacionLocalRamo = Vector3.zero;
 
-    [Header("Input de la mano izquierda (solo controles)")]
+    [Header("Input de la mano izquierda")]
     [SerializeField] private OVRInput.Button botonTrigger = OVRInput.Button.PrimaryIndexTrigger;
     [SerializeField] private OVRInput.Button botonGrab = OVRInput.Button.PrimaryHandTrigger;
 
@@ -45,12 +45,13 @@ public class HombroAcumulador : MonoBehaviour
         StartCoroutine(ApilarRoutine(ramo, index));
     }
 
+    //Coroutine que apila un ramo en el hombro, desactivando sus componentes interactivos y ajustando su posición y rotación.
     private IEnumerator ApilarRoutine(GameObject ramo, int index)
     {
         if (ramo == null) yield break;
 
-        //FASE 1: apagar los interactables y el PhysicsGrabbable.
-        //Al deshabilitar el interactable, el interactor que lo sostiene lo suelta solo.
+        //Se apagan los interactables y el PhysicsGrabbable.
+        //Y cuando se desactiva el PhysicsGrabbable, el SDK de Oculus libera el objeto automáticamente.
         foreach (var mb in ramo.GetComponentsInChildren<MonoBehaviour>())
             if (mb != null && (mb is IInteractableView || mb.GetType().Name == "PhysicsGrabbable")) mb.enabled = false;
 
@@ -58,7 +59,7 @@ public class HombroAcumulador : MonoBehaviour
         yield return null;
         if (ramo == null) yield break;
 
-        //FASE 2: dejar el ramo inerte y parentarlo a la pila
+        //Se parenta el tallo a la pila y se ajusta su posición y rotación
         if (ramo.TryGetComponent<Grabbable>(out var g)) g.enabled = false;
         foreach (var col in ramo.GetComponentsInChildren<Collider>()) col.enabled = false;
 
@@ -69,6 +70,7 @@ public class HombroAcumulador : MonoBehaviour
             rb.detectCollisions = false;
         }
 
+        //Se ajusta la posición y rotación del ramo en la pila
         ramo.transform.SetParent(puntoApilado, worldPositionStays: false);
         ramo.transform.localPosition = direccionApilado.normalized * (index * separacionApilado);
         ramo.transform.localRotation = Quaternion.Euler(rotacionLocalRamo);
