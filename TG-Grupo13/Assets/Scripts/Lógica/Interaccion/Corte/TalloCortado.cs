@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 /*Tallo individual que ha sido cortado de la planta*/
 public class TalloCortado : MonoBehaviour
@@ -14,6 +15,9 @@ public class TalloCortado : MonoBehaviour
     [Header("Efectos de Sonido")]
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip sonidoDeshoje;
+
+    //EVENTO DEL TUTORIAL (estático porque los tallos cortados se instancian en runtime)
+    public static event Action OnDeshojado;
 
     private void Awake()
     {
@@ -88,7 +92,8 @@ public class TalloCortado : MonoBehaviour
 
         if (agregado)
         {
-            CorteActivityManager.Instance.RegistrarTalloDeshojado();
+            CorteActivityManager.Instance?.RegistrarTalloDeshojado();
+            OnDeshojado?.Invoke();
         }
     }
 }

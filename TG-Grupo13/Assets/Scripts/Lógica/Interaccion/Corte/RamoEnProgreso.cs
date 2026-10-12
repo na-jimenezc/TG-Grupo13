@@ -13,6 +13,9 @@ public class RamoEnProgreso : MonoBehaviour
     private readonly List<TalloCortado> _tallos = new List<TalloCortado>();
     public bool Nivelado { get; private set; } = false;
 
+    //EVENTO DEL TUTORIAL
+    public static event System.Action OnNivelado;
+
     //Efectos de Sonido
     [Header("Efectos de Sonido")]
     [SerializeField] private AudioSource audioSource;
@@ -77,6 +80,7 @@ public class RamoEnProgreso : MonoBehaviour
 
         Nivelado = true;
         ReproducirSonido(sonidoNivelado);
+        OnNivelado?.Invoke();
 
         //Se alineala altura de todos los tallos para simular el corte parejo
         foreach (var tallo in _tallos)
