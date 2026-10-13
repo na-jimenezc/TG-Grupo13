@@ -18,5 +18,8 @@ MonoBehaviour:
   - {fileID: 8443679071877133646, guid: 949710af05bae914abf674a76db6f660, type: 3}
   - {fileID: 2818824082775634130, guid: c48972bd45bded94898dd33abfa16f2a, type: 3}
   iconosBoton: []
-  tipoEspera: 8
+  prefabsControles:
+  - {fileID: 0}
+  - {fileID: 5793085248461324291, guid: 6d9a869ea9374a4cb562ac707cf13534, type: 3}
+  tipoEspera: 9
   duracionMinima: 3

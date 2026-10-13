@@ -16,5 +16,8 @@ MonoBehaviour:
   prefabsPose:
   - {fileID: 6739220786809118554, guid: da897e977499ce348a2892350412235b, type: 3}
   iconosBoton: []
+  prefabsControles:
+  - {fileID: 8870704538745274071, guid: 4d19ba27094bb5a4f95ca8b3fa73e367, type: 3}
+  - {fileID: 3659042415290804284, guid: 36e677badbd72674981a5ad012008a01, type: 3}
   tipoEspera: 5
   duracionMinima: 3
