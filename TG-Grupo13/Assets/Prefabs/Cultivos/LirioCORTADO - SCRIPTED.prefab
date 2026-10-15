@@ -546,6 +546,18 @@ PrefabInstance:
       value: Lirio3C-DESHOJADO-FINAL-PRUEBA-PREF
       objectReference: {fileID: 0}
     - target: {fileID: 6433638865178739665, guid: 32f2456b697fcd245a5a561621565db7, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.67
+      objectReference: {fileID: 0}
+    - target: {fileID: 6433638865178739665, guid: 32f2456b697fcd245a5a561621565db7, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 3.33
+      objectReference: {fileID: 0}
+    - target: {fileID: 6433638865178739665, guid: 32f2456b697fcd245a5a561621565db7, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.67
+      objectReference: {fileID: 0}
+    - target: {fileID: 6433638865178739665, guid: 32f2456b697fcd245a5a561621565db7, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
