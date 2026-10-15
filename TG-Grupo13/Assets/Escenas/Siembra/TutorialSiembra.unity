@@ -1925,7 +1925,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 0.05}
+  m_Size: {x: 1, y: 1, z: 0.1}
   m_Center: {x: 0, y: 1, z: -0.5}
 --- !u!1 &240468552
 GameObject:
@@ -4764,7 +4764,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 0.05}
+  m_Size: {x: 1, y: 1, z: 0.1}
   m_Center: {x: 0, y: 1, z: -0.5}
 --- !u!1 &647621093
 GameObject:
@@ -6625,7 +6625,7 @@ MonoBehaviour:
   puntoInterior: {fileID: 1137950781}
   radioInterior: 0.15
   areaEsparcido: {fileID: 1259379892}
-  radioEsparcido: 0.3
+  radioEsparcido: 0.1
   anguloInclinacionMinimo: 50
   audioSource: {fileID: 870693179}
   sonidoEsparcir: {fileID: 8300000, guid: e6c847581ab89a844a32098bdef983a3, type: 3}
@@ -11067,7 +11067,7 @@ BoxCollider:
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 0.1, y: 1, z: 1.1}
-  m_Center: {x: 0.2, y: 1, z: 0}
+  m_Center: {x: 0.1, y: 1, z: 0}
 --- !u!1 &1405815986
 GameObject:
   m_ObjectHideFlags: 0
@@ -19259,7 +19259,7 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: 92017b60f5fb14f459124a0022ba8d07, type: 2}
     - target: {fileID: 919132149155446097, guid: 40397901edd790c4fbc85422cb515533, type: 3}
       propertyPath: m_Name
-      value: malla (1)
+      value: MallaConSpot
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
