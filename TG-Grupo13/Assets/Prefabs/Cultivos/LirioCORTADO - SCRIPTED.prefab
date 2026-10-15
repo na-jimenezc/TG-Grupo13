@@ -545,6 +545,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Lirio3C-DESHOJADO-FINAL-PRUEBA-PREF
       objectReference: {fileID: 0}
+    - target: {fileID: 5909620851561470315, guid: 32f2456b697fcd245a5a561621565db7, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6433638865178739665, guid: 32f2456b697fcd245a5a561621565db7, type: 3}
       propertyPath: m_LocalScale.x
       value: 1

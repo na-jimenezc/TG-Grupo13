@@ -97,13 +97,17 @@ public abstract class TutorialManagerBase : MonoBehaviour
         if (contadorText != null) contadorText.text = $"{actual}/{objetivo}";
     }
 
+    // El maniquí hereda la escala del punto de aparición, para igualarlo a escenas cuyo entorno está escalado
     private void InstanciarPoses(GameObject[] prefabs)
     {
         if (prefabs == null) return;
         for (int i = 0; i < prefabs.Length && i < puntosAparicionMuñeco.Length; i++)
         {
             if (prefabs[i] == null) continue;
-            _posesInstanciadas.Add(Instantiate(prefabs[i], puntosAparicionMuñeco[i].position, puntosAparicionMuñeco[i].rotation));
+            var punto = puntosAparicionMuñeco[i];
+            var pose = Instantiate(prefabs[i], punto.position, punto.rotation);
+            pose.transform.localScale = Vector3.Scale(prefabs[i].transform.localScale, punto.lossyScale);
+            _posesInstanciadas.Add(pose);
         }
     }
 
