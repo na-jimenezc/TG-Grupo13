@@ -15,7 +15,11 @@ public class IniciarSesionUI : MonoBehaviour
     private void OnEnable()
     {
         if (nombreInput != null) nombreInput.text = "";
-        if (mensajeError != null) mensajeError.text = "";
+        if (mensajeError != null)
+        {
+            mensajeError.text = "";
+            mensajeError.color = Color.red;
+        }
     }
 
     //Evento de Unity que se llama al presionar el botón de ingresar
@@ -24,6 +28,7 @@ public class IniciarSesionUI : MonoBehaviour
         string nombre = nombreInput.text.Trim();
 
         //Control de errores: si el campo está vacío, se muestra un mensaje de error
+        mensajeError.color = Color.red;
         if (string.IsNullOrWhiteSpace(nombre))
         {
             mensajeError.text = "Ingresa un nombre de usuario.";
