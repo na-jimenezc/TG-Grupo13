@@ -60,6 +60,9 @@ public class GameFlowManager : MonoBehaviour
     private ActivityType? _actividadActual;
     private string _escenaContenidoActual;
 
+    //Bandera para evitar que se ejecute la rutina de salida dos veces al mismo tiempo.
+    private bool _saliendo = false;
+
     //Actividad de la cola que está siendo mostrada actualmente (Siembra, Deshierbe o Corte), null si no hay ninguna en curso.
     public ActivityType? ActividadActual => _actividadActual;
 
@@ -118,6 +121,9 @@ public class GameFlowManager : MonoBehaviour
     //Rutina de selección de actividades
     private IEnumerator RutinaIrASeleccionActividades()
     {
+        //Si el Game Master inicia otra sesión mientras el visor aún muestra la despedida, se espera a que termine.
+        while (_saliendo) yield return null;
+
         yield return CargarEscenaAditiva(escenaSeleccionActividadesNombre);
         yield return DescargarEscenaSiEstaCargada(escenaEsperaNombre);
     }
@@ -279,22 +285,34 @@ public class GameFlowManager : MonoBehaviour
     //Llamado al finalizar la consulta de resultados, para despedir al usuario y reiniciar el estado de la simulación.
     public void SalirDeSimulacion()
     {
+        //Evita que un segundo clic (desde el visor o desde el panel del Game Master) lance otra salida en paralelo.
+        if (_saliendo) return;
+        _saliendo = true;
         StartCoroutine(RutinaSalirDeSimulacion());
     }
 
     private IEnumerator RutinaSalirDeSimulacion()
     {
         yield return CargarEscenaAditiva(escenaSalirNombre);
+
+        //Se vuelve a cargar el entorno de la Pantalla de Espera ANTES de descargar Resultados, para que el visor
+        //nunca quede en una escena vacía (sin suelo ni paredes de referencia), lo que desorienta y marea al usuario.
+        //Se carga de último para que quede como escena activa y no cambie la iluminación al descargar las demás.
+        yield return CargarEscenaAditiva(escenaEsperaNombre);
         yield return DescargarEscenaSiEstaCargada(escenaResultadosNombre);
 
-        //Deja la pantalla de despedida visible unos segundos antes de resetear la sesión.
-        yield return new WaitForSeconds(duracionPantallaSalida);
-
-        yield return DescargarEscenaSiEstaCargada(escenaSalirNombre);
+        //La sesión se cierra y el Game Master vuelve al inicio de una vez, sin esperar la despedida del visor;
+        //antes el panel de Resultados se quedaba congelado esos segundos y parecía que el botón no hacía nada.
         CerrarSesion();
 
         if (gameMasterUI != null)
             gameMasterUI.MostrarInicio();
+
+        //Deja la pantalla de despedida visible unos segundos en el visor antes de quitarla.
+        yield return new WaitForSeconds(duracionPantallaSalida);
+
+        yield return DescargarEscenaSiEstaCargada(escenaSalirNombre);
+        _saliendo = false;
     }
 
     //Descarga la escena si está cargada, evitando errores al intentar descargar una escena que no está activa.
@@ -335,6 +353,13 @@ public class GameFlowManager : MonoBehaviour
     {
         usuarioActivo = null;
         simulacionEnCurso = false;
+
+        //Se limpia el estado de la secuencia anterior para que la siguiente sesión empiece desde cero.
+        _colaActividades.Clear();
+        _secuenciaEnProceso = false;
+        _actividadActual = null;
+        _escenaActividadActual = null;
+        _escenaContenidoActual = null;
 
         if (waitScreenCanvas != null)
             waitScreenCanvas.SetActive(true);

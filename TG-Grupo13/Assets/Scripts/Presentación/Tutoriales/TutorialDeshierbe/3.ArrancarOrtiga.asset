@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
+  m_Name: 3.ArrancarOrtiga
+  m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
+  instruccion: "Arranque la ortiga sosteni\xE9ndola hac\xEDa usted "
+  prefabsPose:
+  - {fileID: 2050844917343466522, guid: db419408aee56c8499bb4381cb8eb73d, type: 3}
+  - {fileID: 67399335227428872, guid: 9d7edd2468ebda747a7483f3cf6b40cf, type: 3}
+  - {fileID: 7019555023690062546, guid: bbfca8c0d858ea24286cf3b4c67f7ec4, type: 3}
+  - {fileID: 2282536543026352153, guid: 1c1e9a2370305e54d9b83625883514e7, type: 3}
+  iconosBoton: []
+  prefabsControles:
+  - {fileID: 0}
+  - {fileID: 3659042415290804284, guid: 36e677badbd72674981a5ad012008a01, type: 3}
+  tipoEspera: 3
+  duracionMinima: 3

@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
+  m_Name: 4.TomarBulbo
+  m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
+  instruccion: Tome el bulbo con la otra mano
+  prefabsPose:
+  - {fileID: 5914580939978331540, guid: 1eefc76ff56c0f14ba2c3438687a8b95, type: 3}
+  - {fileID: 5018787687828457486, guid: d1163d763335c484cabe7ecc609bd4ba, type: 3}
+  iconosBoton: []
+  prefabsControles:
+  - {fileID: 8870704538745274071, guid: 4d19ba27094bb5a4f95ca8b3fa73e367, type: 3}
+  tipoEspera: 8
+  duracionMinima: 3

@@ -1,29 +1,39 @@
 using UnityEngine;
 using Oculus.Interaction;
+using System;
+
+/*Simulación de la maleza para la actividad de deshierbe. 
+ * Se considera extraída si el usuario la agarra y la aleja de su posición original más de cierta distancia*/
 
 [RequireComponent(typeof(Grabbable))]
 public class Ortiga : MonoBehaviour
 {
-    [Tooltip("Distancia mínima en metros que hay que 'tirar' para considerarse extraída")]
-    [SerializeField] private float distanciaExtraccion = 0.08f;
+    [Tooltip("Distancia en Metros para Jalar la Ortiga")]
+    [SerializeField] private float distanciaExtraccion = 0.08f; //8 cm
 
     private Grabbable _grabbable;
-    private Vector3 _posicionOriginal;
+    private Vector3 _posicionOriginal; //Centro de la raíz en la tierra
     private bool _agarrada = false;
-    private bool _extraida = false;
+    private bool _extraida = false; //Indica si ya fue separada del suelo
     private bool _dentroDeBolsa = false;
     private bool _depositada = false;
 
+    //Exposición de propiedades para otros scripts
     public bool EstaExtraida => _extraida;
 
     [Header("Feedback Audio y Efectos")]
     [SerializeField] private AudioClip sonidoExtraccion;
     [SerializeField] private AudioClip sonidoDeposito;
 
+    //EVENTOS ADICIONALES PARA EL TUTORIAL
+    public event Action OnAgarrada;
+    public event Action OnExtraida;
+    public event Action OnDepositada;
+
     private void Awake()
     {
         _grabbable = GetComponent<Grabbable>();
-        _posicionOriginal = transform.position;
+        _posicionOriginal = transform.position; //Guarda su anclaje en tierra
         _grabbable.WhenPointerEventRaised += OnPointerEvent;
     }
 
@@ -32,12 +42,14 @@ public class Ortiga : MonoBehaviour
         _grabbable.WhenPointerEventRaised -= OnPointerEvent;
     }
 
+    //Detecta si el usuario agarra o suelta la maleza
     private void OnPointerEvent(PointerEvent evt)
     {
         switch (evt.Type)
         {
             case PointerEventType.Select:
-                _agarrada = true;
+                _agarrada = true; //Inicia el rastreo del tirón
+                OnAgarrada?.Invoke(); //Dispara evento para el tutorial
                 break;
 
             case PointerEventType.Unselect:
@@ -51,6 +63,7 @@ public class Ortiga : MonoBehaviour
                     {
                         DeshierbeActivityManager.Instance.RegistrarOrtigaDepositada();
                     }
+                    OnDepositada?.Invoke(); //Dispara evento para el tutorial
                     Destroy(gameObject, 0.1f);
                 }
                 //Caso B: Se soltó sin haber superado la distancia de extracción
@@ -62,6 +75,7 @@ public class Ortiga : MonoBehaviour
         }
     }
 
+    //Verifica si la maleza fue extraída de la tierra
     private void Update()
     {
         if (_agarrada && !_extraida)
@@ -70,6 +84,7 @@ public class Ortiga : MonoBehaviour
             if (distancia >= distanciaExtraccion)
             {
                 _extraida = true;
+                OnExtraida?.Invoke(); //Dispara evento para el tutorial
 
                 //Audio 3D en la posición de la mano
                 if (sonidoExtraccion != null)

@@ -1,13 +1,19 @@
 using UnityEngine;
 using Oculus.Interaction;
 
+/*El producto empaquetado y final de un conjunto de flores niveladas.*/
 [RequireComponent(typeof(Grabbable))]
 public class RamoTerminado : MonoBehaviour
 {
     private Grabbable _grabbable;
     private ZonaDeposito _zonaDebajo;
-    private bool _registradoEnMalla = false;
-    private bool _apiladoEnHombro = false;
+
+    private int _agarres = 0;                  //Cuántos interactores lo sostienen ahora mismo (derecha, izquierda o ambas)
+    private bool _registradoEnMalla = false;   //Evita que se cuente dos veces
+    private bool _apiladoEnHombro = false;     //Marca de transición
+
+    //EVENTO DEL TUTORIAL (estático porque los ramos se instancian en runtime)
+    public static event System.Action OnDepositadoEnMalla;
 
     private void Awake()
     {
@@ -15,37 +21,76 @@ public class RamoTerminado : MonoBehaviour
         _grabbable.WhenPointerEventRaised += OnPointerEvent;
     }
 
-    private void OnDestroy() => _grabbable.WhenPointerEventRaised -= OnPointerEvent;
-
-    private void OnPointerEvent(PointerEvent evt)
+    private void OnDestroy()
     {
-        if (evt.Type != PointerEventType.Unselect || _apiladoEnHombro) return;
+        if (_grabbable != null) _grabbable.WhenPointerEventRaised -= OnPointerEvent;
+    }
 
-        // Fase de recolección: ya se completaron los ramos y este se suelta cerca de la mano izquierda
-        if (CorteActivityManager.Instance.RamosListos
-            && HombroAcumulador.Instance != null
-            && HombroAcumulador.Instance.PuedeRecibir(transform.position))
+    private void Update()
+    {
+        //FASE FINAL: mientras el ramo está agarrado (por la mano que sea), si se presiona
+        //trigger + grab izquierdos a la vez, pasa al hombro.
+        if (_agarres <= 0 || _apiladoEnHombro) return;
+
+        var manager = CorteActivityManager.Instance;
+        var hombro = HombroAcumulador.Instance;
+        if (manager == null || hombro == null || !manager.RamosListos) return;
+
+        if (hombro.GestoApilarPresionado)
         {
             _apiladoEnHombro = true;
-            HombroAcumulador.Instance.Apilar(gameObject);
-            return;
-        }
-
-        // Fase normal: primer depósito en la malla de entutorado
-        if (!_registradoEnMalla && _zonaDebajo != null && _zonaDebajo.EsZonaDeRamos)
-        {
-            _registradoEnMalla = true;
-            CorteActivityManager.Instance.RegistrarRamoCompletado();
+            Debug.Log($"[RamoTerminado] Apilado en hombro: {name}");
+            hombro.Apilar(gameObject);
         }
     }
 
+    private void OnPointerEvent(PointerEvent evt)
+    {
+        switch (evt.Type)
+        {
+            case PointerEventType.Select:
+                _agarres++;
+                break;
+
+            case PointerEventType.Unselect:
+            case PointerEventType.Cancel:
+                _agarres = Mathf.Max(0, _agarres - 1);
+                if (_agarres == 0) IntentarRegistrarEnMalla();
+                break;
+        }
+    }
+
+    //Solo cuenta una vez y solo si NO está agarrado
+    private void IntentarRegistrarEnMalla()
+    {
+        if (_registradoEnMalla || _apiladoEnHombro || _agarres > 0) return;
+        if (_zonaDebajo == null || !_zonaDebajo.EsZonaDeRamos) return;
+
+        _registradoEnMalla = true;
+        Debug.Log($"[RamoTerminado] Registrado en malla: {name}");
+        CorteActivityManager.Instance?.RegistrarRamoCompletado();
+        OnDepositadoEnMalla?.Invoke();
+    }
+
+    //También se revisa al entrar/permanecer en la zona, por si el ramo llega DESPUÉS de soltarse
     private void OnTriggerEnter(Collider other)
     {
-        if (other.TryGetComponent<ZonaDeposito>(out var zona)) _zonaDebajo = zona;
+        var zona = other.GetComponentInParent<ZonaDeposito>();
+        if (zona != null) _zonaDebajo = zona;
+        IntentarRegistrarEnMalla();
+    }
+
+    private void OnTriggerStay(Collider other)
+    {
+        if (_registradoEnMalla) return;
+        var zona = other.GetComponentInParent<ZonaDeposito>();
+        if (zona != null) _zonaDebajo = zona;
+        IntentarRegistrarEnMalla();
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.TryGetComponent<ZonaDeposito>(out var zona) && zona == _zonaDebajo) _zonaDebajo = null;
+        var zona = other.GetComponentInParent<ZonaDeposito>();
+        if (zona != null && zona == _zonaDebajo) _zonaDebajo = null;
     }
 }

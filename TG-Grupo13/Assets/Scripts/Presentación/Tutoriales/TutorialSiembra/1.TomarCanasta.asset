@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
+  m_Name: 1.TomarCanasta
+  m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
+  instruccion: Tome la canasta con ambas manos
+  prefabsPose:
+  - {fileID: 6739220786809118554, guid: da897e977499ce348a2892350412235b, type: 3}
+  iconosBoton: []
+  prefabsControles:
+  - {fileID: 8870704538745274071, guid: 4d19ba27094bb5a4f95ca8b3fa73e367, type: 3}
+  - {fileID: 3659042415290804284, guid: 36e677badbd72674981a5ad012008a01, type: 3}
+  tipoEspera: 5
+  duracionMinima: 3
