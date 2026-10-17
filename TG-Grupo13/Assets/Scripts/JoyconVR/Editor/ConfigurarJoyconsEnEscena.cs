@@ -48,15 +48,31 @@ public static class ConfigurarJoyconsEnEscena
         var driver = Asegurar<JoyconAvatarDriver>(joycons);
         var calibrator = Asegurar<JoyconSessionCalibrator>(joycons);
 
+        // Cabeza = visor; antebrazos y manos = huesos del avatar (Meta pone las manos en
+        // los controles y JoyconAvatarDriver apunta cada antebrazo hacia su mano).
+        var rastreados = new Dictionary<BodySegment, Transform>
+        {
+            { BodySegment.Head, cabeza },
+            { BodySegment.ForearmLeft, avatar.GetBoneTransform(HumanBodyBones.LeftLowerArm) },
+            { BodySegment.HandLeft, avatar.GetBoneTransform(HumanBodyBones.LeftHand) },
+            { BodySegment.ForearmRight, avatar.GetBoneTransform(HumanBodyBones.RightLowerArm) },
+            { BodySegment.HandRight, avatar.GetBoneTransform(HumanBodyBones.RightHand) },
+        };
+
         var so = new SerializedObject(estimator);
         so.FindProperty("receiver").objectReferenceValue = receiver;
-        bool cabezaAsignada = AsignarCabeza(so.FindProperty("bindings"), cabeza);
+        so.FindProperty("bodyForwardReference").objectReferenceValue = cabeza;
+        EscribirDistribucionEstandar(so.FindProperty("bindings"), rastreados);
         so.ApplyModifiedProperties();
 
         so = new SerializedObject(driver);
         so.FindProperty("estimator").objectReferenceValue = estimator;
         so.FindProperty("avatar").objectReferenceValue = avatar;
         so.FindProperty("headReference").objectReferenceValue = cabeza;
+        so.FindProperty("headingFromTracking").boolValue = true;
+        so.FindProperty("keepHeadFromTracking").boolValue = true;
+        so.FindProperty("keepHandsFromTracking").boolValue = true;
+        so.FindProperty("aimForearmsAtTrackedHands").boolValue = true;
         so.ApplyModifiedProperties();
 
         so = new SerializedObject(calibrator);
@@ -71,11 +87,12 @@ public static class ConfigurarJoyconsEnEscena
         EditorUtility.DisplayDialog("Listo",
             $"Se configuró 'Joycons' en {escena.name}:\n" +
             $"  - avatar: {avatar.name}\n" +
-            $"  - cabeza (visor): {cabeza.name}" + (cabezaAsignada ? "" : " (no se encontró el segmento Head en la lista)") + "\n\n" +
+            $"  - cabeza (visor): {cabeza.name}\n" +
+            "  - antebrazos y manos: desde los controles (a través del avatar)\n" +
+            "  - 8 Joy-Cons con la distribución estándar:\n" + DistribucionTexto + "\n\n" +
             "Falta:\n" +
-            "  1. JoyconReceiver: IP del servidor principal y los servidores adicionales (con su Sensor Offset).\n" +
-            "  2. RebaPostureEstimator -> Bindings: qué sensor va en cada parte del cuerpo.\n" +
-            $"  3. Guardar la escena {escena.name} (Ctrl+S).", "OK");
+            "  1. JoyconReceiver: IP del servidor 1 y, en Additional Servers, la del servidor 2 con Sensor Offset 4.\n" +
+            $"  2. Guardar la escena {escena.name} (Ctrl+S).", "OK");
     }
 
     private const string RutaXBot = "Assets/Arte/Modelos/X Bot.fbx";
@@ -125,8 +142,11 @@ public static class ConfigurarJoyconsEnEscena
         var postura = Asegurar<JoyconPruebaPosturaN>(avatar.gameObject);
         Transform camara = Camera.main != null ? Camera.main.transform : null;
 
+        // Sin visor ni controles: solo los 8 Joy-Cons (cabeza, antebrazos y manos sin fuente).
         var so = new SerializedObject(estimator);
         so.FindProperty("receiver").objectReferenceValue = receiver;
+        so.FindProperty("bodyForwardReference").objectReferenceValue = null;
+        EscribirDistribucionEstandar(so.FindProperty("bindings"), new Dictionary<BodySegment, Transform>());
         so.ApplyModifiedProperties();
 
         so = new SerializedObject(driver);
@@ -136,6 +156,7 @@ public static class ConfigurarJoyconsEnEscena
         so.FindProperty("headingFromTracking").boolValue = false;      // no hay Meta: el rumbo lo dan los Joy-Cons
         so.FindProperty("keepHeadFromTracking").boolValue = false;
         so.FindProperty("keepHandsFromTracking").boolValue = false;
+        so.FindProperty("aimForearmsAtTrackedHands").boolValue = false; // nadie mueve las manos
         so.ApplyModifiedProperties();
 
         so = new SerializedObject(calibrator);
@@ -156,12 +177,11 @@ public static class ConfigurarJoyconsEnEscena
         EditorUtility.DisplayDialog("Prueba sin visor lista",
             $"En {escena.name}:\n" +
             $"  - avatar de prueba: {avatar.name} (en postura N al dar Play)\n" +
-            "  - Joycons: receptor, estimador REBA, avatar y calibración manual\n\n" +
+            "  - Joycons: receptor, estimador REBA, avatar y calibración manual\n" +
+            "  - 8 Joy-Cons con la distribución estándar:\n" + DistribucionTexto + "\n\n" +
             "Antes de dar Play:\n" +
-            "  1. RebaPostureEstimator -> Bindings: ponga el número de cada Joy-Con que tenga\n" +
-            "     en la parte del cuerpo donde lo va a sostener (ej. 0 = UpperArmRight).\n" +
-            "     Las partes sin Joy-Con: sensorIndex = -1.\n" +
-            $"  2. Guardar la escena (Ctrl+S).\n\n" +
+            "  1. JoyconReceiver: IP del servidor 1 y, en Additional Servers, la del servidor 2 con Sensor Offset 4.\n" +
+            "  2. Guardar la escena (Ctrl+S).\n\n" +
             "En Play: menú ⋮ de JoyconSessionCalibrator -> 'Calibrar ahora', postura N 5 s, y moverse.", "OK");
     }
 
@@ -200,19 +220,35 @@ public static class ConfigurarJoyconsEnEscena
         return c != null ? c : Undo.AddComponent<T>(go);
     }
 
-    private static bool AsignarCabeza(SerializedProperty bindings, Transform cabeza)
+    private const string DistribucionTexto =
+        "      PC 1: 0 tronco, 1 brazo izq., 2 muslo izq., 3 pierna izq.\n" +
+        "      PC 2: 4 pelvis, 5 brazo der., 6 muslo der., 7 pierna der.";
+
+    // Reescribe la lista con RebaPostureEstimator.StandardLayout(), conservando el
+    // mountingEuler que ya se hubiera ajustado para cada parte del cuerpo.
+    private static void EscribirDistribucionEstandar(SerializedProperty bindings,
+                                                     Dictionary<BodySegment, Transform> rastreados)
     {
+        var mountings = new Dictionary<int, Vector3>();
         for (int i = 0; i < bindings.arraySize; i++)
         {
             var b = bindings.GetArrayElementAtIndex(i);
-            if (b.FindPropertyRelative("segment").enumValueIndex == (int)BodySegment.Head)
-            {
-                b.FindPropertyRelative("trackedTransform").objectReferenceValue = cabeza;
-                b.FindPropertyRelative("sensorIndex").intValue = -1;
-                return true;
-            }
+            mountings[b.FindPropertyRelative("segment").enumValueIndex] = b.FindPropertyRelative("mountingEuler").vector3Value;
         }
-        return false;
+
+        var layout = RebaPostureEstimator.StandardLayout();
+        bindings.arraySize = layout.Length;
+        for (int i = 0; i < layout.Length; i++)
+        {
+            var b = bindings.GetArrayElementAtIndex(i);
+            var segment = layout[i].segment;
+            rastreados.TryGetValue(segment, out var t);
+            b.FindPropertyRelative("segment").enumValueIndex = (int)segment;
+            b.FindPropertyRelative("sensorIndex").intValue = layout[i].sensorIndex;
+            b.FindPropertyRelative("trackedTransform").objectReferenceValue = t;
+            b.FindPropertyRelative("mountingEuler").vector3Value =
+                mountings.TryGetValue((int)segment, out var m) ? m : Vector3.zero;
+        }
     }
 
     private static Transform BuscarPorNombre(Scene escena, string nombre)

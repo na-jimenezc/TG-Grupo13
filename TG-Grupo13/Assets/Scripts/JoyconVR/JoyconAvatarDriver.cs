@@ -7,6 +7,8 @@
 //     cabeza (visor) y manos (controles). Esas partes están bien rastreadas y no derivan.
 //   - Los Joy-Cons mandan en los huesos que tengan sensor: pelvis, tronco (repartido
 //     entre las 3 vértebras), brazos, antebrazos, muslos y piernas.
+//   - Si un brazo tiene Joy-Con y su antebrazo no (distribución estándar), el
+//     antebrazo se apunta desde el codo hacia la mano que puso Meta (el control).
 //
 // Funciona porque CharacterRetargeter escribe los huesos en su LateUpdate y este
 // componente corre DESPUÉS (DefaultExecutionOrder alto) y los sobrescribe. No se
@@ -37,6 +39,9 @@ namespace PujJoycon
         [SerializeField] private bool keepHeadFromTracking = true;
         [Tooltip("Mantener las manos orientadas como los controles aunque los antebrazos se muevan con Joy-Cons.")]
         [SerializeField] private bool keepHandsFromTracking = true;
+        [Tooltip("Si el brazo tiene Joy-Con y el antebrazo no, apuntar el antebrazo desde el codo hacia donde " +
+                 "Meta puso la mano (el control). Apagar en pruebas sin visor: ahí nadie mueve las manos.")]
+        [SerializeField] private bool aimForearmsAtTrackedHands = true;
 
         // Hueso del avatar que mueve cada segmento con Joy-Con.
         private static readonly (BodySegment segment, HumanBodyBones bone)[] Limbs =
@@ -155,6 +160,8 @@ namespace PujJoycon
             Quaternion headTracked = _head != null ? _head.rotation : Quaternion.identity;
             Quaternion leftHandTracked = _leftHand != null ? _leftHand.rotation : Quaternion.identity;
             Quaternion rightHandTracked = _rightHand != null ? _rightHand.rotation : Quaternion.identity;
+            Vector3 leftHandTrackedPos = _leftHand != null ? _leftHand.position : Vector3.zero;
+            Vector3 rightHandTrackedPos = _rightHand != null ? _rightHand.position : Vector3.zero;
 
             // Rumbo: lo que ha girado el cuerpo según Meta, y lo que ha girado la referencia
             // (pelvis o tronco) según los Joy-Cons, que se descuenta de todos los segmentos.
@@ -193,6 +200,12 @@ namespace PujJoycon
                 Apply(_limbBones[i], PostureMath.BoneWorldRotation(seg, referenceHeading, bodyNow, _body0, _limbBone0[i]));
             }
 
+            if (aimForearmsAtTrackedHands)
+            {
+                AimForearm(BodySegment.UpperArmLeft, BodySegment.ForearmLeft, HumanBodyBones.LeftLowerArm, _leftHand, leftHandTrackedPos);
+                AimForearm(BodySegment.UpperArmRight, BodySegment.ForearmRight, HumanBodyBones.RightLowerArm, _rightHand, rightHandTrackedPos);
+            }
+
             if (keepHeadFromTracking && _head != null) _head.rotation = headTracked;
             if (keepHandsFromTracking)
             {
@@ -206,6 +219,22 @@ namespace PujJoycon
         {
             orientation = Quaternion.identity;
             return estimator.IsJoyconSegment(segment) && estimator.TryGetSegment(segment, out orientation);
+        }
+
+        // El brazo (Joy-Con) dejó el codo en otro lugar: girar el antebrazo para que
+        // vuelva a apuntar a la mano rastreada. Así el codo se dobla como en la realidad.
+        private void AimForearm(BodySegment upperArm, BodySegment forearm, HumanBodyBones forearmBone,
+                                Transform hand, Vector3 trackedHandPosition)
+        {
+            if (hand == null || !Drives(upperArm, out _) || estimator.IsJoyconSegment(forearm)) return;
+            Transform fore = avatar.GetBoneTransform(forearmBone);
+            if (fore == null) return;
+
+            Vector3 current = hand.position - fore.position;
+            Vector3 wanted = trackedHandPosition - fore.position;
+            if (current.sqrMagnitude < 1e-8f || wanted.sqrMagnitude < 1e-8f) return;
+            Quaternion aim = Quaternion.FromToRotation(current, wanted);
+            fore.rotation = Quaternion.Slerp(Quaternion.identity, aim, weight) * fore.rotation;
         }
 
         private void Apply(Transform bone, Quaternion target)

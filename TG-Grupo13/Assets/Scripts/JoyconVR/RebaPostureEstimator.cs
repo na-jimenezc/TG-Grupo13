@@ -3,9 +3,14 @@
 // Une todo: Joy-Con (y opcionalmente el visor/manos del Quest) -> segmentos
 // del cuerpo -> ángulos articulares -> REBA por lado (izquierdo / derecho).
 //
+// Distribución estándar (StandardLayout): 8 Joy-Cons en brazos, piernas, tronco
+// y pelvis; la cabeza sale del visor y antebrazos/manos de los controles (a
+// través del avatar, que apunta cada antebrazo hacia su control).
+//
 // Flujo:
 //   1. Asignar en el inspector qué sensor va en qué segmento (bindings).
-//      Para Head conviene usar el CenterEyeAnchor del rig en vez de un Joy-Con.
+//      Las fuentes rastreadas (visor, controles, huesos del avatar) se calibran
+//      solas; los Joy-Cons necesitan mountingEuler si no están alineados.
 //   2. Con la persona en postura N (de pie, mirando al frente, brazos colgando,
 //      palmas hacia los muslos, cabeza neutra) llamar a Calibrate() o
 //      "Calibrar en 5 s" (menú ⋮ del componente / un botón de UI).
@@ -36,14 +41,18 @@ namespace PujJoycon
         [Tooltip("Índice GLOBAL del Joy-Con (−1 = no usar Joy-Con): el que imprime el servidor principal, " +
                  "o sensorOffset + el que imprime un servidor adicional. El overlay de JoyconReceiver los muestra.")]
         public int sensorIndex = -1;
-        [Tooltip("Alternativa al Joy-Con: un Transform rastreado (ej. CenterEyeAnchor para Head).")]
+        [Tooltip("Alternativa al Joy-Con: un Transform rastreado (CenterEyeAnchor para Head, huesos del avatar " +
+                 "para antebrazos y manos). Se calibra solo: no usa mountingEuler.")]
         public Transform trackedTransform;
-        [Tooltip("Rotación del sensor respecto al segmento (Euler XYZ, grados). " +
+        [Tooltip("Solo Joy-Cons. Rotación del sensor respecto al segmento (Euler XYZ, grados). " +
                  "0,0,0 si los ejes del sensor están alineados con el segmento: X derecha, Y hacia arriba por el hueso, Z adelante.")]
         public Vector3 mountingEuler;
 
         [NonSerialized] public Quaternion q0 = Quaternion.identity;
         [NonSerialized] public bool calibrated;
+        // Para Transforms rastreados: como comparten el mundo de Unity, su "mounting"
+        // se calcula al calibrar (dónde estaban sus ejes respecto al cuerpo en postura N).
+        [NonSerialized] public Quaternion trackedMount = Quaternion.identity;
 
         public SegmentBinding() { }
         public SegmentBinding(BodySegment segment, int sensorIndex)
@@ -82,18 +91,34 @@ namespace PujJoycon
         [SerializeField] private JoyconReceiver receiver;
 
         [Header("Asignación sensor -> segmento")]
-        [SerializeField] private SegmentBinding[] bindings =
+        [SerializeField] private SegmentBinding[] bindings = StandardLayout();
+
+        [Tooltip("Cámara del visor (CenterEyeAnchor): hacia dónde mira la persona al calibrar. Si está vacío " +
+                 "se usa el Transform del segmento Head. Lo necesitan las fuentes rastreadas (visor, controles).")]
+        [SerializeField] private Transform bodyForwardReference;
+
+        /// <summary>
+        /// Distribución de 8 Joy-Cons en 2 PCs (el segundo con sensorOffset 4):
+        ///   PC 1: 0 tronco, 1 brazo izq., 2 muslo izq., 3 pierna izq.
+        ///   PC 2: 4 pelvis, 5 brazo der., 6 muslo der., 7 pierna der.
+        /// Cabeza, antebrazos y manos van sin Joy-Con (los asigna la herramienta de editor
+        /// a la cámara del visor y a los huesos del avatar, que siguen a los controles).
+        /// </summary>
+        public static SegmentBinding[] StandardLayout() => new[]
         {
-            // Propuesta para 8 Joy-Cons + visor del Quest para la cabeza (ver README).
             new SegmentBinding(BodySegment.Trunk, 0),
-            new SegmentBinding(BodySegment.Pelvis, 1),
-            new SegmentBinding(BodySegment.UpperArmLeft, 2),
-            new SegmentBinding(BodySegment.ForearmLeft, 3),
-            new SegmentBinding(BodySegment.UpperArmRight, 4),
-            new SegmentBinding(BodySegment.ForearmRight, 5),
+            new SegmentBinding(BodySegment.UpperArmLeft, 1),
+            new SegmentBinding(BodySegment.ThighLeft, 2),
+            new SegmentBinding(BodySegment.ShankLeft, 3),
+            new SegmentBinding(BodySegment.Pelvis, 4),
+            new SegmentBinding(BodySegment.UpperArmRight, 5),
             new SegmentBinding(BodySegment.ThighRight, 6),
             new SegmentBinding(BodySegment.ShankRight, 7),
             new SegmentBinding(BodySegment.Head, -1),
+            new SegmentBinding(BodySegment.ForearmLeft, -1),
+            new SegmentBinding(BodySegment.HandLeft, -1),
+            new SegmentBinding(BodySegment.ForearmRight, -1),
+            new SegmentBinding(BodySegment.HandRight, -1),
         };
 
         [Header("Umbrales REBA")]
@@ -145,6 +170,7 @@ namespace PujJoycon
         [ContextMenu("Calibrar ahora (postura N)")]
         public void Calibrate()
         {
+            Quaternion body0 = BodyFrameNow();
             int ok = 0, missing = 0;
             foreach (var b in bindings)
             {
@@ -152,6 +178,7 @@ namespace PujJoycon
                 if (TryGetSourceRotation(b, out var q))
                 {
                     b.q0 = q;
+                    b.trackedMount = PostureMath.Inverse(body0) * q;
                     b.calibrated = true;
                     ok++;
                 }
@@ -224,7 +251,10 @@ namespace PujJoycon
             foreach (var b in bindings)
             {
                 if (!b.calibrated || !TryGetSourceRotation(b, out var q)) continue;
-                var mount = PostureMath.FromEuler(b.mountingEuler, EulerOrder.XYZ);
+                // Joy-Con: mounting del inspector (se lee cada frame para poder ajustarlo en Play).
+                var mount = b.trackedTransform != null
+                    ? b.trackedMount
+                    : PostureMath.FromEuler(b.mountingEuler, EulerOrder.XYZ);
                 _segments[(int)b.segment] = PostureMath.SegmentOrientation(q, b.q0, mount);
                 _hasSegment[(int)b.segment] = true;
             }
@@ -346,6 +376,25 @@ namespace PujJoycon
         // ------------------------------------------------------------------
 
         private static bool HasSource(SegmentBinding b) => b.trackedTransform != null || b.sensorIndex >= 0;
+
+        // Marco del cuerpo C en el mundo de Unity: Y arriba, Z hacia donde mira la persona.
+        private Quaternion BodyFrameNow()
+        {
+            Transform reference = bodyForwardReference;
+            if (reference == null)
+            {
+                foreach (var b in bindings)
+                {
+                    if (b.segment == BodySegment.Head && b.trackedTransform != null) reference = b.trackedTransform;
+                }
+            }
+            if (reference == null) return Quaternion.identity;
+            Vector3 forward = reference.forward;
+            forward.y = 0f;
+            return forward.sqrMagnitude < 1e-6f
+                ? Quaternion.identity
+                : Quaternion.LookRotation(forward.normalized, Vector3.up);
+        }
 
         private bool TryGetSourceRotation(SegmentBinding b, out Quaternion q)
         {
