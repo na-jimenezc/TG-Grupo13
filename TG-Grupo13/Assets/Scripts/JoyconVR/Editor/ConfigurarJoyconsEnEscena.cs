@@ -23,6 +23,7 @@ public static class ConfigurarJoyconsEnEscena
     [MenuItem("TG-Grupo13/Joy-Cons/Configurar avatar y calibración")]
     public static void Configurar()
     {
+        if (EstaEnPlay()) return;
         Animator avatar = BuscarAvatar();
         if (avatar == null)
         {
@@ -62,6 +63,7 @@ public static class ConfigurarJoyconsEnEscena
         var so = new SerializedObject(estimator);
         so.FindProperty("receiver").objectReferenceValue = receiver;
         so.FindProperty("bodyForwardReference").objectReferenceValue = cabeza;
+        so.FindProperty("gravityUpY").floatValue = GravedadVerificada;
         EscribirDistribucionEstandar(so.FindProperty("bindings"), rastreados);
         so.ApplyModifiedProperties();
 
@@ -100,6 +102,7 @@ public static class ConfigurarJoyconsEnEscena
     [MenuItem("TG-Grupo13/Joy-Cons/Preparar prueba sin visor (escena abierta)")]
     public static void PrepararPruebaSinVisor()
     {
+        if (EstaEnPlay()) return;
         Scene escena = SceneManager.GetActiveScene();
         if (escena.name == "Core")
         {
@@ -146,6 +149,7 @@ public static class ConfigurarJoyconsEnEscena
         var so = new SerializedObject(estimator);
         so.FindProperty("receiver").objectReferenceValue = receiver;
         so.FindProperty("bodyForwardReference").objectReferenceValue = null;
+        so.FindProperty("gravityUpY").floatValue = GravedadVerificada;
         EscribirDistribucionEstandar(so.FindProperty("bindings"), new Dictionary<BodySegment, Transform>());
         so.ApplyModifiedProperties();
 
@@ -219,6 +223,21 @@ public static class ConfigurarJoyconsEnEscena
         var c = go.GetComponent<T>();
         return c != null ? c : Undo.AddComponent<T>(go);
     }
+
+    // En Play los cambios a la escena no se pueden guardar y se pierden al salir; además
+    // los componentes nuevos arrancan (Awake) antes de que se les conecten las referencias.
+    private static bool EstaEnPlay()
+    {
+        if (!EditorApplication.isPlayingOrWillChangePlaymode) return false;
+        EditorUtility.DisplayDialog("Salga de Play primero",
+            "Esta herramienta modifica la escena y no funciona en Play: los cambios se perderían.\n\n" +
+            "Detenga Play (botón ▶ arriba), vuelva a correr la herramienta y guarde con Ctrl+S.", "OK");
+        return true;
+    }
+
+    // Signo de la gravedad en el mundo del servidor de Joy-Cons, verificado con el tronco
+    // (con −1 la inclinación lateral y la torsión salían al revés).
+    private const float GravedadVerificada = 1f;
 
     private const string DistribucionTexto =
         "      PC 1: 0 tronco, 1 brazo izq., 2 muslo izq., 3 pierna izq.\n" +

@@ -122,10 +122,10 @@ namespace PujJoycon
         };
 
         [Header("Calibración automática del montaje (sentadilla)")]
-        [Tooltip("Dónde queda 'arriba' en el mundo de los Joy-Cons: (0, este valor, 0). Si después de la " +
-                 "sentadilla la flexión sale bien pero la torsión y la inclinación lateral salen AL REVÉS en " +
-                 "todos los Joy-Cons, cambie el signo.")]
-        [SerializeField] private float gravityUpY = -1f;
+        [Tooltip("Dónde queda 'arriba' en el mundo de los Joy-Cons: (0, este valor, 0). Verificado con el " +
+                 "servidor de Joy-Cons: +1. Si después de la sentadilla la flexión sale bien pero la torsión y " +
+                 "la inclinación lateral salen AL REVÉS, cambie el signo.")]
+        [SerializeField] private float gravityUpY = 1f;
         [Tooltip("Giro mínimo (grados) de cada segmento en la sentadilla para confiar en él.")]
         [SerializeField] private float minMovementAngle = 15f;
 
