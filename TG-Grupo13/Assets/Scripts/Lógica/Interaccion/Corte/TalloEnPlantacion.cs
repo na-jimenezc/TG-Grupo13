@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 //Objeto que representa un tallo de lirio en la plantación, que puede ser cortado por el usuario
 public class TalloEnPlantacion : MonoBehaviour
@@ -9,11 +10,15 @@ public class TalloEnPlantacion : MonoBehaviour
     [Header("Efectos de Sonido")]
     [SerializeField] private AudioClip sonidoCorte;
 
+    //EVENTO DEL TUTORIAL (estático porque hay muchos tallos en la plantación)
+    public static event Action OnCortado;
+
     //Ejecuta la acción de corte sobre la planta viva.
     public void Cortar()
     {
         if (_cortado) return;
         _cortado = true;
+        OnCortado?.Invoke();
 
         //Reproduce el sonido de corte en la posición del tallo
         if (sonidoCorte != null)

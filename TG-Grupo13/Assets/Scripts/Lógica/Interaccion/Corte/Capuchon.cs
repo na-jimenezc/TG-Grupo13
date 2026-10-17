@@ -11,6 +11,9 @@ public class Capuchon : MonoBehaviour
     private Grabbable _grabbable;
     private Rigidbody _rb;
 
+    //EVENTO DEL TUTORIAL (estático porque los capuchones se instancian en runtime)
+    public static event System.Action OnEnsamblado;
+
     private void Awake()
     {
         _grabbable = GetComponent<Grabbable>();
@@ -51,6 +54,7 @@ public class Capuchon : MonoBehaviour
         //Ensambla correctamente: instancia el ramo finalizado fusionado
         Vector3 posicion = ramo.transform.position;
         Instantiate(prefabRamoTerminado, posicion, Quaternion.identity);
+        OnEnsamblado?.Invoke();
 
         //Se limpia el ramo y se destruye el capuchón
         ramo.Reiniciar();

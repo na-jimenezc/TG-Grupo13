@@ -1,5 +1,6 @@
 using UnityEngine;
 using Oculus.Interaction;
+using System;
 
 /*Script que controla el comportamiento de las tijeras
  * para realizar la interacción de corte y emparejado de tallos*/
@@ -33,6 +34,9 @@ public class Tijeras : MonoBehaviour
     private float _tiempoSeleccionado = 0f;
     private const float TIEMPO_MINIMO_PARA_DESENGANCHAR = 0.15f;
 
+    //EVENTO DEL TUTORIAL
+    public event Action OnAgarradas;
+
     private void Awake()
     {
         _grabbable = GetComponent<Grabbable>();
@@ -49,7 +53,8 @@ public class Tijeras : MonoBehaviour
         if (evt.Type == PointerEventType.Select)
         {
             _equipadas = true;
-            _tiempoSeleccionado = 0f; 
+            _tiempoSeleccionado = 0f;
+            OnAgarradas?.Invoke();
         }
 
         //Si el usuario soltó las tijeras, revisar si están cerca del holster para engancharlas

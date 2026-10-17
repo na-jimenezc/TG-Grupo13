@@ -16,3 +16,6 @@ UserSettings/
 *.pidb
 *.booproj
 *.svd
+
+# Estado local del asistente de OpenXR/Meta Quest: cambia solo en cada PC y genera conflictos
+ProjectSettings/BuildProfileUtilityOpenXR.asset

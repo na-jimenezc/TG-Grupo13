@@ -12,6 +12,9 @@ public class RamoTerminado : MonoBehaviour
     private bool _registradoEnMalla = false;   //Evita que se cuente dos veces
     private bool _apiladoEnHombro = false;     //Marca de transición
 
+    //EVENTO DEL TUTORIAL (estático porque los ramos se instancian en runtime)
+    public static event System.Action OnDepositadoEnMalla;
+
     private void Awake()
     {
         _grabbable = GetComponent<Grabbable>();
@@ -65,7 +68,8 @@ public class RamoTerminado : MonoBehaviour
 
         _registradoEnMalla = true;
         Debug.Log($"[RamoTerminado] Registrado en malla: {name}");
-        CorteActivityManager.Instance.RegistrarRamoCompletado();
+        CorteActivityManager.Instance?.RegistrarRamoCompletado();
+        OnDepositadoEnMalla?.Invoke();
     }
 
     //También se revisa al entrar/permanecer en la zona, por si el ramo llega DESPUÉS de soltarse

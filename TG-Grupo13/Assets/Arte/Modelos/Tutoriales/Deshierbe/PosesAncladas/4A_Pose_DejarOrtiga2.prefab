@@ -50,10 +50,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: d747fa5a7436e574f957d3e779eae17d, type: 3}
       propertyPath: m_Name
-      value: 4_Pose_DejarOrtiga2
+      value: 4A_Pose_DejarOrtiga2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 65702495048144492, guid: d747fa5a7436e574f957d3e779eae17d, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d747fa5a7436e574f957d3e779eae17d, type: 3}

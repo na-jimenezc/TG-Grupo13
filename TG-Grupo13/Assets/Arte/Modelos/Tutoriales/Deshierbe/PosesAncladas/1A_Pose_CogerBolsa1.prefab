@@ -14,7 +14,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: eb1d851abbb98c441b668055212b74bb, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -1.16
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: eb1d851abbb98c441b668055212b74bb, type: 3}
       propertyPath: m_LocalPosition.z
@@ -50,10 +50,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: eb1d851abbb98c441b668055212b74bb, type: 3}
       propertyPath: m_Name
-      value: 1_Pose_CogerOrtiga1
+      value: 1A_Pose_CogerBolsa1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 65702495048144492, guid: eb1d851abbb98c441b668055212b74bb, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: eb1d851abbb98c441b668055212b74bb, type: 3}

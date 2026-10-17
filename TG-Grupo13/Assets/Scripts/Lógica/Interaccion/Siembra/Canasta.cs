@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Oculus.Interaction;
 
-/*Contenedor interactivo para los bulbos. Inicia con objetos estáticos 
+/*Contenedor interactivo para los bulbos. Inicia con objetos estáticos
 y los convierte en objetos físicos al inclinar la canasta para vaciarla*/
 
 public class Canasta : MonoBehaviour
@@ -38,19 +38,23 @@ public class Canasta : MonoBehaviour
     private int _manosSosteniendo = 0;
     private readonly List<GameObject> _bulbos = new List<GameObject>();
 
+    //Eventos opcionales: no los usa el gameplay real, solo el tutorial se suscribe a ellos
+    public event Action OnAgarradaDosManos;
+    public event Action OnEsparcida;
+
+    //Se dispara una sola vez, justo tras esparcir, con los Bulbo reales ya activos físicamente.
+    //El tutorial no puede tenerlos pre-asignados en el Inspector porque no existen hasta este momento.
+    public event Action<List<Bulbo>> OnBulbosEsparcidos;
+
     //Eje de la "boca" de la canasta en espacio local del objeto
-    //Se calcula en Awake y se RECALIBRA una sola vez en el primer agarre para asegurar el 
+    //Se calcula en Awake y se RECALIBRA una sola vez en el primer agarre para asegurar el
     //eje correcto
     private Vector3 _ejeBocaLocal;
     private bool _ejeCalibradoEnAgarre = false;
 
     private float _tiempoInclinada = 0f;
     private float _tiempoUltimoCambioAgarre = -999f;
-
-
-    //EVENTOS DEL TUTORIAL
-    public event Action OnAgarradaDosManos;
-    public event Action OnEsparcida;
+    private float _proximoLog = 0f;
 
     private void Awake()
     {
@@ -134,10 +138,9 @@ public class Canasta : MonoBehaviour
                 _tiempoUltimoCambioAgarre = Time.time;
                 _tiempoInclinada = 0f;
 
-                //Evento de sostener la canasta con las manos requeridas para el tutorial
+                //Notifica al tutorial justo cuando se alcanzan las dos manos requeridas
                 if (_manosSosteniendo == manosRequeridas)
                     OnAgarradaDosManos?.Invoke();
-
                 break;
 
             case PointerEventType.Unselect:
@@ -180,7 +183,7 @@ public class Canasta : MonoBehaviour
     private void Esparcir()
     {
         _esparcido = true;
-        OnEsparcida?.Invoke(); //Dispara el evento del tutorial
+        OnEsparcida?.Invoke();
 
         Transform destino = areaEsparcido;
         if (destino == null)
@@ -188,6 +191,8 @@ public class Canasta : MonoBehaviour
             Debug.LogError("[Canasta] Falta asignar Area Esparcido; se usa la posición de la canasta.", this);
             destino = transform;
         }
+
+        var bulbosActivados = new List<Bulbo>();
 
         foreach (var bulbo in _bulbos)
         {
@@ -197,9 +202,15 @@ public class Canasta : MonoBehaviour
             Vector2 offset = UnityEngine.Random.insideUnitCircle * radioEsparcido;
             Vector3 posicion = destino.position + new Vector3(offset.x, 0.3f, offset.y);
             ActivarComoBulboFisico(bulbo, posicion);
+
+            if (bulbo.TryGetComponent<Bulbo>(out var componenteBulbo))
+                bulbosActivados.Add(componenteBulbo);
         }
         //Vacía la lista interna
         _bulbos.Clear();
+
+        //Recién ahora existen como Bulbo reales y activos: se los entrega al tutorial
+        OnBulbosEsparcidos?.Invoke(bulbosActivados);
 
         if (audioSource != null && sonidoEsparcir != null)
             audioSource.PlayOneShot(sonidoEsparcir);

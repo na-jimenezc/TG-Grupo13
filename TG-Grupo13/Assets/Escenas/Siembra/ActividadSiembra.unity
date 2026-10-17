@@ -5472,7 +5472,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 0.05}
+  m_Size: {x: 1, y: 1, z: 0.1}
   m_Center: {x: 0, y: 1, z: -0.5}
 --- !u!1001 &617423901
 PrefabInstance:
@@ -12430,14 +12430,13 @@ MonoBehaviour:
   puntoInterior: {fileID: 841129594}
   radioInterior: 0.15
   areaEsparcido: {fileID: 926866445}
-  radioEsparcido: 0.3
+  radioEsparcido: 0.1
   anguloInclinacionMinimo: 50
   audioSource: {fileID: 1268529590}
   sonidoEsparcir: {fileID: 8300000, guid: e6c847581ab89a844a32098bdef983a3, type: 3}
   manosRequeridas: 2
   tiempoMinimoInclinada: 0.25
   retardoTrasAgarre: 0.5
-  logDiagnostico: 1
 --- !u!1 &1274205993
 GameObject:
   m_ObjectHideFlags: 0
@@ -19460,7 +19459,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 0.05}
+  m_Size: {x: 1, y: 1, z: 0.1}
   m_Center: {x: 0, y: 1, z: -0.5}
 --- !u!1 &1965524826
 GameObject:
@@ -19927,7 +19926,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.1, y: 1, z: 1.1}
+  m_Size: {x: 0.2, y: 2, z: 1.1}
   m_Center: {x: 0.2, y: 1, z: 0}
 --- !u!1 &2044582198
 GameObject:

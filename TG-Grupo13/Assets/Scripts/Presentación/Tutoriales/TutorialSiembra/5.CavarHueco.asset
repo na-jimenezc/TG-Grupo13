@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
+  m_Name: 5.CavarHueco
+  m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
+  instruccion: "Accione el trigger de la mano que sostiene la pala sobre un hueco
+    v\xE1lido "
+  prefabsPose:
+  - {fileID: 8443679071877133646, guid: 949710af05bae914abf674a76db6f660, type: 3}
+  - {fileID: 2818824082775634130, guid: c48972bd45bded94898dd33abfa16f2a, type: 3}
+  iconosBoton: []
+  prefabsControles:
+  - {fileID: 0}
+  - {fileID: 5793085248461324291, guid: 6d9a869ea9374a4cb562ac707cf13534, type: 3}
+  tipoEspera: 9
+  duracionMinima: 3
