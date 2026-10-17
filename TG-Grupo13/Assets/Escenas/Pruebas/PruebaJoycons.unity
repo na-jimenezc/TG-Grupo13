@@ -798,7 +798,7 @@ MonoBehaviour:
   additionalServers:
   - host: 172.20.10.2
     port: 60123
-    sensorOffset: 0
+    sensorOffset: 4
   staleAfterSeconds: 0.5
   showDebugOverlay: 1
 --- !u!4 &1298074563
