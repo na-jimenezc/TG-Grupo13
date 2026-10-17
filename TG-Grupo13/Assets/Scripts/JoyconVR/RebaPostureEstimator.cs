@@ -165,6 +165,30 @@ namespace PujJoycon
             _calibrated = ok > 0;
             worstScoreSoFar = 0;
             Debug.Log($"[REBA] Calibración: {ok} segmento(s) OK, {missing} sin datos.", this);
+            if (_calibrated) Calibrated?.Invoke();
+        }
+
+        /// <summary>Se dispara al terminar una calibración exitosa (JoyconAvatarDriver la usa para tomar la postura N del avatar).</summary>
+        public event Action Calibrated;
+
+        /// <summary>
+        /// Orientación actual del segmento en el marco del cuerpo C (identidad en postura N).
+        /// False si el segmento no tiene fuente, no se calibró o su sensor no está mandando datos.
+        /// </summary>
+        public bool TryGetSegment(BodySegment segment, out Quaternion orientation)
+        {
+            orientation = _segments[(int)segment];
+            return _calibrated && _hasSegment[(int)segment];
+        }
+
+        /// <summary>True si el segmento tiene un Joy-Con asignado (no un Transform rastreado).</summary>
+        public bool IsJoyconSegment(BodySegment segment)
+        {
+            foreach (var b in bindings)
+            {
+                if (b.segment == segment) return b.trackedTransform == null && b.sensorIndex >= 0;
+            }
+            return false;
         }
 
         [ContextMenu("Calibrar en 5 s")]

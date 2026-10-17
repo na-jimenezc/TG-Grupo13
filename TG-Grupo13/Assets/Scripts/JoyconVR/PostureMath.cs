@@ -238,6 +238,50 @@ namespace PujJoycon
         }
 
         // ------------------------------------------------------------------
+        // 6) Llevar los segmentos al avatar (JoyconAvatarDriver)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Solo el giro alrededor de la vertical (Y) de q, sin inclinación. Se toma
+        /// del eje X (lateral) proyectado al plano horizontal, que no se mueve al
+        /// inclinarse hacia adelante, así que agacharse no cambia el rumbo.
+        /// </summary>
+        public static Quaternion Heading(Quaternion q)
+        {
+            Vector3 right = q * Vector3.right;
+            float x = right.x, z = right.z;
+            if (x * x + z * z < 1e-8f)
+            {
+                // Eje lateral vertical (inclinación lateral de ~90°): usar el eje adelante.
+                Vector3 fwd = q * Vector3.forward;
+                return AxisRotation(1, Mathf.Atan2(fwd.x, fwd.z) * Mathf.Rad2Deg);
+            }
+            // Ry(ψ) lleva (1,0,0) a (cos ψ, 0, −sin ψ).
+            return AxisRotation(1, Mathf.Atan2(-z, x) * Mathf.Rad2Deg);
+        }
+
+        /// <summary>
+        /// Rotación de mundo que debe tener un hueso del avatar para reflejar un segmento.
+        ///
+        ///   hueso(t) = cuerpoAhora · inv(rumboRef) · seg(t) · inv(cuerpo0) · hueso0
+        ///
+        /// seg       : orientación del segmento en el marco del cuerpo C (SegmentOrientation)
+        /// rumboRef  : Heading() del segmento de referencia (pelvis/tronco) en C. Se le quita
+        ///             a todos los segmentos para que girar todo el cuerpo o la deriva común
+        ///             en yaw de los Joy-Cons no gire al avatar; el rumbo lo pone cuerpoAhora.
+        /// cuerpo0   : marco del cuerpo C en el mundo de Unity al calibrar (hacia dónde miraba).
+        /// cuerpoAhora: cuerpo0 girado lo mismo que giró el avatar según el seguimiento de Meta.
+        /// hueso0    : rotación de mundo del hueso al calibrar (avatar en postura N).
+        ///
+        /// Al calibrar (seg = rumboRef = identidad, cuerpoAhora = cuerpo0) da hueso0.
+        /// </summary>
+        public static Quaternion BoneWorldRotation(Quaternion segment, Quaternion referenceHeading,
+                                                   Quaternion bodyNow, Quaternion body0, Quaternion bone0)
+        {
+            return Normalize(bodyNow * Inverse(referenceHeading) * segment * Inverse(body0) * bone0);
+        }
+
+        // ------------------------------------------------------------------
         // Utilidades (todo administrado, sin llamadas nativas de Unity)
         // ------------------------------------------------------------------
 
