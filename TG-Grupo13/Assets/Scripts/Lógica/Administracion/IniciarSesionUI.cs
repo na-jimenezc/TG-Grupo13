@@ -11,7 +11,13 @@ public class IniciarSesionUI : MonoBehaviour
     [SerializeField] private TMP_InputField nombreInput;
     [SerializeField] private TMP_Text mensajeError;
 
-    //Evento de Unity que se llama al presionar el botón de ingresar
+    //Etiqueta del campo, ya que el placeholder por defecto no indica qué dato se pide.
+    private void Awake()
+    {
+        EtiquetaCampoUI.Etiquetar(nombreInput, "Nombre de usuario", "Ej: Ana Gómez");
+    }
+
+    //Se limpia el formulario cada vez que se muestra la pantalla
     private void OnEnable()
     {
         if (nombreInput != null) nombreInput.text = "";

@@ -37,6 +37,16 @@ public class ActualizarPerfilUI : MonoBehaviour
         ActualizarVisibilidadPassword();
     }
 
+    //Etiquetas de los campos, ya que el placeholder por defecto no indica qué dato se pide.
+    //La contraseña se puede dejar vacía si el usuario ya era administrador (se conserva la anterior).
+    void Awake()
+    {
+        EtiquetaCampoUI.Etiquetar(edadInput, "Edad", "Ej: 25");
+        EtiquetaCampoUI.Etiquetar(correoInput, "Correo electrónico", "Ej: ana@correo.com");
+        EtiquetaCampoUI.Etiquetar(rolDropdown, "Rol");
+        EtiquetaCampoUI.Etiquetar(passwordInput, "Nueva contraseña", "Vacío = no cambiar");
+    }
+
     //Escucha los cambios del dropdown para mostrar u ocultar el campo de contraseña según el rol seleccionado
     void Start()
     {

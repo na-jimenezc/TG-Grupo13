@@ -15,6 +15,16 @@ public class CrearPerfilUI : MonoBehaviour
     [SerializeField] private TMP_InputField edadInput;
     [SerializeField] private TMP_Text mensajeError;
 
+    //Se le pone a cada campo una etiqueta que indique qué dato va en él, ya que el placeholder por defecto no lo dice.
+    void Awake()
+    {
+        EtiquetaCampoUI.Etiquetar(nombreInput, "Nombre *", "Ej: Ana Gómez");
+        EtiquetaCampoUI.Etiquetar(correoInput, "Correo electrónico", "Ej: ana@correo.com");
+        EtiquetaCampoUI.Etiquetar(edadInput, "Edad", "Ej: 25");
+        EtiquetaCampoUI.Etiquetar(rolDropdown, "Rol");
+        EtiquetaCampoUI.Etiquetar(passwordInput, "Contraseña *", "Contraseña");
+    }
+
     //Cuando se activa esta pantalla, se limpia el formulario y se actualiza la visibilidad del campo de contraseña según el rol seleccionado.
     void OnEnable()
     {
