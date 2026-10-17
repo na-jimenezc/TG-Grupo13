@@ -50,6 +50,7 @@ MonoBehaviour:
   botonesResaltados: 1
   colorResaltado: {r: 1, g: 0.8, b: 0, a: 1}
   velocidadPulso: 3
+  prefabManoContraria: {fileID: 8870704538745274071, guid: 4d19ba27094bb5a4f95ca8b3fa73e367, type: 3}
 --- !u!1001 &4757776309607854316
 PrefabInstance:
   m_ObjectHideFlags: 0

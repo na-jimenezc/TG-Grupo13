@@ -10,6 +10,7 @@ public class ActualizarPerfilUI : MonoBehaviour
     [SerializeField] private TMP_InputField edadInput;
     [SerializeField] private TMP_InputField correoInput;
     [SerializeField] private TMP_Dropdown rolDropdown; 
+    [SerializeField] private TMP_Dropdown manoDropdown; //0 = Diestro, 1 = Zurdo
     [SerializeField] private GameObject passwordInputObject;
     [SerializeField] private TMP_InputField passwordInput;
     [SerializeField] private TMP_Text mensajeError;
@@ -32,9 +33,21 @@ public class ActualizarPerfilUI : MonoBehaviour
         correoInput.text = usuario.Correo;
         //El dropdown tiene dos opciones: 0 = Normal, 1 = Administrador
         rolDropdown.value = usuario.EsAdministrador ? 1 : 0;
+        if (manoDropdown != null) manoDropdown.value = usuario.EsZurdo ? 1 : 0;
         passwordInput.text = "";
         mensajeError.text = "";
         ActualizarVisibilidadPassword();
+    }
+
+    //Etiquetas de los campos, ya que el placeholder por defecto no indica qué dato se pide.
+    //La contraseña se puede dejar vacía si el usuario ya era administrador (se conserva la anterior).
+    void Awake()
+    {
+        EtiquetaCampoUI.Etiquetar(edadInput, "Edad", "Ej: 25");
+        EtiquetaCampoUI.Etiquetar(correoInput, "Correo electrónico", "Ej: ana@correo.com");
+        EtiquetaCampoUI.Etiquetar(rolDropdown, "Rol");
+        EtiquetaCampoUI.Etiquetar(passwordInput, "Nueva contraseña", "Vacío = no cambiar");
+        ManoDominanteUI.Configurar(manoDropdown);
     }
 
     //Escucha los cambios del dropdown para mostrar u ocultar el campo de contraseña según el rol seleccionado
@@ -82,14 +95,19 @@ public class ActualizarPerfilUI : MonoBehaviour
             nuevoHash = "";
         }
 
-        //Se construye el nuevo perfil con los datos actualizados
+        //Se construye el nuevo perfil con los datos actualizados. El Id y las capacitaciones se copian del perfil
+        //guardado, porque el formulario no los edita y si no se perderían al guardar.
+        var original = UserDatabase.ObtenerUsuario(_nombreOriginal);
         var actualizado = new UserProfile
         {
+            Id = original != null ? original.Id : 0,
             Nombre = _nombreOriginal,
             Correo = correoInput.text.Trim(),
             Edad = edadInput.text.Trim(),
             EsAdministrador = esAdmin,
-            PasswordHash = nuevoHash
+            PasswordHash = nuevoHash,
+            EsZurdo = manoDropdown != null ? ManoDominanteUI.EsZurdo(manoDropdown) : original != null && original.EsZurdo,
+            Capacitaciones = original != null ? original.Capacitaciones : new System.Collections.Generic.List<Capacitacion>()
         };
 
         //Se guarda en la database y se refresca la lista de usuarios en el panel de administración para el JSON

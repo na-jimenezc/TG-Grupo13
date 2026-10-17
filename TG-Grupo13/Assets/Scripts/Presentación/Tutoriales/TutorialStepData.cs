@@ -5,6 +5,7 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "TutorialStep", menuName = "Tutorial/Paso")]
 public class TutorialStepData : ScriptableObject
 {
+    [Tooltip("Se puede escribir {dominante} o {secundaria} y se cambia por \"derecha\" o \"izquierda\" según la mano dominante del perfil")]
     [TextArea] public string instruccion;
 
     [Tooltip("Prefabs de Maniquí")]

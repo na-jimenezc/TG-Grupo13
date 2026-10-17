@@ -15,6 +15,8 @@ public class SiembraActivityManager : ActivityManagerBase
     //Contador de plantas sembradas hasta el momento
     public int PlantasSembradas { get; private set; } = 0;
     public override bool ActividadCompletada => PlantasSembradas >= metaPlantas;
+    public override string ResumenProgreso => $"Plantas sembradas: {PlantasSembradas}/{metaPlantas}";
+    public override float FraccionProgreso => metaPlantas > 0 ? Mathf.Clamp01((float)PlantasSembradas / metaPlantas) : 1f;
 
     protected override void Awake()
     {
@@ -49,5 +51,6 @@ public class SiembraActivityManager : ActivityManagerBase
     {
         if (contadorText != null)
             contadorText.text = $"{PlantasSembradas}/{metaPlantas}";
+        NotificarProgreso();
     }
 }

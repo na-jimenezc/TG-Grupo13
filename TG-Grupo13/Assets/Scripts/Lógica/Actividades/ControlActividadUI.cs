@@ -22,19 +22,51 @@ public class ControlActividadUI : MonoBehaviour
     [Header("Confirmación si avanza sin cumplir la condición")]
     [SerializeField] private GameObject panelConfirmacionAvanceForzado;
 
+    [Header("Progreso del usuario (se crea solo si se deja vacío)")]
+    [SerializeField] private ProgresoAdminUI progresoAdmin;
+
+    void Awake()
+    {
+        //El bloque que muestra en qué paso del tutorial o de la actividad va el usuario.
+        if (progresoAdmin == null)
+            progresoAdmin = GetComponentInChildren<ProgresoAdminUI>(true);
+        if (progresoAdmin == null)
+            progresoAdmin = ProgresoAdminUI.Crear((RectTransform)transform, tituloActividadText != null ? tituloActividadText.font : null);
+    }
+
     void OnEnable()
     {
         _actividadLanzada = false;
+        if (comenzarButton != null) comenzarButton.interactable = true;
         ActualizarTitulo();
         ActualizarTextoComenzar();
         ActualizarIndicador();
+
+        if (GameFlowManager.Instance != null)
+            GameFlowManager.Instance.OnEstadoCambiado += AlCambiarEstadoSesion;
     }
     void OnDisable()
     {
         if (_esperaManager != null)
             StopCoroutine(_esperaManager);
+        _esperaManager = null;
 
         DesuscribirseDelManager();
+
+        if (GameFlowManager.Instance != null)
+            GameFlowManager.Instance.OnEstadoCambiado -= AlCambiarEstadoSesion;
+    }
+
+    //Al terminar el tutorial, este lanza la actividad por su cuenta (sin pasar por el botón "Comenzar"),
+    //así que el panel se pone al día: el botón pasa a "Continuar" y se empieza a seguir la condición de la actividad.
+    private void AlCambiarEstadoSesion()
+    {
+        if (_actividadLanzada || GameFlowManager.Instance.Fase != FaseSesion.Actividad) return;
+
+        _actividadLanzada = true;
+        ActualizarTextoComenzar();
+        if (_esperaManager == null)
+            _esperaManager = StartCoroutine(EsperarManagerYSuscribir());
     }
     void ActualizarTitulo()
     {
@@ -48,9 +80,13 @@ public class ControlActividadUI : MonoBehaviour
             comenzarButtonTexto.text = _actividadLanzada ? "Continuar" : "Comenzar";
     }
 
+    //Se le pide al GameFlowManager (que siempre está cargado) y no al Menú de la actividad, porque el Menú se descarga
+    //al abrir el Tutorial; antes, presionar un botón durante el tutorial no hacía nada.
     public void OnTutorialPresionado()
     {
-        ActividadMenuUI.ActivoActual?.MostrarTutorial();
+        GameFlowManager flujo = GameFlowManager.Instance;
+        if (flujo != null && flujo.ActividadActual is ActivityType tipo)
+            flujo.MostrarTutorialActividad(tipo);
     }
 
     //Un solo botón para las dos funciones: la primera vez lanza la actividad real; una vez lanzada,
@@ -59,11 +95,17 @@ public class ControlActividadUI : MonoBehaviour
     {
         if (!_actividadLanzada)
         {
-            ActividadMenuUI.ActivoActual?.LanzarActividad();
+            GameFlowManager flujo = GameFlowManager.Instance;
+            if (flujo == null || !(flujo.ActividadActual is ActivityType tipo)) return;
+
+            //Se marca antes de lanzar, porque el cambio de fase a "Actividad" llega en este mismo clic
+            //(AlCambiarEstadoSesion) y así no se suscribe dos veces al manager.
             _actividadLanzada = true;
             ActualizarTextoComenzar();
+            flujo.LanzarActividadDirecta(tipo);
 
-            _esperaManager = StartCoroutine(EsperarManagerYSuscribir());
+            if (_esperaManager == null)
+                _esperaManager = StartCoroutine(EsperarManagerYSuscribir());
             return;
         }
 
@@ -100,6 +142,8 @@ public class ControlActividadUI : MonoBehaviour
 
     private void Avanzar()
     {
+        //Mientras carga la siguiente actividad se bloquea el botón, para que un doble clic no salte una actividad.
+        if (comenzarButton != null) comenzarButton.interactable = false;
         DesuscribirseDelManager();
         GameFlowManager.Instance?.ContinuarConSiguienteActividad();
     }
@@ -109,6 +153,7 @@ public class ControlActividadUI : MonoBehaviour
         //Espera a que la escena de la actividad termine de cargar y su manager haga Awake().
         while (ActivityManagerBase.Current == null)
             yield return null;
+        _esperaManager = null;
 
         _managerSuscrito = ActivityManagerBase.Current;
         _managerSuscrito.OnActividadCompletada += ActualizarIndicador;

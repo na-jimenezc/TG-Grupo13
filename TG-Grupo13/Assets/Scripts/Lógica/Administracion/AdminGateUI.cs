@@ -14,6 +14,13 @@ public class AdminGateUI : MonoBehaviour
     [SerializeField] private GameObject elementosLogin;        //Objeto que agrupa las entradas y el botón "Entrar"
     [SerializeField] private GameObject panelEnConstruccion;    //Objeto que dice "En Construcción"
 
+    //Etiquetas de los campos, ya que el placeholder por defecto no indica qué dato se pide.
+    private void Awake()
+    {
+        EtiquetaCampoUI.Etiquetar(nombreAdminInput, "Nombre del administrador", "Ej: Ana Gómez");
+        EtiquetaCampoUI.Etiquetar(passwordInput, "Contraseña", "Contraseña");
+    }
+
     //Se limpia por default al activar el panel, para evitar que queden datos de intentos anteriores.
     private void OnEnable()
     {

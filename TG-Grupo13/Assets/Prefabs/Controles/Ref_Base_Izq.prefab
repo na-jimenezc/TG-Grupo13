@@ -119,3 +119,4 @@ MonoBehaviour:
   botonesResaltados: 0
   colorResaltado: {r: 1, g: 0.8, b: 0, a: 1}
   velocidadPulso: 3
+  prefabManoContraria: {fileID: 630968796767086714, guid: 0b9ef57e44a274f4db6ec89a926f58fa, type: 3}

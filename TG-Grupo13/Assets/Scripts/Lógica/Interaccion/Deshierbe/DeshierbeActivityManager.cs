@@ -14,6 +14,8 @@ public class DeshierbeActivityManager : ActivityManagerBase
     //Sobrescribe la evaluación de condición base
     public int OrtigasRecolectadas { get; private set; } = 0;
     public override bool ActividadCompletada => OrtigasRecolectadas >= metaOrtigas;
+    public override string ResumenProgreso => $"Ortigas recolectadas: {OrtigasRecolectadas}/{metaOrtigas}";
+    public override float FraccionProgreso => metaOrtigas > 0 ? Mathf.Clamp01((float)OrtigasRecolectadas / metaOrtigas) : 1f;
 
     protected override void Awake()
     {
@@ -45,5 +47,6 @@ public class DeshierbeActivityManager : ActivityManagerBase
     {
         if (contadorText != null)
             contadorText.text = $"{OrtigasRecolectadas}/{metaOrtigas}";
+        NotificarProgreso();
     }
 }

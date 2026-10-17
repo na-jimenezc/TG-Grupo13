@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
   m_Name: 5.ArmarRamo
   m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
-  instruccion: Deje las tijeras, tome un capuchón con el grab y suéltelo sobre el ramo
+  instruccion: "Deje las tijeras, tome un capuchón con el grab de la mano {dominante} y suéltelo sobre el ramo"
   prefabsPose:
   - {fileID: 0}
   - {fileID: 234809795568558789, guid: ceb8cb3dd9ec4b5992eb5b985dc39c23, type: 3}

@@ -13,7 +13,19 @@ public class CrearPerfilUI : MonoBehaviour
     [SerializeField] private GameObject passwordInputObject;
     [SerializeField] private TMP_InputField passwordInput;
     [SerializeField] private TMP_InputField edadInput;
+    [SerializeField] private TMP_Dropdown manoDropdown; //0 = Diestro, 1 = Zurdo
     [SerializeField] private TMP_Text mensajeError;
+
+    //Se le pone a cada campo una etiqueta que indique qué dato va en él, ya que el placeholder por defecto no lo dice.
+    void Awake()
+    {
+        EtiquetaCampoUI.Etiquetar(nombreInput, "Nombre *", "Ej: Ana Gómez");
+        EtiquetaCampoUI.Etiquetar(correoInput, "Correo electrónico", "Ej: ana@correo.com");
+        EtiquetaCampoUI.Etiquetar(edadInput, "Edad", "Ej: 25");
+        EtiquetaCampoUI.Etiquetar(rolDropdown, "Rol");
+        EtiquetaCampoUI.Etiquetar(passwordInput, "Contraseña *", "Contraseña");
+        ManoDominanteUI.Configurar(manoDropdown);
+    }
 
     //Cuando se activa esta pantalla, se limpia el formulario y se actualiza la visibilidad del campo de contraseña según el rol seleccionado.
     void OnEnable()
@@ -25,6 +37,7 @@ public class CrearPerfilUI : MonoBehaviour
         rolDropdown.value = 0;
         mensajeError.text = "";
         edadInput.text = "";
+        if (manoDropdown != null) manoDropdown.value = 0;
         ActualizarVisibilidadPassword();
     }
 
@@ -73,7 +86,8 @@ public class CrearPerfilUI : MonoBehaviour
             correoInput.text.Trim(),
             esAdmin,
             esAdmin ? passwordInput.text : null,
-            edadInput.text.Trim()
+            edadInput.text.Trim(),
+            ManoDominanteUI.EsZurdo(manoDropdown)
         );
 
         GameFlowManager.Instance.IniciarSesionConUsuario(nuevoUsuario);

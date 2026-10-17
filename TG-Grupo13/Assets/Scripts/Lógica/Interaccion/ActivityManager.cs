@@ -5,6 +5,10 @@ public interface IActivityManager
 {
     bool ActividadCompletada { get; }
     event Action OnActividadCompletada;
+
+    //Texto corto con el avance (p. ej. "Plantas sembradas: 4/10") y fracción de 0 a 1, para el panel del Game Master.
+    string ResumenProgreso { get; }
+    float FraccionProgreso { get; }
 }
 
 /*Clase base que registra automáticamente al manager activo en un slot estático compartido.
@@ -19,6 +23,12 @@ public abstract class ActivityManagerBase : MonoBehaviour, IActivityManager
     public abstract bool ActividadCompletada { get; }
     public event Action OnActividadCompletada;
 
+    public virtual string ResumenProgreso => ActividadCompletada ? "Meta cumplida" : "En curso";
+    public virtual float FraccionProgreso => ActividadCompletada ? 1f : 0f;
+
+    //Estático porque el panel del Game Master vive en Core y no conoce al manager hasta que su escena carga.
+    public static event Action OnProgresoCambiado;
+
     protected virtual void Awake()
     {
         Current = this;
@@ -29,8 +39,14 @@ public abstract class ActivityManagerBase : MonoBehaviour, IActivityManager
         //Solo te "desregistras" si sigues siendo el manager activo (evita pisar
         //al manager de la siguiente actividad si ya se cargó antes de que tú te destruyas).
         if (ReferenceEquals(Current, this))
+        {
             Current = null;
+            OnProgresoCambiado?.Invoke();
+        }
     }
 
     protected void MarcarCompletada() => OnActividadCompletada?.Invoke();
+
+    //Las subclases lo llaman cada vez que cambian sus contadores.
+    protected void NotificarProgreso() => OnProgresoCambiado?.Invoke();
 }

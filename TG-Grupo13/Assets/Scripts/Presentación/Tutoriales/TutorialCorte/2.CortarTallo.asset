@@ -15,6 +15,7 @@ MonoBehaviour:
   instruccion: Acerque las tijeras al tallo y presione el gatillo para cortarlo
   prefabsPose:
   - {fileID: 0}
+  - {fileID: 733745814704556153, guid: b9a4035a88fd4b07864f83bb6567ae63, type: 3}
   - {fileID: 3495653548358173335, guid: 79844341c7bd4f6f8dae51d48fde54bc, type: 3}
   iconosBoton: []
   prefabsControles:
