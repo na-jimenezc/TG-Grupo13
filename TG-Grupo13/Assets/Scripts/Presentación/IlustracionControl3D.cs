@@ -48,6 +48,11 @@ public class IlustracionControl3D : MonoBehaviour
     [SerializeField] private Color colorResaltado = new Color(1f, 0.8f, 0f);
     [SerializeField] private float velocidadPulso = 3f;
 
+    [Header("Mano dominante")]
+    [Tooltip("El mismo control pero de la otra mano (p. ej. Ref_Grab_Izq para Ref_Grab_Der). El tutorial lo usa con perfiles zurdos")]
+    [SerializeField] private GameObject prefabManoContraria;
+    public GameObject PrefabManoContraria => prefabManoContraria;
+
     private static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
     private Quaternion _rotacionInicial;
     private Vector3 _posicionInicial;

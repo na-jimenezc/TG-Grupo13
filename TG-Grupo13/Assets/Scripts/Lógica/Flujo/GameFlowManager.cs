@@ -306,13 +306,15 @@ public class GameFlowManager : MonoBehaviour
         if (!string.IsNullOrEmpty(escenaContinuarNombre))
             yield return CargarEscenaAditiva(escenaContinuarNombre);
 
+        //Primero se carga la siguiente escena (Menú o Resultados) y después se descarga la actividad: la escena
+        //Continuar no tiene piso, así que si la actividad se descargaba antes el jugador caía mientras cargaba la siguiente.
+        yield return AvanzarSiguienteActividad();
+
         if (_escenaContenidoActual != null)
         {
             yield return DescargarEscenaSiEstaCargada(_escenaContenidoActual);
             _escenaContenidoActual = null;
         }
-
-        yield return AvanzarSiguienteActividad();
 
         if (!string.IsNullOrEmpty(escenaContinuarNombre))
             yield return DescargarEscenaSiEstaCargada(escenaContinuarNombre);

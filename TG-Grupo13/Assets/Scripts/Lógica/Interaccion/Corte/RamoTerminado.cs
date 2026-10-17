@@ -29,7 +29,7 @@ public class RamoTerminado : MonoBehaviour
     private void Update()
     {
         //FASE FINAL: mientras el ramo está agarrado (por la mano que sea), si se presiona
-        //trigger + grab izquierdos a la vez, pasa al hombro.
+        //trigger + grab de la mano secundaria a la vez, pasa al hombro.
         if (_agarres <= 0 || _apiladoEnHombro) return;
 
         var manager = CorteActivityManager.Instance;

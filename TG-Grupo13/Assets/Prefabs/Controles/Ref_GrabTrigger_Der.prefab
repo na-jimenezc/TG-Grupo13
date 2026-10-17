@@ -114,6 +114,7 @@ MonoBehaviour:
   botonesResaltados: 3
   colorResaltado: {r: 1, g: 0.8, b: 0, a: 1}
   velocidadPulso: 3
+  prefabManoContraria: {fileID: 4344115056130705782, guid: c13d91ece5ad401193999f8adc9ae99a, type: 3}
 --- !u!4 &2019005525433371090 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: a6486dee59a57ba46a1f5f2129f2e1c4, type: 3}

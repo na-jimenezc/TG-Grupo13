@@ -45,7 +45,7 @@ public class RamoEnProgreso : MonoBehaviour
             return;
         }
 
-        //Fija el agrupador a la jerarquía de la mano izquierda
+        //Fija el agrupador a la jerarquía de la mano secundaria
         transform.SetParent(ManoSecundaria.Instance.transform, worldPositionStays: false);
         transform.localPosition = new Vector3(0f, 0.05f, 0f); //REVISAR SI QUEDÓ EN LA PALMA
         transform.localRotation = Quaternion.identity;

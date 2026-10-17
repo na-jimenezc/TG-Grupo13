@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-/* La clase se encarga de controlar la interacción de la mano izquierda del usuario con los baldes de depósito. 
+/* La clase se encarga de controlar la interacción de la mano secundaria del usuario (izquierda para diestros) con los baldes de depósito. 
  * Verifica si el usuario tiene suficientes ramos apilados y si está dentro del área de un balde para permitir la descarga. 
  * Cuando se cumplen las condiciones, se deposita los ramos en el balde y notifica al manager de la actividad para avanzar.*/
 public class ManoIzquierdaController : MonoBehaviour

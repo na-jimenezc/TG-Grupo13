@@ -37,7 +37,7 @@ public abstract class TutorialManagerBase : MonoBehaviour
 
     public int PasoActual => _pasoActual;
     public int TotalPasos => pasos != null ? pasos.Length : 0;
-    public string InstruccionActual => pasos != null && _pasoActual < pasos.Length && pasos[_pasoActual] != null ? pasos[_pasoActual].instruccion : "";
+    public string InstruccionActual => pasos != null && _pasoActual < pasos.Length && pasos[_pasoActual] != null ? Lateralidad.Formatear(pasos[_pasoActual].instruccion) : "";
     //Contador del paso actual (p. ej. "3/5" bulbos sembrados), vacío si el paso no lleva contador.
     public string ContadorActual { get; private set; } = "";
 
@@ -127,31 +127,49 @@ public abstract class TutorialManagerBase : MonoBehaviour
         OnPasoCambiado?.Invoke();
     }
 
-    // El maniquí hereda la escala del punto de aparición, para igualarlo a escenas cuyo entorno está escalado
+    // El maniquí hereda la escala del punto de aparición, para igualarlo a escenas cuyo entorno está escalado.
+    // Las poses están hechas para diestros: con un perfil zurdo se reflejan en X (el maniquí es simétrico).
     private void InstanciarPoses(GameObject[] prefabs)
     {
         if (prefabs == null) return;
+        bool zurdo = Lateralidad.EsZurdo;
         for (int i = 0; i < prefabs.Length && i < puntosAparicionMuñeco.Length; i++)
         {
             if (prefabs[i] == null) continue;
             var punto = puntosAparicionMuñeco[i];
             var pose = Instantiate(prefabs[i], punto.position, punto.rotation);
-            pose.transform.localScale = Vector3.Scale(prefabs[i].transform.localScale, punto.lossyScale);
+            var escala = Vector3.Scale(prefabs[i].transform.localScale, punto.lossyScale);
+            if (zurdo) escala.x = -escala.x;
+            pose.transform.localScale = escala;
             _posesInstanciadas.Add(pose);
         }
     }
 
-    // Los controles se crean como hijos del punto para que hereden su escala y sigan al panel si este se mueve
+    // Los controles se crean como hijos del punto para que hereden su escala y sigan al panel si este se mueve.
+    // Los pasos están hechos para diestros (elemento 0 = control izquierdo, 1 = derecho): con un perfil zurdo
+    // cada control se cambia por el de la otra mano y se muestra en el punto del otro lado.
     private void InstanciarControles(GameObject[] prefabs)
     {
         if (prefabs == null || puntosControles == null) return;
+        bool zurdo = Lateralidad.EsZurdo;
         for (int i = 0; i < prefabs.Length && i < puntosControles.Length; i++)
         {
-            if (prefabs[i] == null || puntosControles[i] == null) continue;
-            var control = Instantiate(prefabs[i], puntosControles[i], false);
-            CentrarEnPunto(control.transform, puntosControles[i]);
+            var prefab = zurdo ? ControlManoContraria(prefabs[i]) : prefabs[i];
+            var punto = puntosControles[zurdo ? puntosControles.Length - 1 - i : i];
+            if (prefab == null || punto == null) continue;
+            var control = Instantiate(prefab, punto, false);
+            CentrarEnPunto(control.transform, punto);
             _posesInstanciadas.Add(control);
         }
+    }
+
+    private static GameObject ControlManoContraria(GameObject prefab)
+    {
+        if (prefab == null) return null;
+        var ilustracion = prefab.GetComponentInChildren<IlustracionControl3D>(true);
+        if (ilustracion != null && ilustracion.PrefabManoContraria != null) return ilustracion.PrefabManoContraria;
+        Debug.LogWarning($"[TutorialManagerBase] {prefab.name} no tiene asignado su control de la mano contraria, se muestra el mismo.");
+        return prefab;
     }
 
     // El pivote de los FBX de mano + control queda lejos de la mano (viene de la pose del cuerpo en Blender),
@@ -175,7 +193,7 @@ public abstract class TutorialManagerBase : MonoBehaviour
 
     private void ActualizarTextoEIconos(TutorialStepData paso)
     {
-        textoInstruccion.text = paso.instruccion;
+        textoInstruccion.text = Lateralidad.Formatear(paso.instruccion);
         for (int i = 0; i < iconosBotonUI.Length; i++)
         {
             bool hay = paso.iconosBoton != null && i < paso.iconosBoton.Length;

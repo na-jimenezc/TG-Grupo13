@@ -14,7 +14,7 @@ public class TalloEnPlantacion : MonoBehaviour
     //Para la demostración de la pantalla de espera: ahí la mano secundaria vive en Core,
     //así que el tallo cortado se iría con el jugador a la siguiente escena
     [Header("Demostración (pantalla de espera)")]
-    [Tooltip("Si está activo, el tallo cortado aparece en la mano izquierda (actividad y tutorial de corte)")]
+    [Tooltip("Si está activo, el tallo cortado aparece en la mano secundaria (actividad y tutorial de corte)")]
     [SerializeField] private bool entregarTalloEnMano = true;
     [Tooltip("Segundos para que el lirio vuelva a aparecer después de cortarlo. 0 = se destruye (comportamiento normal)")]
     [SerializeField] private float segundosParaReaparecer = 0f;
@@ -36,7 +36,7 @@ public class TalloEnPlantacion : MonoBehaviour
         var manoSecundaria = ManoSecundaria.Instance;
         if (entregarTalloEnMano && manoSecundaria != null && !manoSecundaria.TieneAlgoEnMano)
         {
-            //Si la mano izquierda está libre, spawnea el tallo cortado directamente en ella
+            //Si la mano secundaria está libre, spawnea el tallo cortado directamente en ella
             var talloCortado = Instantiate(prefabTalloCortado, manoSecundaria.PuntoAnclaje.position, manoSecundaria.PuntoAnclaje.rotation);
             manoSecundaria.Sostener(talloCortado);
         }

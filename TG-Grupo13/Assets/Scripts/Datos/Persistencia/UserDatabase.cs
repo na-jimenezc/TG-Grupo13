@@ -65,7 +65,7 @@ public static class UserDatabase
     }
 
     //Método público que crea un nuevo usuario y lo agrega a la base de datos, generando un ID único y guardando la información en el archivo JSON
-    public static UserProfile CrearUsuario(string nombre, string correo, bool esAdmin, string password, string edad)
+    public static UserProfile CrearUsuario(string nombre, string correo, bool esAdmin, string password, string edad, bool esZurdo = false)
     {
         CargarSiHaceFalta();
 
@@ -78,7 +78,8 @@ public static class UserDatabase
             Correo = correo,
             EsAdministrador = esAdmin,
             Edad = edad,
-            PasswordHash = esAdmin ? Hash(password) : ""
+            PasswordHash = esAdmin ? Hash(password) : "",
+            EsZurdo = esZurdo
         };
 
         _data.usuarios.Add(nuevo);

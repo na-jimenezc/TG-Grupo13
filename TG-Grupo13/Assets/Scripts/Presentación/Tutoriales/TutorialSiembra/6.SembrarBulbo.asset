@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
   m_Name: 6.SembrarBulbo
   m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
-  instruccion: "Suelte el bulbo sobre el hueco reci\xE9n cavado"
+  instruccion: "Lleve el bulbo sobre el hueco recién cavado y suelte el grab"
   prefabsPose:
   - {fileID: 7912322388357308714, guid: 3dca20d0188148842acec551614ef405, type: 3}
   - {fileID: 5414559928008942659, guid: 7a29352414ff4f2408a8bc477e65b2b0, type: 3}

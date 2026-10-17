@@ -12,6 +12,7 @@ public class VerInfoUI : MonoBehaviour
     [SerializeField] private TMP_Text edadLabel;
     [SerializeField] private TMP_Text correoLabel;
     [SerializeField] private TMP_Text rolLabel;
+    [SerializeField] private TMP_Text manoLabel;
 
     //Contenedor y prefab para mostrar la lista de capacitaciones del usuario
     [Header("Lista de Capacitaciones")]
@@ -32,6 +33,7 @@ public class VerInfoUI : MonoBehaviour
         edadLabel.text = $"Edad: {usuario.Edad}";
         correoLabel.text = $"Correo: {usuario.Correo}";
         rolLabel.text = usuario.EsAdministrador ? "Rol: Administrador" : "Rol: Normal";
+        if (manoLabel != null) manoLabel.text = usuario.EsZurdo ? "Mano dominante: Izquierda (zurdo)" : "Mano dominante: Derecha (diestro)";
 
         //Se limpia el contenedor para cargar nuevas tarjetas de capacitaciones
         foreach (Transform hijo in contenedorCapacitaciones)

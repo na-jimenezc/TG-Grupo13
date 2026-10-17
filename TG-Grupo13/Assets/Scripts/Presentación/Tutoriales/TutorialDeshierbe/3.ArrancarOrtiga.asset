@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
   m_Name: 3.ArrancarOrtiga
   m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
-  instruccion: "Arranque la ortiga sosteni\xE9ndola hac\xEDa usted "
+  instruccion: "Sin soltar el grab, tire de la ortiga hacia usted para arrancarla"
   prefabsPose:
   - {fileID: 2050844917343466522, guid: db419408aee56c8499bb4381cb8eb73d, type: 3}
   - {fileID: 67399335227428872, guid: 9d7edd2468ebda747a7483f3cf6b40cf, type: 3}

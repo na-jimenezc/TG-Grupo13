@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
   m_Name: 6.DepositarRamo
   m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
-  instruccion: Lleve el ramo terminado a la malla y suéltelo
+  instruccion: "Lleve el ramo terminado a la malla y suelte el grab"
   prefabsPose:
   - {fileID: 0}
   - {fileID: 2528647353404945299, guid: 5f7dac5d7ae748afa29f05f9bfef8fa3, type: 3}
