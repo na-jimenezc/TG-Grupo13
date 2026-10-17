@@ -332,6 +332,24 @@ namespace PujJoycon
             return true;
         }
 
+        /// <summary>
+        /// Promedio de varias orientaciones parecidas (suavizado de la tembladera).
+        /// q y −q son la misma rotación, así que cada una se alinea primero con
+        /// <paramref name="reference"/> (la más reciente) antes de sumar.
+        /// </summary>
+        public static Quaternion Average(Quaternion[] samples, int count, Quaternion reference)
+        {
+            if (count <= 0) return reference;
+            float x = 0f, y = 0f, z = 0f, w = 0f;
+            for (int i = 0; i < count; i++)
+            {
+                Quaternion q = samples[i];
+                float sign = (q.x * reference.x + q.y * reference.y + q.z * reference.z + q.w * reference.w) < 0f ? -1f : 1f;
+                x += sign * q.x; y += sign * q.y; z += sign * q.z; w += sign * q.w;
+            }
+            return Normalize(new Quaternion(x, y, z, w));
+        }
+
         /// <summary>Ángulo (0..180°) y eje unitario de la rotación q (el camino más corto).</summary>
         public static void ToAngleAxis(Quaternion q, out float angleDegrees, out Vector3 axis)
         {

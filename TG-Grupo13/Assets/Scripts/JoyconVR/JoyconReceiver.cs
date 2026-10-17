@@ -45,10 +45,24 @@ namespace PujJoycon
         [SerializeField] private float staleAfterSeconds = 0.5f;
         [SerializeField] private bool showDebugOverlay = true;
 
+        [Header("Suavizado (tembladera)")]
+        [Tooltip("Promedia las últimas N lecturas distintas de cada Joy-Con. 1 = sin suavizar. " +
+                 "Más alto = menos tembladera pero más retraso (cada lectura son ~16 ms: 10 ≈ 80 ms de retraso).")]
+        [SerializeField, Range(1, MaxSmoothingSamples)] private int smoothingSamples = 10;
+
+        private const int MaxSmoothingSamples = 30;
+
         private JoyconMultiClient _client;
         private readonly JoyconSensorSample[] _samples = new JoyconSensorSample[MaxSensors];
         private readonly int[] _sourceServer = new int[MaxSensors];
         private readonly Quaternion[] _rotations = new Quaternion[MaxSensors];
+
+        // Historial de lecturas por sensor para el promedio (anillo de tamaño smoothingSamples).
+        private readonly Quaternion[][] _history = new Quaternion[MaxSensors][];
+        private readonly int[] _historyCount = new int[MaxSensors];
+        private readonly int[] _historyNext = new int[MaxSensors];
+        private readonly RawQuaternion[] _lastRaw = new RawQuaternion[MaxSensors];
+        private int _historySize;
         private JoyconServerStatus[] _serverStatus = new JoyconServerStatus[0];
         private bool[] _wasReceiving = new bool[0];
         private string _lastOverlapWarning;
@@ -154,10 +168,7 @@ namespace PujJoycon
             _client.Update(_samples, _sourceServer);
             for (int s = 0; s < _serverStatus.Length; s++) _serverStatus[s] = _client.GetServerStatus(s);
 
-            for (int i = 0; i < _samples.Length; i++)
-            {
-                if (_samples[i].HasData) _rotations[i] = PostureMath.ToUnity(_samples[i].Orientation);
-            }
+            UpdateSmoothedRotations();
 
             for (int s = 0; s < _serverStatus.Length; s++)
             {
@@ -182,8 +193,52 @@ namespace PujJoycon
             }
         }
 
+        private void UpdateSmoothedRotations()
+        {
+            int size = Mathf.Clamp(smoothingSamples, 1, MaxSmoothingSamples);
+            if (size != _historySize)
+            {
+                // Cambió el tamaño (también al empezar): se reinicia el historial.
+                _historySize = size;
+                for (int i = 0; i < MaxSensors; i++)
+                {
+                    if (_history[i] == null) _history[i] = new Quaternion[MaxSmoothingSamples];
+                    _historyCount[i] = 0;
+                    _historyNext[i] = 0;
+                }
+            }
+
+            for (int i = 0; i < _samples.Length; i++)
+            {
+                if (!_samples[i].HasData) continue;
+                if (_samples[i].AgeSeconds > staleAfterSeconds)
+                {
+                    // Sensor perdido: al volver no se mezclan lecturas viejas con nuevas.
+                    // (Average usa las posiciones 0..count-1, así que se reinicia también la posición.)
+                    _historyCount[i] = 0;
+                    _historyNext[i] = 0;
+                    continue;
+                }
+
+                // El servidor repite la misma lectura hasta que el Joy-Con manda otra:
+                // solo se guardan lecturas distintas, para que N sean "los últimos N datos".
+                RawQuaternion raw = _samples[i].Orientation;
+                Quaternion q = PostureMath.ToUnity(raw);
+                bool isNew = _historyCount[i] == 0 || raw.X != _lastRaw[i].X || raw.Y != _lastRaw[i].Y ||
+                             raw.Z != _lastRaw[i].Z || raw.W != _lastRaw[i].W;
+                if (isNew)
+                {
+                    _lastRaw[i] = raw;
+                    _history[i][_historyNext[i]] = q;
+                    _historyNext[i] = (_historyNext[i] + 1) % size;
+                    _historyCount[i] = Mathf.Min(_historyCount[i] + 1, size);
+                }
+                _rotations[i] = size > 1 ? PostureMath.Average(_history[i], _historyCount[i], q) : q;
+            }
+        }
+
         /// <summary>
-        /// Orientación del sensor GLOBAL en ejes de Unity, SIN calibrar (cada Joy-Con
+        /// Orientación del sensor GLOBAL en ejes de Unity (suavizada), SIN calibrar (cada Joy-Con
         /// tiene su propio "mundo", ver README). Devuelve false si el sensor no existe
         /// o lleva más de staleAfterSeconds sin actualizarse.
         /// </summary>
