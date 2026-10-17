@@ -13,7 +13,9 @@ MonoBehaviour:
   m_Name: 6.DepositarRamo
   m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
   instruccion: Lleve el ramo terminado a la malla y suéltelo
-  prefabsPose: []
+  prefabsPose:
+  - {fileID: 0}
+  - {fileID: 2528647353404945299, guid: 5f7dac5d7ae748afa29f05f9bfef8fa3, type: 3}
   iconosBoton: []
   prefabsControles:
   - {fileID: 0}
