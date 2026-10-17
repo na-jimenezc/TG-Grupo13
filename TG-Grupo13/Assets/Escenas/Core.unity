@@ -7508,7 +7508,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Confrimar
+  m_text: Confirmar
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -8993,6 +8993,7 @@ MonoBehaviour:
   colorCondicionCumplida: {r: 0, g: 0.4245283, b: 0.000000025303859, a: 1}
   colorCondicionPendiente: {r: 0.6792453, g: 0, b: 0, a: 1}
   panelConfirmacionAvanceForzado: {fileID: 691472195}
+  progresoAdmin: {fileID: 0}
 --- !u!114 &791101935
 MonoBehaviour:
   m_ObjectHideFlags: 0

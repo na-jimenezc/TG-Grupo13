@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -29,7 +30,31 @@ public abstract class TutorialManagerBase : MonoBehaviour
     private readonly List<GameObject> _posesInstanciadas = new List<GameObject>();
     private Coroutine _esperaTiempo;
 
-    protected virtual void Start() => MostrarPaso(0);
+    //Tutorial que se está mostrando en el visor (null si no hay ninguno), para que el panel del Game Master
+    //pueda mostrar en qué paso va el usuario. Es estático porque el panel vive en Core y el tutorial en otra escena.
+    public static TutorialManagerBase Actual { get; private set; }
+    public static event Action OnPasoCambiado;
+
+    public int PasoActual => _pasoActual;
+    public int TotalPasos => pasos != null ? pasos.Length : 0;
+    public string InstruccionActual => pasos != null && _pasoActual < pasos.Length && pasos[_pasoActual] != null ? pasos[_pasoActual].instruccion : "";
+    //Contador del paso actual (p. ej. "3/5" bulbos sembrados), vacío si el paso no lleva contador.
+    public string ContadorActual { get; private set; } = "";
+
+    protected virtual void Start()
+    {
+        Actual = this;
+        MostrarPaso(0);
+    }
+
+    protected virtual void OnDisable()
+    {
+        if (Actual == this)
+        {
+            Actual = null;
+            OnPasoCambiado?.Invoke();
+        }
+    }
 
 #if UNITY_EDITOR
     // SOLO EN EL EDITOR (no llega a las gafas ni al build): permite revisar textos, poses y controles
@@ -57,6 +82,7 @@ public abstract class TutorialManagerBase : MonoBehaviour
     protected void MostrarPaso(int index)
     {
         _pasoActual = index;
+        ContadorActual = "";
         var paso = pasos[index];
 
         LimpiarPosesAnteriores();
@@ -71,6 +97,8 @@ public abstract class TutorialManagerBase : MonoBehaviour
             _esperaTiempo = StartCoroutine(AvanzarTrasEspera(paso.duracionMinima));
         else
             SuscribirEventoDelPaso(paso.tipoEspera); // cada subclase implementa el switch propio
+
+        OnPasoCambiado?.Invoke();
     }
 
     protected abstract void SuscribirEventoDelPaso(TipoEsperaTutorial tipo);
@@ -95,6 +123,8 @@ public abstract class TutorialManagerBase : MonoBehaviour
     protected void ActualizarContador(int actual, int objetivo)
     {
         if (contadorText != null) contadorText.text = $"{actual}/{objetivo}";
+        ContadorActual = $"{actual}/{objetivo}";
+        OnPasoCambiado?.Invoke();
     }
 
     // El maniquí hereda la escala del punto de aparición, para igualarlo a escenas cuyo entorno está escalado
