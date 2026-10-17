@@ -282,6 +282,99 @@ namespace PujJoycon
         }
 
         // ------------------------------------------------------------------
+        // 7) Calibración automática del montaje (postura N + sentadilla)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Calcula el "mounting" de un Joy-Con (cómo está puesto en el segmento) a partir de:
+        ///   - la gravedad en postura N: ahí el eje largo del segmento (Y del cuerpo) es vertical;
+        ///   - un movimiento conocido alrededor del eje lateral del cuerpo (X), por ejemplo la
+        ///     sentadilla con brazos al frente, con el signo esperado para ese segmento
+        ///     (+1 si su eje Y se va hacia adelante: tronco, pelvis, pierna; −1 si su eje −Y se va
+        ///     hacia adelante: brazo, muslo).
+        ///
+        /// q0          : orientación del Joy-Con en postura N (ejes de Unity, ToUnity)
+        /// qMoved      : orientación en la sentadilla
+        /// gravityUpY  : dónde queda "arriba" en el mundo del filtro del servidor tras ToUnity: (0, gravityUpY, 0)
+        /// minAngle    : giro mínimo (grados) para confiar en el eje
+        ///
+        /// Devuelve false (y un motivo) si el segmento casi no se movió o giró alrededor de la vertical.
+        /// </summary>
+        public static bool MountingFromMovement(Quaternion q0, Quaternion qMoved, float expectedSign, float gravityUpY,
+                                                float minAngle, out Quaternion mounting, out string problem)
+        {
+            mounting = Quaternion.identity;
+            problem = null;
+
+            // Giro desde la postura N, en los ejes del propio Joy-Con.
+            ToAngleAxis(Inverse(q0) * qMoved, out float angle, out Vector3 axis);
+            if (angle < minAngle)
+            {
+                problem = $"se movió muy poco ({angle:F0}°, mínimo {minAngle:F0}°)";
+                return false;
+            }
+
+            // Eje Y del cuerpo (vertical) y eje X (lateral) expresados en los ejes del Joy-Con.
+            Vector3 up = (Inverse(q0) * new Vector3(0f, gravityUpY, 0f)).normalized;
+            Vector3 lateral = axis * Mathf.Sign(expectedSign);
+            lateral -= Vector3.Dot(lateral, up) * up;
+            if (lateral.magnitude < 0.5f)
+            {
+                problem = "giró alrededor de la vertical en vez de inclinarse hacia adelante";
+                return false;
+            }
+            lateral.Normalize();
+            Vector3 forward = Vector3.Cross(lateral, up); // (1,0,0) x (0,1,0) = (0,0,1)
+
+            // bodyInSensor lleva los ejes del cuerpo a sus coordenadas en el Joy-Con;
+            // el mounting es lo contrario (de ejes del Joy-Con a ejes del segmento).
+            mounting = Inverse(FromBasis(lateral, up, forward));
+            return true;
+        }
+
+        /// <summary>Ángulo (0..180°) y eje unitario de la rotación q (el camino más corto).</summary>
+        public static void ToAngleAxis(Quaternion q, out float angleDegrees, out Vector3 axis)
+        {
+            q = Normalize(q);
+            if (q.w < 0f) q = new Quaternion(-q.x, -q.y, -q.z, -q.w);
+            angleDegrees = 2f * Mathf.Acos(Mathf.Clamp(q.w, -1f, 1f)) * Mathf.Rad2Deg;
+            float s = Mathf.Sqrt(Mathf.Max(0f, 1f - q.w * q.w));
+            axis = s < 1e-6f ? Vector3.right : new Vector3(q.x / s, q.y / s, q.z / s);
+        }
+
+        /// <summary>Rotación que lleva los ejes X, Y, Z a x, y, z (base ortonormal derecha).</summary>
+        public static Quaternion FromBasis(Vector3 x, Vector3 y, Vector3 z)
+        {
+            // Matriz con columnas x, y, z -> cuaternión.
+            float m00 = x.x, m10 = x.y, m20 = x.z;
+            float m01 = y.x, m11 = y.y, m21 = y.z;
+            float m02 = z.x, m12 = z.y, m22 = z.z;
+            float trace = m00 + m11 + m22;
+            float qw, qx, qy, qz;
+            if (trace > 0f)
+            {
+                float s = Mathf.Sqrt(trace + 1f) * 2f;
+                qw = 0.25f * s; qx = (m21 - m12) / s; qy = (m02 - m20) / s; qz = (m10 - m01) / s;
+            }
+            else if (m00 > m11 && m00 > m22)
+            {
+                float s = Mathf.Sqrt(1f + m00 - m11 - m22) * 2f;
+                qw = (m21 - m12) / s; qx = 0.25f * s; qy = (m01 + m10) / s; qz = (m02 + m20) / s;
+            }
+            else if (m11 > m22)
+            {
+                float s = Mathf.Sqrt(1f + m11 - m00 - m22) * 2f;
+                qw = (m02 - m20) / s; qx = (m01 + m10) / s; qy = 0.25f * s; qz = (m12 + m21) / s;
+            }
+            else
+            {
+                float s = Mathf.Sqrt(1f + m22 - m00 - m11) * 2f;
+                qw = (m10 - m01) / s; qx = (m02 + m20) / s; qy = (m12 + m21) / s; qz = 0.25f * s;
+            }
+            return Normalize(new Quaternion(qx, qy, qz, qw));
+        }
+
+        // ------------------------------------------------------------------
         // Utilidades (todo administrado, sin llamadas nativas de Unity)
         // ------------------------------------------------------------------
 

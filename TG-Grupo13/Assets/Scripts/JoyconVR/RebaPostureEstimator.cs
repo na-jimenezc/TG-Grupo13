@@ -121,6 +121,14 @@ namespace PujJoycon
             new SegmentBinding(BodySegment.HandRight, -1),
         };
 
+        [Header("Calibración automática del montaje (sentadilla)")]
+        [Tooltip("Dónde queda 'arriba' en el mundo de los Joy-Cons: (0, este valor, 0). Si después de la " +
+                 "sentadilla la flexión sale bien pero la torsión y la inclinación lateral salen AL REVÉS en " +
+                 "todos los Joy-Cons, cambie el signo.")]
+        [SerializeField] private float gravityUpY = -1f;
+        [Tooltip("Giro mínimo (grados) de cada segmento en la sentadilla para confiar en él.")]
+        [SerializeField] private float minMovementAngle = 15f;
+
         [Header("Umbrales REBA")]
         [SerializeField] private RebaThresholds thresholds = new RebaThresholds();
 
@@ -197,6 +205,77 @@ namespace PujJoycon
 
         /// <summary>Se dispara al terminar una calibración exitosa (JoyconAvatarDriver la usa para tomar la postura N del avatar).</summary>
         public event Action Calibrated;
+
+        /// <summary>Resultado de la última calibración del montaje, una línea por Joy-Con.</summary>
+        public string LastMountingReport { get; private set; }
+
+        /// <summary>
+        /// Paso 2 de la calibración, con la persona en la sentadilla (rodillas dobladas, tronco
+        /// un poco adelante, brazos estirados al frente). Debe llamarse después de Calibrate()
+        /// en postura N. Calcula el mountingEuler de cada Joy-Con a partir de la gravedad
+        /// (postura N) y del giro alrededor del eje lateral (sentadilla).
+        /// Devuelve true si todos los Joy-Cons quedaron calibrados.
+        /// </summary>
+        [ContextMenu("Calibrar montaje con la sentadilla (ahora)")]
+        public bool CalibrateMountingFromSquat()
+        {
+            var report = new System.Text.StringBuilder();
+            bool allOk = true;
+            foreach (var b in bindings)
+            {
+                if (b.trackedTransform != null || b.sensorIndex < 0 || !b.calibrated) continue;
+                float sign = ExpectedSquatSign(b.segment);
+                if (sign == 0f) continue;
+
+                string problem;
+                if (!TryGetSourceRotation(b, out var q))
+                {
+                    problem = "sin datos";
+                }
+                else if (PostureMath.MountingFromMovement(b.q0, q, sign, gravityUpY, minMovementAngle,
+                                                          out var mounting, out problem))
+                {
+                    b.mountingEuler = PostureMath.ToEuler(mounting, EulerOrder.XYZ);
+                    report.AppendLine($"{b.segment}: OK");
+                    continue;
+                }
+                allOk = false;
+                report.AppendLine($"{b.segment}: {problem}");
+            }
+            LastMountingReport = report.ToString().TrimEnd();
+            if (allOk) Debug.Log($"[REBA] Montaje calibrado con la sentadilla:\n{LastMountingReport}", this);
+            else Debug.LogWarning($"[REBA] Montaje: algunos Joy-Cons no se calibraron:\n{LastMountingReport}", this);
+            return allOk;
+        }
+
+        /// <summary>
+        /// Sentido en que gira cada segmento alrededor del eje lateral (X) en la sentadilla:
+        /// +1 si su eje Y (hacia arriba) se va hacia adelante (tronco, pelvis, pierna: la rodilla
+        /// avanza), −1 si su eje −Y (hacia abajo) se va hacia adelante (brazos al frente, muslos).
+        /// </summary>
+        public static float ExpectedSquatSign(BodySegment segment)
+        {
+            switch (segment)
+            {
+                case BodySegment.Trunk:
+                case BodySegment.Pelvis:
+                case BodySegment.Head:
+                case BodySegment.ShankLeft:
+                case BodySegment.ShankRight:
+                    return 1f;
+                case BodySegment.UpperArmLeft:
+                case BodySegment.UpperArmRight:
+                case BodySegment.ForearmLeft:
+                case BodySegment.ForearmRight:
+                case BodySegment.HandLeft:
+                case BodySegment.HandRight:
+                case BodySegment.ThighLeft:
+                case BodySegment.ThighRight:
+                    return -1f;
+                default:
+                    return 0f;
+            }
+        }
 
         /// <summary>
         /// Orientación actual del segmento en el marco del cuerpo C (identidad en postura N).

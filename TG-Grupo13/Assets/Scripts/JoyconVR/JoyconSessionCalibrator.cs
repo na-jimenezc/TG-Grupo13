@@ -6,7 +6,9 @@
 //   1. Cuando GameFlowManager pasa a simulacionEnCurso = true (el Game Master
 //      inició la sesión), espera unos segundos a que carguen las escenas.
 //   2. Espera a que lleguen datos de los Joy-Cons.
-//   3. Pide la postura N con cuenta regresiva y calibra.
+//   3. Pide la postura N con cuenta regresiva y calibra (el "cero" de cada Joy-Con).
+//   4. Pide la sentadilla con brazos al frente y calcula cómo está puesto cada
+//      Joy-Con en el cuerpo (su montaje), para que los ejes salgan bien.
 //
 // También se puede lanzar a mano: Calibrar() desde un botón del Game Master, o
 // el menú ⋮ del componente -> "Calibrar ahora".
@@ -31,6 +33,8 @@ namespace PujJoycon
 
         [Header("Cuándo")]
         [SerializeField] private bool calibrateOnSessionStart = true;
+        [Tooltip("Botón 'Calibrar Joy-Cons' en la pantalla del PC (vista Game), abajo a la izquierda.")]
+        [SerializeField] private bool showCalibrateButton = true;
         [Tooltip("Espera tras iniciar la sesión, para que carguen las escenas y la persona se ubique.")]
         [SerializeField] private float delayAfterSessionStart = 3f;
 
@@ -39,6 +43,15 @@ namespace PujJoycon
         [SerializeField] private float waitForDataSeconds = 15f;
         [SerializeField, TextArea] private string poseInstructions =
             "Calibración de sensores\n\nPárese derecho, mirando al frente,\ncon los brazos relajados a los lados\ny las palmas hacia los muslos.";
+
+        [Header("Paso 2: sentadilla (montaje de cada Joy-Con)")]
+        [SerializeField] private bool calibrateMountingWithSquat = true;
+        [Tooltip("Tiempo para bajar a la sentadilla.")]
+        [SerializeField] private float squatPrepareSeconds = 4f;
+        [Tooltip("Tiempo quieto en la sentadilla antes de medir.")]
+        [SerializeField] private float squatHoldSeconds = 2f;
+        [SerializeField, TextArea] private string squatInstructions =
+            "Ahora la sentadilla:\n\nDoble las rodillas, incline un poco\nel tronco hacia adelante y estire\nlos brazos al frente.";
 
         private bool _sessionWasRunning;
         private Coroutine _routine;
@@ -104,10 +117,57 @@ namespace PujJoycon
             }
 
             estimator.Calibrate();
-            ShowMessage(estimator.IsCalibrated ? "¡Listo! Ya puede moverse." : "No se pudo calibrar.\nAvise al encargado.");
-            yield return new WaitForSeconds(2f);
+            if (!estimator.IsCalibrated)
+            {
+                ShowMessage("No se pudo calibrar.\nAvise al encargado.");
+                yield return new WaitForSeconds(3f);
+                HideMessage();
+                _routine = null;
+                yield break;
+            }
+
+            if (calibrateMountingWithSquat)
+            {
+                for (float left = squatPrepareSeconds; left > 0f; left -= Time.unscaledDeltaTime)
+                {
+                    ShowMessage($"{squatInstructions}\n\nBájese: {Mathf.CeilToInt(left)}");
+                    yield return null;
+                }
+                for (float left = squatHoldSeconds; left > 0f; left -= Time.unscaledDeltaTime)
+                {
+                    ShowMessage($"{squatInstructions}\n\n¡Quieto así! {Mathf.CeilToInt(left)}");
+                    yield return null;
+                }
+
+                if (!estimator.CalibrateMountingFromSquat())
+                {
+                    ShowMessage("Algunos sensores no se calibraron:\n\n" + estimator.LastMountingReport +
+                                "\n\nVuelva a pararse derecho y avise al encargado.");
+                    yield return new WaitForSeconds(6f);
+                    HideMessage();
+                    _routine = null;
+                    yield break;
+                }
+            }
+
+            ShowMessage(calibrateMountingWithSquat ? "¡Listo! Vuelva a pararse derecho.\nYa puede moverse." : "¡Listo! Ya puede moverse.");
+            yield return new WaitForSeconds(2.5f);
             HideMessage();
             _routine = null;
+        }
+
+        private void OnGUI()
+        {
+            if (!showCalibrateButton) return;
+            var area = new Rect(10, Screen.height - 50, 220, 40);
+            if (_routine != null)
+            {
+                GUI.Box(area, "Calibrando...");
+            }
+            else if (GUI.Button(area, "Calibrar Joy-Cons"))
+            {
+                Calibrar();
+            }
         }
 
         private void ShowMessage(string text)
