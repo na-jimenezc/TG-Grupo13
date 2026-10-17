@@ -33,7 +33,8 @@ namespace PujJoycon
     public class SegmentBinding
     {
         public BodySegment segment;
-        [Tooltip("Índice del Joy-Con según lo imprime el servidor (−1 = no usar Joy-Con).")]
+        [Tooltip("Índice GLOBAL del Joy-Con (−1 = no usar Joy-Con): el que imprime el servidor principal, " +
+                 "o sensorOffset + el que imprime un servidor adicional. El overlay de JoyconReceiver los muestra.")]
         public int sensorIndex = -1;
         [Tooltip("Alternativa al Joy-Con: un Transform rastreado (ej. CenterEyeAnchor para Head).")]
         public Transform trackedTransform;
@@ -339,7 +340,8 @@ namespace PujJoycon
         private void OnGUI()
         {
             if (!showOverlay) return;
-            GUILayout.BeginArea(new Rect(10, 280, 520, 230), GUI.skin.box);
+            // A la derecha del overlay de JoyconReceiver, que crece con el número de sensores.
+            GUILayout.BeginArea(new Rect(460, 10, 520, 230), GUI.skin.box);
             if (_calibrationCountdown > 0f)
             {
                 GUILayout.Label($"Calibrando en {_calibrationCountdown:F1} s — quédese en postura N");
