@@ -18,16 +18,27 @@ public class UserListWrapper
 //Clase de manejo de la base de datos de usuarios, que se encarga de la persistencia en un archivo JSON
 public static class UserDatabase
 {
-    //Para la ruta donde se están guardando los datos, usamos Application.persistentDataPath, que es una ruta segura para guardar datos persistentes en Unity
-    private static string RutaArchivo => Path.Combine(Application.persistentDataPath, "usuarios.json");
+    //Para la ruta donde se están guardando los datos, usamos Application.persistentDataPath, que es una ruta segura para guardar datos persistentes en Unity.
+    //Las pruebas unitarias la cambian por una carpeta temporal (ver UsarCarpetaParaPruebas) para no tocar los datos reales.
+    private static string _carpetaParaPruebas;
+    private static string CarpetaBase => _carpetaParaPruebas ?? Application.persistentDataPath;
+    private static string RutaArchivo => Path.Combine(CarpetaBase, "usuarios.json");
     //Archivo intermedio donde se escribe primero, para no dejar el original a medias si algo falla
     private static string RutaTemporal => RutaArchivo + ".tmp";
     //Versión anterior del archivo, que se usa si el original llega a estar dañado
     private static string RutaRespaldo => RutaArchivo + ".bak";
     //Carpeta de respaldos diarios (uno por día, se conservan los últimos DIAS_RESPALDO) y manuales
-    private static string CarpetaRespaldos => Path.Combine(Application.persistentDataPath, "Respaldos");
+    private static string CarpetaRespaldos => Path.Combine(CarpetaBase, "Respaldos");
     private const int DIAS_RESPALDO = 14;
     private static UserListWrapper _data;
+
+    //SOLO PARA PRUEBAS UNITARIAS: cambia la carpeta de datos y borra la caché en memoria para que se vuelva a leer del disco.
+    //Con null se vuelve a usar Application.persistentDataPath.
+    public static void UsarCarpetaParaPruebas(string carpeta)
+    {
+        _carpetaParaPruebas = carpeta;
+        _data = null;
+    }
 
     // Método privado que carga los datos desde el archivo JSON si aún no se han cargado.
     // Si el archivo está dañado, se aparta (sin borrarlo) y se carga el respaldo.
@@ -80,7 +91,7 @@ public static class UserDatabase
     //Renombra el archivo dañado con la fecha para conservarlo y que no estorbe al siguiente guardado
     private static void ApartarArchivoDanado()
     {
-        string destino = Path.Combine(Application.persistentDataPath, $"usuarios.corrupto-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+        string destino = Path.Combine(CarpetaBase, $"usuarios.corrupto-{DateTime.Now:yyyyMMdd-HHmmss}.json");
         try
         {
             File.Move(RutaArchivo, destino);
