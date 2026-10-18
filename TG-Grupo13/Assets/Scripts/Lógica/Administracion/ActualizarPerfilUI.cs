@@ -43,7 +43,8 @@ public class ActualizarPerfilUI : MonoBehaviour
     //La contraseña se puede dejar vacía si el usuario ya era administrador (se conserva la anterior).
     void Awake()
     {
-        EtiquetaCampoUI.Etiquetar(edadInput, "Edad", "Ej: 25");
+        EtiquetaCampoUI.Etiquetar(edadInput, "Edad *", $"Entre {ValidacionEdad.EDAD_MINIMA} y {ValidacionEdad.EDAD_MAXIMA}");
+        ValidacionEdad.Configurar(edadInput);
         EtiquetaCampoUI.Etiquetar(correoInput, "Correo electrónico", "Ej: ana@correo.com");
         EtiquetaCampoUI.Etiquetar(rolDropdown, "Rol");
         EtiquetaCampoUI.Etiquetar(passwordInput, "Nueva contraseña", "Vacío = no cambiar");
@@ -66,6 +67,12 @@ public class ActualizarPerfilUI : MonoBehaviour
     public void OnActualizarPresionado()
     {
         //Validación de campos obligatorios
+        if (!ValidacionEdad.Validar(edadInput.text, out string edad, out string errorEdad))
+        {
+            mensajeError.text = errorEdad;
+            return;
+        }
+
         bool esAdmin = rolDropdown.value == 1;
         bool eraAdmin = !string.IsNullOrEmpty(_passwordHashActual);
         string nuevoHash = _passwordHashActual;
@@ -110,7 +117,7 @@ public class ActualizarPerfilUI : MonoBehaviour
             Id = original != null ? original.Id : 0,
             Nombre = _nombreOriginal,
             Correo = correoInput.text.Trim(),
-            Edad = edadInput.text.Trim(),
+            Edad = edad,
             EsAdministrador = esAdmin,
             PasswordHash = nuevoHash,
             EsZurdo = manoDropdown != null ? ManoDominanteUI.EsZurdo(manoDropdown) : original != null && original.EsZurdo,

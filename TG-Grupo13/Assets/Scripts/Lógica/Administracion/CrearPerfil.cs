@@ -27,10 +27,11 @@ public class CrearPerfilUI : MonoBehaviour
     {
         EtiquetaCampoUI.Etiquetar(nombreInput, "Nombre *", "Ej: Ana Gómez");
         EtiquetaCampoUI.Etiquetar(correoInput, "Correo electrónico", "Ej: ana@correo.com");
-        EtiquetaCampoUI.Etiquetar(edadInput, "Edad", "Ej: 25");
+        EtiquetaCampoUI.Etiquetar(edadInput, "Edad *", $"Entre {ValidacionEdad.EDAD_MINIMA} y {ValidacionEdad.EDAD_MAXIMA}");
         EtiquetaCampoUI.Etiquetar(rolDropdown, "Rol");
         EtiquetaCampoUI.Etiquetar(passwordInput, "Contraseña *", "Contraseña");
         ManoDominanteUI.Configurar(manoDropdown);
+        ValidacionEdad.Configurar(edadInput);
     }
 
     //Cuando se activa esta pantalla, se limpia el formulario y se actualiza la visibilidad del campo de contraseña según el rol seleccionado.
@@ -82,6 +83,12 @@ public class CrearPerfilUI : MonoBehaviour
             return;
         }
 
+        if (!ValidacionEdad.Validar(edadInput.text, out string edad, out string errorEdad))
+        {
+            mensajeError.text = errorEdad;
+            return;
+        }
+
         bool esAdmin = rolDropdown.value == 1;
 
         //Solo se crean administradores con un administrador autorizado (o si aún no existe ninguno)
@@ -103,7 +110,7 @@ public class CrearPerfilUI : MonoBehaviour
             correoInput.text.Trim(),
             esAdmin,
             esAdmin ? passwordInput.text : null,
-            edadInput.text.Trim(),
+            edad,
             ManoDominanteUI.EsZurdo(manoDropdown)
         );
 
