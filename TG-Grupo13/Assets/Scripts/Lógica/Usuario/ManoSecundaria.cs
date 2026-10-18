@@ -19,6 +19,10 @@ public class ManoSecundaria : MonoBehaviour
     public void Sostener(GameObject objeto)
     {
         _objetoSostenido = objeto;
+
+        //La mano vive en Core: se registra antes de emparentarlo para que se destruya con la escena de la que salió
+        DestruirConEscenaOrigen.Registrar(objeto);
+
         //Se emparenta el objeto a la mano
         objeto.transform.SetParent(puntoAnclaje, worldPositionStays: false);
         objeto.transform.localPosition = Vector3.zero;

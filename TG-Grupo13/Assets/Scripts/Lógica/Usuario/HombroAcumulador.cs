@@ -23,7 +23,16 @@ public class HombroAcumulador : MonoBehaviour
     [SerializeField] private OVRInput.Button botonGrab = OVRInput.Button.PrimaryHandTrigger;
 
     private readonly List<GameObject> _ramosApilados = new List<GameObject>();
-    public int CantidadApilada => _ramosApilados.Count;
+    //Se quitan primero los ramos ya destruidos (p. ej. si la sesión se terminó a mitad de Corte),
+    //para que la siguiente sesión no empiece contando ramos que ya no existen
+    public int CantidadApilada
+    {
+        get
+        {
+            _ramosApilados.RemoveAll(r => r == null);
+            return _ramosApilados.Count;
+        }
+    }
 
     //Gesto para apilar: trigger y grab de la mano secundaria presionados al mismo tiempo
     public bool GestoApilarPresionado =>
@@ -40,8 +49,11 @@ public class HombroAcumulador : MonoBehaviour
 
     public void Apilar(GameObject ramo)
     {
-        int index = _ramosApilados.Count;
+        int index = CantidadApilada;
         _ramosApilados.Add(ramo);
+
+        //El hombro vive en Core: se registra antes de apilarlo para que se destruya con la escena de Corte
+        DestruirConEscenaOrigen.Registrar(ramo);
         StartCoroutine(ApilarRoutine(ramo, index));
     }
 

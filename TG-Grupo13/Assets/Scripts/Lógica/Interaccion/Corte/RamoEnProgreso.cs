@@ -43,6 +43,11 @@ public class RamoEnProgreso : MonoBehaviour
             audioSource = GetComponent<AudioSource>();
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     private void Start()
     {
         //Se ejecuta en Start (no en Awake) para garantizar que ManoSecundaria,
@@ -58,6 +63,10 @@ public class RamoEnProgreso : MonoBehaviour
             Debug.LogWarning("[RamoEnProgreso] ManoSecundaria.Instance es null — no se pudo anclar a la mano.");
             return;
         }
+
+        //Al pegarse a la mano (que vive en Core) pasaría a Core y no se iría con la escena de Corte;
+        //se registra antes para destruirlo cuando se descargue su escena (tutorial o actividad)
+        DestruirConEscenaOrigen.Registrar(gameObject);
 
         //Fija el agrupador a la jerarquía de la mano secundaria
         transform.SetParent(ManoSecundaria.Instance.transform, worldPositionStays: false);
