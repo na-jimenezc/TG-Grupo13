@@ -51,12 +51,8 @@ public class Pala : MonoBehaviour
         //Solo puede cavar si la tiene en la mano y está sobre un slot de tierra
         if (!_equipada || _slotCercano == null) return;
 
-        //Lee el gatillo índice de cualquiera de los dos controladores
-        bool trigger = OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger)
-                    || OVRInput.GetDown(OVRInput.Button.SecondaryIndexTrigger);
-
-        //Intenta cavar en el slot guardado
-        if (trigger)
+        //Intenta cavar en el slot guardado al presionar el gatillo de la mano dominante
+        if (Lateralidad.GatilloDominantePresionado)
             _slotCercano.Cavar();
     }
 

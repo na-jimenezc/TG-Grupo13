@@ -64,11 +64,8 @@ public class TalloCortado : MonoBehaviour
         //Solo avanza si la mano cruzó el trigger
         if (_deshojado || !_manoDentro) return;
 
-        //Se tiene que presionar el gatillo al pasar la mano para confirmar el gesto de deshojar
-        bool trigger = OVRInput.Get(OVRInput.Button.PrimaryIndexTrigger)
-                    || OVRInput.Get(OVRInput.Button.SecondaryIndexTrigger);
-
-        if (trigger)
+        //Se tiene que presionar el gatillo de la mano dominante al pasar la mano para confirmar el gesto de deshojar
+        if (Lateralidad.GatilloDominanteSostenido)
             Deshojar();
     }
 

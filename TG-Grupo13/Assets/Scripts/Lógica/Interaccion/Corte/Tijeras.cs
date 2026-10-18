@@ -91,10 +91,8 @@ public class Tijeras : MonoBehaviour
         //Lógica de uso mientras están agarradas
         if (_equipadas)
         {
-            //Detectar pulsación de gatillos derecho o izquierdo para cortar tallos o ramas
-            bool trigger = OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger)
-                        || OVRInput.GetDown(OVRInput.Button.SecondaryIndexTrigger);
-            if (trigger) CortarCercano();
+            //Detectar pulsación del gatillo de la mano dominante para cortar tallos o ramas
+            if (Lateralidad.GatilloDominantePresionado) CortarCercano();
 
             //Manejo de desenganche del holster con un pequeño retraso
             if (_equipadas && _enHolster)

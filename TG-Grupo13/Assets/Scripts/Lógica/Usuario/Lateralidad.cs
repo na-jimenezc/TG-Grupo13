@@ -28,6 +28,11 @@ public static class Lateralidad
     public static OVRInput.Controller ControlDominante => EsZurdo ? OVRInput.Controller.LTouch : OVRInput.Controller.RTouch;
     public static OVRInput.Controller ControlSecundario => EsZurdo ? OVRInput.Controller.RTouch : OVRInput.Controller.LTouch;
 
+    //Gatillo del control de la mano dominante (al pasar el control, "Primary" es el gatillo de ese control).
+    //Las herramientas (pala, tijeras, deshoje) solo responden a este gatillo y no al de la mano secundaria.
+    public static bool GatilloDominantePresionado => OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, ControlDominante);
+    public static bool GatilloDominanteSostenido => OVRInput.Get(OVRInput.Button.PrimaryIndexTrigger, ControlDominante);
+
     public static string Formatear(string texto)
     {
         if (string.IsNullOrEmpty(texto)) return texto;
