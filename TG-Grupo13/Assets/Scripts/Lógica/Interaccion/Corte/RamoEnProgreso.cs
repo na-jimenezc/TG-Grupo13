@@ -8,7 +8,13 @@ public class RamoEnProgreso : MonoBehaviour
     public static RamoEnProgreso Instance { get; private set; }
 
     [SerializeField] private Transform puntoAgrupacion; //Punto donde se agrupan los tallos cortados (hijo del objeto que contiene este script)
-    [SerializeField] private int tallosParaNivelar = 5; //Cantidad de tallos necesarios para que el ramo se considere nivelado y pueda ensamblarse con el capuchón
+    [Tooltip("Tallos por ramo SOLO cuando no hay CorteActivityManager (tutorial). En la actividad se usa el valor del manager")]
+    [SerializeField] private int tallosParaNivelar = 5;
+
+    //Cantidad de tallos necesarios para poder nivelar el ramo y ensamblarlo con el capuchón
+    public int TallosNecesarios => CorteActivityManager.Instance != null
+        ? CorteActivityManager.Instance.TallosPorRamo
+        : tallosParaNivelar;
 
     [Header("Corte parejo (visual)")]
     [Tooltip("Rango en metros del desfase con el que entra cada tallo al ramo, para que se vea disparejo antes del corte parejo")]
@@ -62,7 +68,7 @@ public class RamoEnProgreso : MonoBehaviour
     //Recibe un nuevo tallo deshojado y lo integra visual y lógicamente al ramo.
     public bool AgregarTallo(TalloCortado tallo)
     {
-        if (_tallos.Count >= tallosParaNivelar) return false;
+        if (_tallos.Count >= TallosNecesarios) return false;
 
         //Obliga a la mano a "soltar" su único objeto para que pase a formar parte del grupo
         ManoSecundaria.Instance.Soltar();
@@ -90,7 +96,7 @@ public class RamoEnProgreso : MonoBehaviour
     {
         if (Nivelado) return;
         //No se nivelan los tallos si no hay suficientes para formar un ramo
-        if (_tallos.Count < tallosParaNivelar) return;
+        if (_tallos.Count < TallosNecesarios) return;
 
         Nivelado = true;
         ReproducirSonido(sonidoNivelado);

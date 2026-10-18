@@ -14,6 +14,10 @@ public class CorteActivityManager : ActivityManagerBase
     [SerializeField] private TMP_Text contadorTallosText;
     [SerializeField] private TMP_Text contadorRamosText;
 
+    //Única fuente de las metas de Corte: RamoEnProgreso y ManoIzquierdaController las leen de aquí
+    public int TallosPorRamo => tallosParaRamo;
+    public int RamosParaCompletar => ramosParaCompletar;
+
     //Contadores de progreso
     public int TallosEnRamoActual { get; private set; } = 0;
     public int RamosCompletados { get; private set; } = 0;
