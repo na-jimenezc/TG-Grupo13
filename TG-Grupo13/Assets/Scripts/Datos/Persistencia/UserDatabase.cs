@@ -40,7 +40,8 @@ public static class UserDatabase
         }
     }
 
-    //Método privado que guarda los datos en el archivo JSON con logs de depuración y abre la carpeta de AppData automáticamente en Windows (Solo dentro del Editor)
+    //Método privado que guarda los datos en el archivo JSON.
+    //No se registra el contenido en el log porque incluye datos personales y los hashes de las contraseñas.
     private static void Guardar()
     {
         if (_data == null) _data = new UserListWrapper();
@@ -49,12 +50,6 @@ public static class UserDatabase
         File.WriteAllText(RutaArchivo, json);
 
         Debug.Log($"[UserDatabase] JSON guardado con éxito en: {RutaArchivo}");
-        Debug.Log($"[UserDatabase] Contenido guardado:\n{json}");
-
-            //Abre la carpeta de AppData automáticamente en Windows (Solo dentro del Editor)
-    #if UNITY_EDITOR
-            UnityEditor.EditorUtility.RevealInFinder(RutaArchivo);
-    #endif
     }
 
     //Método público que verifica si un usuario con el nombre dado ya existe en la base de datos
@@ -120,12 +115,31 @@ public static class UserDatabase
         return _data.usuarios;
     }
 
-    //Método público que elimina un usuario por su nombre, actualizando la base de datos y guardando los cambios en el archivo JSON
-    public static void EliminarUsuario(string nombre)
+    //Método público que indica si hay al menos un administrador registrado
+    public static bool ExisteAlgunAdministrador()
     {
         CargarSiHaceFalta();
+        return _data.usuarios.Exists(u => u.EsAdministrador);
+    }
+
+    //Método público que indica si el usuario dado es el único administrador registrado.
+    //Se usa para no dejar el sistema sin nadie que pueda entrar al panel de administración.
+    public static bool EsUltimoAdministrador(string nombre)
+    {
+        var usuario = ObtenerUsuario(nombre);
+        return usuario != null && usuario.EsAdministrador && _data.usuarios.Count(u => u.EsAdministrador) == 1;
+    }
+
+    //Método público que elimina un usuario por su nombre, actualizando la base de datos y guardando los cambios en el archivo JSON.
+    //Devuelve false (y no elimina) si es el último administrador.
+    public static bool EliminarUsuario(string nombre)
+    {
+        CargarSiHaceFalta();
+        if (EsUltimoAdministrador(nombre)) return false;
+
         _data.usuarios.RemoveAll(u => u.Nombre.Equals(nombre, System.StringComparison.OrdinalIgnoreCase));
         Guardar();
+        return true;
     }
 
     //Método público que actualiza la información de un usuario existente, buscando por el nombre original y reemplazando con los datos actualizados

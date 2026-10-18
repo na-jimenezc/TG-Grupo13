@@ -84,6 +84,13 @@ public class CrearPerfilUI : MonoBehaviour
 
         bool esAdmin = rolDropdown.value == 1;
 
+        //Solo se crean administradores con un administrador autorizado (o si aún no existe ninguno)
+        if (esAdmin && !AutorizacionAdmin.PuedeCrearAdministrador())
+        {
+            mensajeError.text = $"Para crear un administrador, primero ingresa al Panel de Administrador con un admin existente (vale {AutorizacionAdmin.MINUTOS_VIGENCIA:0} min)";
+            return;
+        }
+
         if (esAdmin && string.IsNullOrWhiteSpace(passwordInput.text))
         {
             mensajeError.text = "Los administradores necesitan contraseña";

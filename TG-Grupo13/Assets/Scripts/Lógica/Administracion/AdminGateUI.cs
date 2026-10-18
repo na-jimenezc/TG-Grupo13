@@ -85,6 +85,9 @@ public class AdminGateUI : MonoBehaviour
         //Se valida la contraseña vs el hash guardado en el .json
         if (UserDatabase.ValidarLoginAdmin(nombre, password))
         {
+            //Habilita por unos minutos la creación de otros administradores desde Crear Perfil
+            AutorizacionAdmin.Otorgar();
+
             if (GameFlowManager.Instance != null)
             {
                 GameFlowManager.Instance.IniciarSesionConUsuario(adminUser);

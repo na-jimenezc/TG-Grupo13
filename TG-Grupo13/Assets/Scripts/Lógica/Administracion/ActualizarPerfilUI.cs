@@ -91,6 +91,13 @@ public class ActualizarPerfilUI : MonoBehaviour
         }
         else
         {
+            //No se permite quitarle el rol al único administrador, porque nadie podría volver a entrar al panel
+            if (UserDatabase.EsUltimoAdministrador(_nombreOriginal))
+            {
+                mensajeError.text = "No se puede quitar el rol: es el único administrador";
+                return;
+            }
+
             //Pasa a Normal: ya no necesita contraseña
             nuevoHash = "";
         }

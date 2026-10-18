@@ -118,6 +118,8 @@ public class GameFlowManager : MonoBehaviour
         //Acá se pasa de la escena de espera a la escena de selección de actividades si el usuario no es administrador.
         if (!usuario.EsAdministrador)
         {
+            //Al entrar un participante se cierra la autorización para crear administradores
+            AutorizacionAdmin.Revocar();
             LanzarSimulacionVR();
         }
     }
