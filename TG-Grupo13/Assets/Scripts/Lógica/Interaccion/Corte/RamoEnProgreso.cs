@@ -10,7 +10,15 @@ public class RamoEnProgreso : MonoBehaviour
     [SerializeField] private Transform puntoAgrupacion; //Punto donde se agrupan los tallos cortados (hijo del objeto que contiene este script)
     [SerializeField] private int tallosParaNivelar = 5; //Cantidad de tallos necesarios para que el ramo se considere nivelado y pueda ensamblarse con el capuchón
 
+    [Header("Corte parejo (visual)")]
+    [Tooltip("Rango en metros del desfase con el que entra cada tallo al ramo, para que se vea disparejo antes del corte parejo")]
+    [SerializeField] private float desfaseMinimo = 0.01f;
+    [SerializeField] private float desfaseMaximo = 0.03f;
+    [Tooltip("Eje local (del punto de agrupación) a lo largo del tallo. Si los tallos se mueven de lado en vez de subir/bajar, cambiarlo")]
+    [SerializeField] private Vector3 ejeTallos = Vector3.up;
+
     private readonly List<TalloCortado> _tallos = new List<TalloCortado>();
+    private readonly List<float> _desfases = new List<float>(); //Desfase aplicado a cada tallo, para deshacerlo al cortar parejo
     public bool Nivelado { get; private set; } = false;
 
     //EVENTO DEL TUTORIAL
@@ -65,9 +73,15 @@ public class RamoEnProgreso : MonoBehaviour
         tallo.transform.localPosition = new Vector3(index * 0.015f, 0, 0);
         AlineadorPivote.CorregirPivote(tallo.gameObject);
 
+        //Cada tallo entra a una altura distinta (hacia arriba o abajo) para que el ramo se vea disparejo hasta el corte parejo.
+        //Se aplica después de corregir el pivote, porque esa corrección vuelve a mover el tallo.
+        float desfase = Random.Range(desfaseMinimo, desfaseMaximo) * (Random.value < 0.5f ? -1f : 1f);
+        tallo.transform.localPosition += ejeTallos.normalized * desfase;
+
         ReproducirSonido(sonidoAgregarTallo);
 
         _tallos.Add(tallo);
+        _desfases.Add(desfase);
         return true;
     }
 
@@ -82,15 +96,12 @@ public class RamoEnProgreso : MonoBehaviour
         ReproducirSonido(sonidoNivelado);
         OnNivelado?.Invoke();
 
-        //Se alineala altura de todos los tallos para simular el corte parejo
-        foreach (var tallo in _tallos)
+        //Se quita el desfase con el que entró cada tallo, así todos quedan a la misma altura (corte parejo)
+        for (int i = 0; i < _tallos.Count; i++)
         {
-            if (tallo != null)
-            {
-                Vector3 pos = tallo.transform.localPosition;
-                //Se iguala el eje Y a 0 (o la altura base que prefieras) para emparejarlos
-                tallo.transform.localPosition = new Vector3(pos.x, pos.y, pos.z);
-            }
+            if (_tallos[i] != null)
+                _tallos[i].transform.localPosition -= ejeTallos.normalized * _desfases[i];
+            _desfases[i] = 0f;
         }
     }
 
@@ -106,6 +117,7 @@ public class RamoEnProgreso : MonoBehaviour
             if (t != null) Destroy(t.gameObject);
 
         _tallos.Clear();
+        _desfases.Clear();
         Nivelado = false;
     }
 
