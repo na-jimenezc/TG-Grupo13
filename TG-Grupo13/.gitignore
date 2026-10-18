@@ -19,3 +19,7 @@ UserSettings/
 
 # Estado local del asistente de OpenXR/Meta Quest: cambia solo en cada PC y genera conflictos
 ProjectSettings/BuildProfileUtilityOpenXR.asset
+
+# Los crea y borra el paquete de pruebas de rendimiento cada vez que corre el Test Runner
+Assets/Resources/PerformanceTestRunInfo.json*
+Assets/Resources/PerformanceTestRunSettings.json*
