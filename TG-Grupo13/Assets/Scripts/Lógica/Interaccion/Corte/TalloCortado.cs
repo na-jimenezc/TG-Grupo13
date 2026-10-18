@@ -74,8 +74,6 @@ public class TalloCortado : MonoBehaviour
     {
         if (RamoEnProgreso.Instance == null) return;
 
-        Debug.Log("[TalloCortado] Deshojar() ejecutado.");
-
         _deshojado = true;
         modeloConHojas.SetActive(false);
         modeloDeshojado.SetActive(true);

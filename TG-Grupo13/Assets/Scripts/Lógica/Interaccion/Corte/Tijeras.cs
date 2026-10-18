@@ -163,7 +163,6 @@ public class Tijeras : MonoBehaviour
     //Registra objetos cortables al entrar en contacto con la tijera
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log($"[Tijeras] Trigger con: {other.gameObject.name}");
         if (other.TryGetComponent<TalloEnPlantacion>(out var tallo)) _talloCercano = tallo;
         if (other.TryGetComponent<RamoEnProgreso>(out var ramo)) _ramoCercano = ramo;
     }
