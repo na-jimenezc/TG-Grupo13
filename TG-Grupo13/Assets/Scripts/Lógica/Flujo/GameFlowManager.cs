@@ -79,6 +79,11 @@ public class GameFlowManager : MonoBehaviour
     //Se dispara cada vez que cambia la fase o la actividad actual (lo escucha el panel del Game Master).
     public event Action OnEstadoCambiado;
 
+    //Se dispara cuando el Game Master termina la sesión antes de tiempo (p. ej. por mareo del participante),
+    //ANTES de limpiar el estado: usuarioActivo, ActividadesSesion e IndiceActividadActual siguen disponibles
+    //para guardar la capacitación marcada como interrumpida.
+    public event Action OnSesionInterrumpida;
+
     private void CambiarFase(FaseSesion fase)
     {
         Fase = fase;
@@ -354,6 +359,55 @@ public class GameFlowManager : MonoBehaviour
 
         yield return DescargarEscenaSiEstaCargada(escenaSalirNombre);
         _saliendo = false;
+    }
+
+    //Llamado desde el botón "Terminar sesión" del panel de control del Game Master. Corta la sesión en cualquier
+    //momento (menú, tutorial o actividad), muestra la despedida en el visor y vuelve al inicio.
+    public void TerminarSesionAnticipada()
+    {
+        if (_saliendo || !simulacionEnCurso) return;
+        _saliendo = true;
+
+        //Se detienen las transiciones en curso (p. ej. si se estaba cargando la siguiente actividad)
+        StopAllCoroutines();
+
+        OnSesionInterrumpida?.Invoke();
+        StartCoroutine(RutinaTerminarSesionAnticipada());
+    }
+
+    private IEnumerator RutinaTerminarSesionAnticipada()
+    {
+        yield return CargarEscenaAditiva(escenaSalirNombre);
+
+        //Igual que en la salida normal: el entorno de espera se carga antes de descargar lo demás,
+        //para que el visor nunca quede en una escena vacía.
+        yield return CargarEscenaAditiva(escenaEsperaNombre);
+
+        foreach (string escena in EscenasDeSesion())
+            yield return DescargarEscenaSiEstaCargada(escena);
+
+        CerrarSesion();
+
+        if (gameMasterUI != null)
+            gameMasterUI.MostrarInicio();
+
+        yield return new WaitForSeconds(duracionPantallaSalida);
+
+        yield return DescargarEscenaSiEstaCargada(escenaSalirNombre);
+        _saliendo = false;
+    }
+
+    //Todas las escenas que pueden estar cargadas durante una sesión (se descargan solo las que lo estén)
+    private IEnumerable<string> EscenasDeSesion()
+    {
+        return new[]
+        {
+            escenaSeleccionActividadesNombre,
+            escenaMenuSiembraNombre, escenaMenuDeshierbeNombre, escenaMenuCorteNombre,
+            escenaTutorialSiembraNombre, escenaTutorialDeshierbeNombre, escenaTutorialCorteNombre,
+            escenaActividadSiembraNombre, escenaActividadDeshierbeNombre, escenaActividadCorteNombre,
+            escenaContinuarNombre, escenaResultadosNombre
+        };
     }
 
     //Descarga la escena si está cargada, evitando errores al intentar descargar una escena que no está activa.
