@@ -9,6 +9,8 @@
 //   3. Pide la postura N con cuenta regresiva y calibra (el "cero" de cada Joy-Con).
 //   4. Pide la sentadilla con brazos al frente y calcula cómo está puesto cada
 //      Joy-Con en el cuerpo (su montaje), para que los ejes salgan bien.
+//   5. Pide volver a la postura N y toma el "cero" otra vez (lo que se corrieron
+//      los Joy-Cons en la sentadilla no queda como si la persona estuviera torcida).
 //
 // También se puede lanzar a mano: Calibrar() desde un botón del Game Master, o
 // el menú ⋮ del componente -> "Calibrar ahora".
@@ -52,6 +54,13 @@ namespace PujJoycon
         [SerializeField] private float squatHoldSeconds = 2f;
         [SerializeField, TextArea] private string squatInstructions =
             "Ahora la sentadilla:\n\nDoble las rodillas, incline un poco\nel tronco hacia adelante y estire\nlos brazos al frente.";
+
+        [Header("Paso 3: volver a la postura N")]
+        [Tooltip("Después de la sentadilla, vuelve a tomar el 'cero' en postura N. Absorbe lo que se hayan " +
+                 "corrido los Joy-Cons sobre la piel en la sentadilla (si no, el avatar puede quedar con las " +
+                 "piernas cruzadas o torcido).")]
+        [SerializeField] private bool recaptureNPoseAfterSquat = true;
+        [SerializeField] private float finalPoseSeconds = 4f;
 
         private bool _sessionWasRunning;
         private Coroutine _routine;
@@ -148,9 +157,20 @@ namespace PujJoycon
                     _routine = null;
                     yield break;
                 }
+
+                if (recaptureNPoseAfterSquat)
+                {
+                    for (float left = finalPoseSeconds; left > 0f; left -= Time.unscaledDeltaTime)
+                    {
+                        ShowMessage($"Último paso: vuelva a la postura inicial.\n\n{poseInstructions}\n\nQuédese quieto: {Mathf.CeilToInt(left)}");
+                        yield return null;
+                    }
+                    // Nuevo "cero" con el montaje ya calculado (también vuelve a tomar la postura del avatar).
+                    estimator.Calibrate();
+                }
             }
 
-            ShowMessage(calibrateMountingWithSquat ? "¡Listo! Vuelva a pararse derecho.\nYa puede moverse." : "¡Listo! Ya puede moverse.");
+            ShowMessage("¡Listo! Ya puede moverse.");
             yield return new WaitForSeconds(2.5f);
             HideMessage();
             _routine = null;
