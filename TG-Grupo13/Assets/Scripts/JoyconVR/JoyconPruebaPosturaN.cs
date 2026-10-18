@@ -21,6 +21,9 @@ namespace PujJoycon
         [SerializeField] private RebaPostureEstimator estimator;
         [Tooltip("Separación de los brazos respecto al cuerpo, en grados (0 = pegados).")]
         [SerializeField, Range(0f, 30f)] private float armSpread = 8f;
+        [Tooltip("Separación de las piernas, en grados (0 = verticales). El modelo viene con las piernas " +
+                 "abiertas; si no se enderezan, la pierna parece empezar levantada hacia el lado.")]
+        [SerializeField, Range(0f, 15f)] private float legSpread = 2f;
 
         private readonly List<(Transform bone, Quaternion local)> _poseN = new List<(Transform, Quaternion)>();
 
@@ -34,8 +37,10 @@ namespace PujJoycon
             }
             if (estimator == null) estimator = FindAnyObjectByType<RebaPostureEstimator>();
 
-            LowerArm(HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand, -1f);
-            LowerArm(HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand, 1f);
+            PointDown(HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand, -1f, armSpread);
+            PointDown(HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand, 1f, armSpread);
+            PointDown(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot, -1f, legSpread);
+            PointDown(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot, 1f, legSpread);
 
             // Se guarda la postura N completa para restaurarla en cada calibración.
             foreach (var t in avatar.GetComponentsInChildren<Transform>()) _poseN.Add((t, t.localRotation));
@@ -57,17 +62,18 @@ namespace PujJoycon
             }
         }
 
-        private void LowerArm(HumanBodyBones upper, HumanBodyBones lower, HumanBodyBones hand, float side)
+        // Deja una extremidad (brazo o pierna) recta hacia abajo, un poco separada del cuerpo
+        // (side = +1 derecha, −1 izquierda del avatar).
+        private void PointDown(HumanBodyBones upper, HumanBodyBones lower, HumanBodyBones end, float side, float spread)
         {
-            Transform u = avatar.GetBoneTransform(upper), l = avatar.GetBoneTransform(lower), h = avatar.GetBoneTransform(hand);
+            Transform u = avatar.GetBoneTransform(upper), l = avatar.GetBoneTransform(lower), e = avatar.GetBoneTransform(end);
             if (u == null || l == null) return;
 
-            // Hacia abajo, un poco separado del cuerpo (side = +1 derecha, −1 izquierda del avatar).
             Vector3 outward = avatar.transform.right * side;
-            Vector3 down = Vector3.Slerp(-avatar.transform.up, outward, armSpread / 90f).normalized;
+            Vector3 down = Vector3.Slerp(-avatar.transform.up, outward, spread / 90f).normalized;
 
             u.rotation = Quaternion.FromToRotation(l.position - u.position, down) * u.rotation;
-            if (h != null) l.rotation = Quaternion.FromToRotation(h.position - l.position, down) * l.rotation;
+            if (e != null) l.rotation = Quaternion.FromToRotation(e.position - l.position, down) * l.rotation;
         }
     }
 }
