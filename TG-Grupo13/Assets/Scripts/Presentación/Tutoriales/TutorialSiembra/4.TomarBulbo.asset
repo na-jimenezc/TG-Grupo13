@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
   m_Name: 4.TomarBulbo
   m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
-  instruccion: Tome el bulbo con la otra mano
+  instruccion: "Tome el bulbo con el grab de la mano {secundaria}"
   prefabsPose:
   - {fileID: 5914580939978331540, guid: 1eefc76ff56c0f14ba2c3438687a8b95, type: 3}
   - {fileID: 5018787687828457486, guid: d1163d763335c484cabe7ecc609bd4ba, type: 3}

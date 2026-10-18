@@ -14,6 +14,10 @@ public class CorteActivityManager : ActivityManagerBase
     [SerializeField] private TMP_Text contadorTallosText;
     [SerializeField] private TMP_Text contadorRamosText;
 
+    //Única fuente de las metas de Corte: RamoEnProgreso y ManoIzquierdaController las leen de aquí
+    public int TallosPorRamo => tallosParaRamo;
+    public int RamosParaCompletar => ramosParaCompletar;
+
     //Contadores de progreso
     public int TallosEnRamoActual { get; private set; } = 0;
     public int RamosCompletados { get; private set; } = 0;
@@ -27,6 +31,28 @@ public class CorteActivityManager : ActivityManagerBase
 
     // Bandera para saber si ya se depositaron los ramos en el balde final
     public bool RecoleccionFinalCompletada { get; private set; } = false;
+
+    public override string ResumenProgreso
+    {
+        get
+        {
+            if (ActividadCompletada) return $"Ramos: {RamosCompletados}/{ramosParaCompletar} - depositados en el balde";
+            if (RamosListos) return $"Ramos: {RamosCompletados}/{ramosParaCompletar} - falta depositarlos en el balde";
+            return $"Ramos: {RamosCompletados}/{ramosParaCompletar}   |   Tallos del ramo actual: {TallosEnRamoActual}/{tallosParaRamo}";
+        }
+    }
+
+    //Se cuenta por tallos para que la barra avance con cada tallo; el depósito final es lo único que la lleva al 100%.
+    public override float FraccionProgreso
+    {
+        get
+        {
+            if (ActividadCompletada) return 1f;
+            int totalTallos = tallosParaRamo * ramosParaCompletar;
+            if (totalTallos <= 0) return 0f;
+            return Mathf.Min(0.95f, (float)(RamosCompletados * tallosParaRamo + TallosEnRamoActual) / totalTallos);
+        }
+    }
 
     protected override void Awake()
     {
@@ -70,6 +96,7 @@ public class CorteActivityManager : ActivityManagerBase
 
         //Marca que la recolección final se completó
         RecoleccionFinalCompletada = true;
+        NotificarProgreso();
         if (ActividadCompletada)
             MarcarCompletada();
     }
@@ -81,5 +108,6 @@ public class CorteActivityManager : ActivityManagerBase
             contadorTallosText.text = $"Tallos: {TallosEnRamoActual}/{tallosParaRamo}";
         if (contadorRamosText != null)
             contadorRamosText.text = $"Ramos: {RamosCompletados}/{ramosParaCompletar}";
+        NotificarProgreso();
     }
 }

@@ -49,9 +49,31 @@ public class AdminListUI : MonoBehaviour
         actualizarPerfilUI.CargarUsuario(usuario, this);
     }
 
-    //Se elimina el usuario seleccionado de la base de datos y se refresca la lista 
+    //Revisa si el usuario se puede eliminar; si no, devuelve en 'motivo' un texto corto para mostrar en el botón
+    public bool PuedeEliminar(UserProfile usuario, out string motivo)
+    {
+        var activo = GameFlowManager.Instance != null ? GameFlowManager.Instance.usuarioActivo : null;
+        if (activo != null && activo.Nombre.Equals(usuario.Nombre, System.StringComparison.OrdinalIgnoreCase))
+        {
+            motivo = "Es tu sesión";
+            return false;
+        }
+
+        if (UserDatabase.EsUltimoAdministrador(usuario.Nombre))
+        {
+            motivo = "Único admin";
+            return false;
+        }
+
+        motivo = "";
+        return true;
+    }
+
+    //Se elimina el usuario seleccionado de la base de datos y se refresca la lista
     public void EliminarUsuario(UserProfile usuario)
     {
+        if (!PuedeEliminar(usuario, out _)) return;
+
         UserDatabase.EliminarUsuario(usuario.Nombre);
         RefrescarLista();
     }

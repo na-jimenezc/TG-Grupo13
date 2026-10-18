@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
   m_Name: 3.TomarPala
   m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
-  instruccion: Tome la pala con el grab
+  instruccion: "Tome la pala con el grab de la mano {dominante}"
   prefabsPose:
   - {fileID: 7070378540760026286, guid: bf196421bc27b9b48afe68ac8dd9ac0f, type: 3}
   iconosBoton: []

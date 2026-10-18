@@ -1,6 +1,7 @@
 using UnityEngine;
 
-/*Singleton que representa el punto de anclaje de la mano izquierda del usuario, que puede sostener objetos. 
+/*Singleton que representa el punto de anclaje de la mano secundaria del usuario (izquierda para diestros,
+ * derecha para zurdos; LateralidadJugador lo cambia de mano), que puede sostener objetos.
  * Se utiliza para sostener los tallos cortados y otros objetos interactivos.*/
 public class ManoSecundaria : MonoBehaviour
 {
@@ -18,6 +19,10 @@ public class ManoSecundaria : MonoBehaviour
     public void Sostener(GameObject objeto)
     {
         _objetoSostenido = objeto;
+
+        //La mano vive en Core: se registra antes de emparentarlo para que se destruya con la escena de la que salió
+        DestruirConEscenaOrigen.Registrar(objeto);
+
         //Se emparenta el objeto a la mano
         objeto.transform.SetParent(puntoAnclaje, worldPositionStays: false);
         objeto.transform.localPosition = Vector3.zero;

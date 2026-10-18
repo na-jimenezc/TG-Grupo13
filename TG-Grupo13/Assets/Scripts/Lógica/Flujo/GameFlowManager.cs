@@ -1,8 +1,12 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using static UnityEngine.Rendering.DebugUI;
+
+//Momento de la sesión en que se encuentra el usuario, para que el Game Master lo vea en su panel.
+public enum FaseSesion { SinSesion, SeleccionActividades, MenuActividad, Tutorial, Actividad, Resultados }
 
 /* El gameflow manager es el encargado de administrar las escenas y el flujo de la simulación VR, 
  * incluyendo la gestión de usuarios y la transición entre escenas. */
@@ -66,6 +70,26 @@ public class GameFlowManager : MonoBehaviour
     //Actividad de la cola que está siendo mostrada actualmente (Siembra, Deshierbe o Corte), null si no hay ninguna en curso.
     public ActivityType? ActividadActual => _actividadActual;
 
+    //Todas las actividades elegidas para la sesión (en orden) y la posición de la actual, para mostrar el recorrido completo.
+    private readonly List<ActivityType> _actividadesSesion = new List<ActivityType>();
+    public IReadOnlyList<ActivityType> ActividadesSesion => _actividadesSesion;
+    public int IndiceActividadActual { get; private set; } = -1;
+
+    public FaseSesion Fase { get; private set; } = FaseSesion.SinSesion;
+    //Se dispara cada vez que cambia la fase o la actividad actual (lo escucha el panel del Game Master).
+    public event Action OnEstadoCambiado;
+
+    //Se dispara cuando el Game Master termina la sesión antes de tiempo (p. ej. por mareo del participante),
+    //ANTES de limpiar el estado: usuarioActivo, ActividadesSesion e IndiceActividadActual siguen disponibles
+    //para guardar la capacitación marcada como interrumpida.
+    public event Action OnSesionInterrumpida;
+
+    private void CambiarFase(FaseSesion fase)
+    {
+        Fase = fase;
+        OnEstadoCambiado?.Invoke();
+    }
+
 
     //Mantener la instancia del GameFlowManager a lo largo de las escenas, evitando que se destruya al cargar nuevas escenas.
     private void Awake()
@@ -99,6 +123,8 @@ public class GameFlowManager : MonoBehaviour
         //Acá se pasa de la escena de espera a la escena de selección de actividades si el usuario no es administrador.
         if (!usuario.EsAdministrador)
         {
+            //Al entrar un participante se cierra la autorización para crear administradores
+            AutorizacionAdmin.Revocar();
             LanzarSimulacionVR();
         }
     }
@@ -115,6 +141,7 @@ public class GameFlowManager : MonoBehaviour
         if (gameMasterUI != null)
             gameMasterUI.MostrarSeleccionActividades();
 
+        CambiarFase(FaseSesion.SeleccionActividades);
         StartCoroutine(RutinaIrASeleccionActividades());
     }
 
@@ -139,11 +166,16 @@ public class GameFlowManager : MonoBehaviour
         _secuenciaEnProceso = true;
 
         _colaActividades.Clear();
+        _actividadesSesion.Clear();
+        IndiceActividadActual = -1;
         ActivityType[] ordenFijo = { ActivityType.Siembra, ActivityType.Deshierbe, ActivityType.Corte };
         foreach (var actividad in ordenFijo)
         {
             if (seleccionadas.Contains(actividad))
+            {
                 _colaActividades.Enqueue(actividad);
+                _actividadesSesion.Add(actividad);
+            }
         }
 
         StartCoroutine(RutinaIniciarPrimeraActividad());
@@ -168,6 +200,8 @@ public class GameFlowManager : MonoBehaviour
         {
             Debug.Log("[GameFlowManager] Todas las actividades seleccionadas fueron completadas.");
             _actividadActual = null;
+            IndiceActividadActual = _actividadesSesion.Count;
+            CambiarFase(FaseSesion.Resultados);
 
             yield return CargarEscenaAditiva(escenaResultadosNombre);
             if (escenaAnterior != null)
@@ -181,6 +215,8 @@ public class GameFlowManager : MonoBehaviour
         ActivityType siguiente = _colaActividades.Dequeue();
         _actividadActual = siguiente;
         _escenaActividadActual = NombreEscenaParaActividad(siguiente);
+        IndiceActividadActual++;
+        CambiarFase(FaseSesion.MenuActividad);
 
         yield return CargarEscenaAditiva(_escenaActividadActual);
         if (escenaAnterior != null)
@@ -230,21 +266,29 @@ public class GameFlowManager : MonoBehaviour
     //en el panel de control del Game Master. Descarga el Menú de la actividad y muestra su Tutorial.
     public void MostrarTutorialActividad(ActivityType tipo)
     {
-        StartCoroutine(RutinaMostrarContenidoActividad(NombreEscenaTutorial(tipo)));
+        StartCoroutine(RutinaMostrarContenidoActividad(NombreEscenaTutorial(tipo), FaseSesion.Tutorial));
     }
 
     //Llamado por el Menú de cada actividad al presionar "Lanzar" en el panel de control del Game Master.
     //Descarga el Menú de la actividad (o su Tutorial, si estaba activo) y carga la Actividad real.
     public void LanzarActividadDirecta(ActivityType tipo)
     {
-        StartCoroutine(RutinaMostrarContenidoActividad(NombreEscenaActividad(tipo)));
+        StartCoroutine(RutinaMostrarContenidoActividad(NombreEscenaActividad(tipo), FaseSesion.Actividad));
     }
 
     //Descarga el Menú de la actividad (la primera vez) y el Tutorial/Actividad mostrado anteriormente (si aplica),
     //y carga la escena de contenido solicitada (Tutorial o Actividad) de forma aditiva.
-    private IEnumerator RutinaMostrarContenidoActividad(string nombreEscena)
+    private IEnumerator RutinaMostrarContenidoActividad(string nombreEscena, FaseSesion fase)
     {
         if (string.IsNullOrEmpty(nombreEscena)) yield break;
+
+        //Si ya se está mostrando esa misma escena (p. ej. se presionó "Tutorial" dos veces), no se hace nada;
+        //de lo contrario se descargaría a sí misma al final de esta rutina y el visor quedaría vacío.
+        if (nombreEscena == _escenaContenidoActual) yield break;
+
+        //La fase se cambia apenas se pide (y no al terminar de cargar), para que el panel del Game Master deje de
+        //mostrar los pasos del tutorial en cuanto se presiona "Comenzar" y pase a mostrar la actividad y su progreso.
+        CambiarFase(fase);
 
         yield return CargarEscenaAditiva(nombreEscena);
 
@@ -269,13 +313,15 @@ public class GameFlowManager : MonoBehaviour
         if (!string.IsNullOrEmpty(escenaContinuarNombre))
             yield return CargarEscenaAditiva(escenaContinuarNombre);
 
+        //Primero se carga la siguiente escena (Menú o Resultados) y después se descarga la actividad: la escena
+        //Continuar no tiene piso, así que si la actividad se descargaba antes el jugador caía mientras cargaba la siguiente.
+        yield return AvanzarSiguienteActividad();
+
         if (_escenaContenidoActual != null)
         {
             yield return DescargarEscenaSiEstaCargada(_escenaContenidoActual);
             _escenaContenidoActual = null;
         }
-
-        yield return AvanzarSiguienteActividad();
 
         if (!string.IsNullOrEmpty(escenaContinuarNombre))
             yield return DescargarEscenaSiEstaCargada(escenaContinuarNombre);
@@ -313,6 +359,55 @@ public class GameFlowManager : MonoBehaviour
 
         yield return DescargarEscenaSiEstaCargada(escenaSalirNombre);
         _saliendo = false;
+    }
+
+    //Llamado desde el botón "Terminar sesión" del panel de control del Game Master. Corta la sesión en cualquier
+    //momento (menú, tutorial o actividad), muestra la despedida en el visor y vuelve al inicio.
+    public void TerminarSesionAnticipada()
+    {
+        if (_saliendo || !simulacionEnCurso) return;
+        _saliendo = true;
+
+        //Se detienen las transiciones en curso (p. ej. si se estaba cargando la siguiente actividad)
+        StopAllCoroutines();
+
+        OnSesionInterrumpida?.Invoke();
+        StartCoroutine(RutinaTerminarSesionAnticipada());
+    }
+
+    private IEnumerator RutinaTerminarSesionAnticipada()
+    {
+        yield return CargarEscenaAditiva(escenaSalirNombre);
+
+        //Igual que en la salida normal: el entorno de espera se carga antes de descargar lo demás,
+        //para que el visor nunca quede en una escena vacía.
+        yield return CargarEscenaAditiva(escenaEsperaNombre);
+
+        foreach (string escena in EscenasDeSesion())
+            yield return DescargarEscenaSiEstaCargada(escena);
+
+        CerrarSesion();
+
+        if (gameMasterUI != null)
+            gameMasterUI.MostrarInicio();
+
+        yield return new WaitForSeconds(duracionPantallaSalida);
+
+        yield return DescargarEscenaSiEstaCargada(escenaSalirNombre);
+        _saliendo = false;
+    }
+
+    //Todas las escenas que pueden estar cargadas durante una sesión (se descargan solo las que lo estén)
+    private IEnumerable<string> EscenasDeSesion()
+    {
+        return new[]
+        {
+            escenaSeleccionActividadesNombre,
+            escenaMenuSiembraNombre, escenaMenuDeshierbeNombre, escenaMenuCorteNombre,
+            escenaTutorialSiembraNombre, escenaTutorialDeshierbeNombre, escenaTutorialCorteNombre,
+            escenaActividadSiembraNombre, escenaActividadDeshierbeNombre, escenaActividadCorteNombre,
+            escenaContinuarNombre, escenaResultadosNombre
+        };
     }
 
     //Descarga la escena si está cargada, evitando errores al intentar descargar una escena que no está activa.
@@ -360,6 +455,9 @@ public class GameFlowManager : MonoBehaviour
         _actividadActual = null;
         _escenaActividadActual = null;
         _escenaContenidoActual = null;
+        _actividadesSesion.Clear();
+        IndiceActividadActual = -1;
+        CambiarFase(FaseSesion.SinSesion);
 
         if (waitScreenCanvas != null)
             waitScreenCanvas.SetActive(true);

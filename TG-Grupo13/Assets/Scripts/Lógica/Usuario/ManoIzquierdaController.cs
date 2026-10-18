@@ -1,14 +1,12 @@
 using System.Collections;
 using UnityEngine;
 
-/* La clase se encarga de controlar la interacción de la mano izquierda del usuario con los baldes de depósito. 
+/* La clase se encarga de controlar la interacción de la mano secundaria del usuario (izquierda para diestros) con los baldes de depósito. 
  * Verifica si el usuario tiene suficientes ramos apilados y si está dentro del área de un balde para permitir la descarga. 
  * Cuando se cumplen las condiciones, se deposita los ramos en el balde y notifica al manager de la actividad para avanzar.*/
 public class ManoIzquierdaController : MonoBehaviour
 {
     [SerializeField] private HombroAcumulador acumulador;
-    [Tooltip("Ramos que deben estar apilados para poder descargar.")]
-    [SerializeField] private int ramosRequeridos = 5;
     [Tooltip("Segundos antes de avanzar")]
     [SerializeField] private float retardoAntesDeAvanzar = 1.5f;
 
@@ -18,7 +16,10 @@ public class ManoIzquierdaController : MonoBehaviour
     private void Update()
     {
         if (_zonasBaldeDentro <= 0 || acumulador == null) return;
-        if (acumulador.CantidadApilada < ramosRequeridos) return;
+
+        //Los ramos requeridos son la meta de la actividad (CorteActivityManager); sin actividad de Corte no se descarga
+        var manager = CorteActivityManager.Instance;
+        if (manager == null || acumulador.CantidadApilada < manager.RamosParaCompletar) return;
 
         //Solo cuenta soltar el botón de agarre
         if (!acumulador.BotonSoltado) return;

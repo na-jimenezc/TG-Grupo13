@@ -43,7 +43,7 @@ public class Capuchon : MonoBehaviour
             return;
         }
 
-        //Validación de distancia entre el capuchón soltado y el ramo de la mano izquierda
+        //Validación de distancia entre el capuchón soltado y el ramo de la mano secundaria
         float distancia = Vector3.Distance(transform.position, ramo.transform.position);
         if (distancia > distanciaEnsamble)
         {

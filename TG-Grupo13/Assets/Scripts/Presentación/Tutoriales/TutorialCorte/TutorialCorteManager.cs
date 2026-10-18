@@ -8,10 +8,10 @@ public class TutorialCorteManager : TutorialManagerBase
     [Header("Objetos reales de práctica")]
     [SerializeField] private Tijeras tijerasPractica;
 
-    [Header("Configuración de Meta")]
-    [Tooltip("Debe coincidir con tallosParaNivelar de RamoEnProgreso, si no el corte parejo nunca se habilita")]
-    [SerializeField] private int metaTallosTutorial = 5;
     private int _tallosDeshojados = 0;
+
+    //La meta se lee del ramo de la escena para que siempre coincida con lo que habilita el corte parejo
+    private int MetaTallosTutorial => RamoEnProgreso.Instance != null ? RamoEnProgreso.Instance.TallosNecesarios : 0;
 
     //Los eventos estáticos sobreviven a la escena, así que se limpian al descargar el tutorial
     private void OnDestroy() => DesuscribirEventosDePractica();
@@ -31,7 +31,7 @@ public class TutorialCorteManager : TutorialManagerBase
 
             case TipoEsperaTutorial.EsperaDeshojarTallo:
                 _tallosDeshojados = 0; //Reinicio de seguridad
-                ActualizarContador(_tallosDeshojados, metaTallosTutorial);
+                ActualizarContador(_tallosDeshojados, MetaTallosTutorial);
 
                 //Se suscribe a un método intermedio en lugar de avanzar de inmediato
                 TalloCortado.OnDeshojado += ContarTalloYAvanzar;
@@ -59,9 +59,9 @@ public class TutorialCorteManager : TutorialManagerBase
     private void ContarTalloYAvanzar()
     {
         _tallosDeshojados++;
-        ActualizarContador(_tallosDeshojados, metaTallosTutorial);
+        ActualizarContador(_tallosDeshojados, MetaTallosTutorial);
 
-        if (_tallosDeshojados >= metaTallosTutorial)
+        if (_tallosDeshojados >= MetaTallosTutorial)
         {
             DesuscribirEventosDePractica();
             AvanzarPaso();

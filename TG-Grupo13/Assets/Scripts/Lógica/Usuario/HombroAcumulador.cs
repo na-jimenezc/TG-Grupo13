@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using Oculus.Interaction;
 using UnityEngine;
 
-/*Apila los ramos terminados en la mano/hombro izquierdo durante la fase de recolección final.
- *El apilado se dispara con el gesto: trigger + grab de la mano izquierda presionados a la vez,
- *mientras el ramo está agarrado.*/
+/*Apila los ramos terminados en la mano/hombro secundario (izquierdo para diestros, derecho para zurdos)
+ *durante la fase de recolección final. El apilado se dispara con el gesto: trigger + grab de la mano
+ *secundaria presionados a la vez, mientras el ramo está agarrado.*/
 public class HombroAcumulador : MonoBehaviour
 {
     public static HombroAcumulador Instance { get; private set; }
@@ -18,30 +18,42 @@ public class HombroAcumulador : MonoBehaviour
     [Tooltip("Rotación local del ramo")]
     [SerializeField] private Vector3 rotacionLocalRamo = Vector3.zero;
 
-    [Header("Input de la mano izquierda")]
+    [Header("Input de la mano secundaria (ver Lateralidad)")]
     [SerializeField] private OVRInput.Button botonTrigger = OVRInput.Button.PrimaryIndexTrigger;
     [SerializeField] private OVRInput.Button botonGrab = OVRInput.Button.PrimaryHandTrigger;
 
     private readonly List<GameObject> _ramosApilados = new List<GameObject>();
-    public int CantidadApilada => _ramosApilados.Count;
+    //Se quitan primero los ramos ya destruidos (p. ej. si la sesión se terminó a mitad de Corte),
+    //para que la siguiente sesión no empiece contando ramos que ya no existen
+    public int CantidadApilada
+    {
+        get
+        {
+            _ramosApilados.RemoveAll(r => r == null);
+            return _ramosApilados.Count;
+        }
+    }
 
-    //Gesto para apilar: trigger y grab izquierdos presionados al mismo tiempo
+    //Gesto para apilar: trigger y grab de la mano secundaria presionados al mismo tiempo
     public bool GestoApilarPresionado =>
-        OVRInput.Get(botonTrigger, OVRInput.Controller.LTouch) &&
-        OVRInput.Get(botonGrab, OVRInput.Controller.LTouch);
+        OVRInput.Get(botonTrigger, Lateralidad.ControlSecundario) &&
+        OVRInput.Get(botonGrab, Lateralidad.ControlSecundario);
 
-    //Para descargar en el balde: al soltar trigger o grab izquierdo
+    //Para descargar en el balde: al soltar trigger o grab de la mano secundaria
     public bool BotonSoltado =>
-        OVRInput.GetUp(botonTrigger, OVRInput.Controller.LTouch) ||
-        OVRInput.GetUp(botonGrab, OVRInput.Controller.LTouch);
+        OVRInput.GetUp(botonTrigger, Lateralidad.ControlSecundario) ||
+        OVRInput.GetUp(botonGrab, Lateralidad.ControlSecundario);
 
     private void Awake() => Instance = this;
     private void OnDestroy() { if (Instance == this) Instance = null; }
 
     public void Apilar(GameObject ramo)
     {
-        int index = _ramosApilados.Count;
+        int index = CantidadApilada;
         _ramosApilados.Add(ramo);
+
+        //El hombro vive en Core: se registra antes de apilarlo para que se destruya con la escena de Corte
+        DestruirConEscenaOrigen.Registrar(ramo);
         StartCoroutine(ApilarRoutine(ramo, index));
     }
 

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
   m_Name: 2.EsparcirBulbos
   m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
-  instruccion: Incline la canasta sobre la zona
+  instruccion: "Sin soltar la canasta, inclínela sobre la zona de siembra"
   prefabsPose:
   - {fileID: 1510457084610258463, guid: 38d376f566bbb334d9ee6adc64bdae81, type: 3}
   iconosBoton: []

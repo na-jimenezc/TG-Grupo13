@@ -91,15 +91,8 @@ public class Tijeras : MonoBehaviour
         //Lógica de uso mientras están agarradas
         if (_equipadas)
         {
-            //Detectar pulsación de gatillos derecho o izquierdo para cortar tallos o ramas
-            bool trigger = OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger)
-                        || OVRInput.GetDown(OVRInput.Button.SecondaryIndexTrigger);
-            if (trigger)
-            {
-                //Se prioriza el corte del ramo, y si no, intenta nivelar el ramo
-                if (_talloCercano != null) _talloCercano.Cortar();
-                else if (_ramoCercano != null) _ramoCercano.CortarParejo();
-            }
+            //Detectar pulsación del gatillo de la mano dominante para cortar tallos o ramas
+            if (Lateralidad.GatilloDominantePresionado) CortarCercano();
 
             //Manejo de desenganche del holster con un pequeño retraso
             if (_equipadas && _enHolster)
@@ -124,6 +117,26 @@ public class Tijeras : MonoBehaviour
                 _tiempoCaida = 0f; //Reinicia si no están por debajo del umbral
             }
         }
+
+#if UNITY_EDITOR
+        // SOLO EN EL EDITOR (no llega a las gafas ni al build): permite probar el corte sin gafas.
+        // En Play, mueve las tijeras en la vista Scene hasta que la punta toque el tallo y presiona C.
+        // No hace falta tenerlas agarradas.
+        var teclado = UnityEngine.InputSystem.Keyboard.current;
+        if (teclado != null && teclado.cKey.wasPressedThisFrame)
+        {
+            if (_talloCercano == null && _ramoCercano == null)
+                Debug.Log("[Tijeras] (prueba) La punta no está tocando ningún tallo ni ramo");
+            CortarCercano();
+        }
+#endif
+    }
+
+    //Se prioriza el corte del tallo, y si no, intenta nivelar el ramo
+    private void CortarCercano()
+    {
+        if (_talloCercano != null) _talloCercano.Cortar();
+        else if (_ramoCercano != null) _ramoCercano.CortarParejo();
     }
 
     //Reubica las tijeras en el punto de spawn de la mesa, reiniciando su física y posición
@@ -150,7 +163,6 @@ public class Tijeras : MonoBehaviour
     //Registra objetos cortables al entrar en contacto con la tijera
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log($"[Tijeras] Trigger con: {other.gameObject.name}");
         if (other.TryGetComponent<TalloEnPlantacion>(out var tallo)) _talloCercano = tallo;
         if (other.TryGetComponent<RamoEnProgreso>(out var ramo)) _ramoCercano = ramo;
     }

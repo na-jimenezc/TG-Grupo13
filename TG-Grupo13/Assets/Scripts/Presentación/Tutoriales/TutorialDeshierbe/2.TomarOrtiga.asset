@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 975293366ac8cbd419824f86321bfedf, type: 3}
   m_Name: 2.TomarOrtiga
   m_EditorClassIdentifier: Assembly-CSharp::TutorialStepData
-  instruccion: 'Tome la ortiga con el grab '
+  instruccion: "Tome la ortiga con el grab de la mano {dominante}"
   prefabsPose:
   - {fileID: 121697432250809636, guid: 18de78e0d0541334081974411c36e473, type: 3}
   - {fileID: 2413747335938054197, guid: 7e99281e3b87fe143837711fd440fbc5, type: 3}

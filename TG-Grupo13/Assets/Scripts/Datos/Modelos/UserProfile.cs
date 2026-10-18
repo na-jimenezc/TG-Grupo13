@@ -10,5 +10,7 @@ public class UserProfile
     public bool EsAdministrador;
     public string Edad;
     public string PasswordHash;
+    //Mano dominante del participante. Los perfiles guardados antes de existir este campo quedan como diestros (false).
+    public bool EsZurdo;
     public List<Capacitacion> Capacitaciones = new List<Capacitacion>();
 }
