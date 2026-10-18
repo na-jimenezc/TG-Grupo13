@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -15,6 +16,11 @@ public class CrearPerfilUI : MonoBehaviour
     [SerializeField] private TMP_InputField edadInput;
     [SerializeField] private TMP_Dropdown manoDropdown; //0 = Diestro, 1 = Zurdo
     [SerializeField] private TMP_Text mensajeError;
+    [Tooltip("Segundos que se muestra el mensaje de éxito al crear un administrador antes de volver al inicio")]
+    [SerializeField] private float segundosMensajeExito = 1.5f;
+
+    //Evita crear el mismo perfil dos veces con un doble clic mientras se muestra el mensaje de éxito
+    private bool _creando = false;
 
     //Se le pone a cada campo una etiqueta que indique qué dato va en él, ya que el placeholder por defecto no lo dice.
     void Awake()
@@ -36,7 +42,9 @@ public class CrearPerfilUI : MonoBehaviour
         passwordInput.text = "";
         rolDropdown.value = 0;
         mensajeError.text = "";
+        mensajeError.color = Color.red;
         edadInput.text = "";
+        _creando = false;
         if (manoDropdown != null) manoDropdown.value = 0;
         ActualizarVisibilidadPassword();
     }
@@ -57,6 +65,8 @@ public class CrearPerfilUI : MonoBehaviour
     //Cuando se presiona el botón de crear perfil, se validan los datos ingresados y se crea el usuario si todo es correcto.
     public void OnCrearPerfilPresionado()
     {
+        if (_creando) return;
+
         string nombre = nombreInput.text.Trim();
 
         //Se hace la validación de los campos requeridos y se muestra un mensaje de error si algo no es correcto.
@@ -90,7 +100,26 @@ public class CrearPerfilUI : MonoBehaviour
             ManoDominanteUI.EsZurdo(manoDropdown)
         );
 
+        //Un administrador no entra a la simulación ni queda con la sesión iniciada: debe ingresar
+        //con su contraseña desde Iniciar Sesión. Solo se confirma la creación y se vuelve al inicio.
+        if (esAdmin)
+        {
+            StartCoroutine(MostrarExitoYVolver(nombre));
+            return;
+        }
+
         GameFlowManager.Instance.IniciarSesionConUsuario(nuevoUsuario);
+    }
+
+    private IEnumerator MostrarExitoYVolver(string nombre)
+    {
+        _creando = true;
+        mensajeError.color = Color.green;
+        mensajeError.text = $"Administrador \"{nombre}\" creado. Ingresa desde Iniciar Sesión.";
+
+        yield return new WaitForSeconds(segundosMensajeExito);
+
+        GetComponentInParent<GameMasterUI>().MostrarInicio();
     }
 
     //Cuando se presiona el botón de volver, se regresa a la pantalla de inicio.
