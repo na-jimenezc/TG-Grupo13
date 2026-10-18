@@ -261,6 +261,17 @@ namespace PujJoycon
         }
 
         /// <summary>
+        /// Rumbo de q en grados (−180..180]: cuánto está girado alrededor de la vertical.
+        /// A diferencia de los Euler XYZ, no "salta" cerca de 90° (sirve para comparar giros).
+        /// </summary>
+        public static float HeadingDegrees(Quaternion q)
+        {
+            Quaternion h = Heading(q);
+            float angle = 2f * Mathf.Atan2(h.y, h.w) * Mathf.Rad2Deg; // h es un giro puro alrededor de Y
+            return WrapDegrees(angle);
+        }
+
+        /// <summary>
         /// Rotación de mundo que debe tener un hueso del avatar para reflejar un segmento.
         ///
         ///   hueso(t) = cuerpoAhora · inv(rumboRef) · seg(t) · inv(cuerpo0) · hueso0

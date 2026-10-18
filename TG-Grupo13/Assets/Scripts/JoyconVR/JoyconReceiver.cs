@@ -274,7 +274,7 @@ namespace PujJoycon
             int sensorRows = 0;
             for (int i = 0; i < _samples.Length; i++) if (_sourceServer[i] >= 0) sensorRows++;
             float height = 30 + 22 * (_serverStatus.Length + sensorRows + (_lastOverlapWarning != null ? 2 : 0));
-            GUILayout.BeginArea(new Rect(10, 10, 440, height), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(10, 10, 560, height), GUI.skin.box);
 
             if (_client == null) GUILayout.Label("Joy-Con: configuración inválida (ver Console)");
             for (int s = 0; s < _serverStatus.Length; s++)
@@ -291,7 +291,8 @@ namespace PujJoycon
             {
                 if (_sourceServer[i] < 0) continue;
                 Vector3 e = PostureMath.ToEuler(_rotations[i], EulerOrder.XYZ);
-                GUILayout.Label($"  sensor {i,2} (PC {_sourceServer[i] + 1}): XYZ = ({e.x,7:F1}, {e.y,7:F1}, {e.z,7:F1})°  edad {_samples[i].AgeSeconds * 1000:F0} ms");
+                float heading = PostureMath.HeadingDegrees(_rotations[i]);
+                GUILayout.Label($"  sensor {i,2} (PC {_sourceServer[i] + 1}): rumbo {heading,7:F1}°  XYZ = ({e.x,7:F1}, {e.y,7:F1}, {e.z,7:F1})°  edad {_samples[i].AgeSeconds * 1000:F0} ms");
             }
             GUILayout.EndArea();
         }
