@@ -7,8 +7,10 @@
 //     cabeza (visor) y manos (controles). Esas partes están bien rastreadas y no derivan.
 //   - Los Joy-Cons mandan en los huesos que tengan sensor: pelvis, tronco (repartido
 //     entre las 3 vértebras), brazos, antebrazos, muslos y piernas.
-//   - Si un brazo tiene Joy-Con y su antebrazo no (distribución estándar), el
-//     antebrazo se apunta desde el codo hacia la mano que puso Meta (el control).
+//   - Si un brazo tiene Joy-Con y su antebrazo no (distribución estándar), se dobla
+//     el codo (IK de dos huesos) para que la mano quede en el control; el Joy-Con
+//     del brazo decide hacia qué lado sale el codo.
+//   - Pies en el piso: sube o baja el avatar para que el pie más bajo toque el piso.
 //
 // Funciona porque CharacterRetargeter escribe los huesos en su LateUpdate y este
 // componente corre DESPUÉS (DefaultExecutionOrder alto) y los sobrescribe. No se
@@ -39,9 +41,12 @@ namespace PujJoycon
         [SerializeField] private bool keepHeadFromTracking = true;
         [Tooltip("Mantener las manos orientadas como los controles aunque los antebrazos se muevan con Joy-Cons.")]
         [SerializeField] private bool keepHandsFromTracking = true;
-        [Tooltip("Si el brazo tiene Joy-Con y el antebrazo no, apuntar el antebrazo desde el codo hacia donde " +
-                 "Meta puso la mano (el control). Apagar en pruebas sin visor: ahí nadie mueve las manos.")]
+        [Tooltip("Si el brazo tiene Joy-Con y el antebrazo no, doblar el codo para que la mano llegue a donde " +
+                 "Meta puso la mano (el control). El Joy-Con del brazo decide hacia dónde apunta el codo. " +
+                 "Apagar en pruebas sin visor: ahí nadie mueve las manos.")]
         [SerializeField] private bool aimForearmsAtTrackedHands = true;
+        [Tooltip("Mover pelvis y tronco con sus Joy-Cons. Apagar para descartar que el giro raro venga de ahí.")]
+        [SerializeField] private bool driveTorso = true;
 
         [Header("Pies en el piso")]
         [Tooltip("Sube o baja todo el avatar para que el pie más bajo quede en el piso (la altura de los pies al " +
@@ -73,6 +78,12 @@ namespace PujJoycon
         private float _groundOffset;
         private Vector3 _lastHipsPosition;
         private bool _groundApplied;
+
+        // Rotación de la cadera que dejamos al final del frame anterior, y la última que puso Meta. Si al empezar el
+        // frame la cadera sigue como la dejamos, nadie la reescribió: usar la nuestra como "lo que dice Meta" haría
+        // que el rumbo se realimente y el cuerpo gire sin parar.
+        private Quaternion _hipsWritten, _hipsFromTracking;
+        private bool _hipsWrittenValid, _hipsFromTrackingValid;
         private Transform[] _spine;          // Spine, Chest, UpperChest (los que existan)
         private Transform[] _limbBones;
 
@@ -157,8 +168,8 @@ namespace PujJoycon
             _floorFootY = LowestFootY() - previousOffset;
             _groundOffset = previousOffset;
 
-            _hipsTracked0 = _hips.rotation;
-            _hipsBone0 = _hips.rotation;
+            _hipsTracked0 = TrackedHipsRotation();
+            _hipsBone0 = _hipsTracked0;
             if (_spine.Length > 0) _spineTop0 = _spine[_spine.Length - 1].rotation;
             for (int i = 0; i < Limbs.Length; i++)
             {
@@ -177,10 +188,14 @@ namespace PujJoycon
                 _captureRequested = false;
                 Capture();
             }
-            if (!_calibrated || !estimator.IsCalibrated || weight <= 0f) return;
+            if (!_calibrated || !estimator.IsCalibrated || weight <= 0f)
+            {
+                _hipsWrittenValid = false;
+                return;
+            }
 
             // Lo que Meta puso este frame, antes de tocar nada.
-            Quaternion hipsTracked = _hips.rotation;
+            Quaternion hipsTracked = TrackedHipsRotation();
             Quaternion headTracked = _head != null ? _head.rotation : Quaternion.identity;
             Quaternion leftHandTracked = _leftHand != null ? _leftHand.rotation : Quaternion.identity;
             Quaternion rightHandTracked = _rightHand != null ? _rightHand.rotation : Quaternion.identity;
@@ -202,12 +217,12 @@ namespace PujJoycon
             }
 
             // Padres antes que hijos: al fijar la rotación de mundo de un hueso se mueven sus hijos.
-            if (Drives(BodySegment.Pelvis, out var pelvis))
+            if (driveTorso && Drives(BodySegment.Pelvis, out var pelvis))
             {
                 Apply(_hips, PostureMath.BoneWorldRotation(pelvis, referenceHeading, bodyNow, _body0, _hipsBone0));
             }
 
-            if (_spine.Length > 0 && Drives(BodySegment.Trunk, out var trunk))
+            if (driveTorso && _spine.Length > 0 && Drives(BodySegment.Trunk, out var trunk))
             {
                 // El esternón mueve la vértebra superior; la corrección se reparte entre
                 // las vértebras para que la columna se curve en vez de doblarse en un punto.
@@ -230,8 +245,10 @@ namespace PujJoycon
 
             if (aimForearmsAtTrackedHands)
             {
-                AimForearm(BodySegment.UpperArmLeft, BodySegment.ForearmLeft, HumanBodyBones.LeftLowerArm, _leftHand, leftHandTrackedPos);
-                AimForearm(BodySegment.UpperArmRight, BodySegment.ForearmRight, HumanBodyBones.RightLowerArm, _rightHand, rightHandTrackedPos);
+                ReachHand(BodySegment.UpperArmLeft, BodySegment.ForearmLeft, HumanBodyBones.LeftUpperArm,
+                          HumanBodyBones.LeftLowerArm, _leftHand, leftHandTrackedPos);
+                ReachHand(BodySegment.UpperArmRight, BodySegment.ForearmRight, HumanBodyBones.RightUpperArm,
+                          HumanBodyBones.RightLowerArm, _rightHand, rightHandTrackedPos);
             }
 
             if (keepHeadFromTracking && _head != null) _head.rotation = headTracked;
@@ -240,6 +257,23 @@ namespace PujJoycon
                 if (_leftHand != null) _leftHand.rotation = leftHandTracked;
                 if (_rightHand != null) _rightHand.rotation = rightHandTracked;
             }
+
+            _hipsWritten = _hips.rotation;
+            _hipsWrittenValid = true;
+        }
+
+        // La cadera según Meta. Si sigue exactamente como la dejamos el frame anterior, Meta no la reescribió
+        // (o no está mandando datos): se usa la última que sí vino de Meta en vez de la nuestra.
+        private Quaternion TrackedHipsRotation()
+        {
+            Quaternion now = _hips.rotation;
+            bool untouched = _hipsWrittenValid && Quaternion.Angle(now, _hipsWritten) < 0.01f;
+            if (!untouched || !_hipsFromTrackingValid)
+            {
+                _hipsFromTracking = now;
+                _hipsFromTrackingValid = true;
+            }
+            return _hipsFromTracking;
         }
 
         // Solo los segmentos con Joy-Con mueven huesos (cabeza y manos ya los pone Meta).
@@ -249,20 +283,42 @@ namespace PujJoycon
             return estimator.IsJoyconSegment(segment) && estimator.TryGetSegment(segment, out orientation);
         }
 
-        // El brazo (Joy-Con) dejó el codo en otro lugar: girar el antebrazo para que
-        // vuelva a apuntar a la mano rastreada. Así el codo se dobla como en la realidad.
-        private void AimForearm(BodySegment upperArm, BodySegment forearm, HumanBodyBones forearmBone,
-                                Transform hand, Vector3 trackedHandPosition)
+        // El brazo (Joy-Con) dejó el codo en otro lugar, y solo girando el antebrazo la mano no llega al control.
+        // IK de dos huesos: se dobla el codo para que la mano quede donde Meta la puso (el control), y el Joy-Con
+        // del brazo decide hacia qué lado sale el codo (el plano del brazo). Si el control queda más lejos que el
+        // largo del brazo, el brazo se estira apuntando hacia él.
+        private void ReachHand(BodySegment upperArm, BodySegment forearm, HumanBodyBones upperBone,
+                               HumanBodyBones foreBone, Transform hand, Vector3 target)
         {
             if (hand == null || !Drives(upperArm, out _) || estimator.IsJoyconSegment(forearm)) return;
-            Transform fore = avatar.GetBoneTransform(forearmBone);
-            if (fore == null) return;
+            Transform upper = avatar.GetBoneTransform(upperBone);
+            Transform fore = avatar.GetBoneTransform(foreBone);
+            if (upper == null || fore == null) return;
 
-            Vector3 current = hand.position - fore.position;
-            Vector3 wanted = trackedHandPosition - fore.position;
-            if (current.sqrMagnitude < 1e-8f || wanted.sqrMagnitude < 1e-8f) return;
-            Quaternion aim = Quaternion.FromToRotation(current, wanted);
-            fore.rotation = Quaternion.Slerp(Quaternion.identity, aim, weight) * fore.rotation;
+            Vector3 shoulder = upper.position, elbow = fore.position, wrist = hand.position;
+            float a = (elbow - shoulder).magnitude, b = (wrist - elbow).magnitude;
+            Vector3 toTarget = target - shoulder;
+            float distance = toTarget.magnitude;
+            if (a < 1e-4f || b < 1e-4f || distance < 1e-4f) return;
+            Vector3 axis = toTarget / distance;
+            distance = Mathf.Clamp(distance, Mathf.Abs(a - b) + 1e-3f, a + b - 1e-3f);
+
+            // Hacia dónde sale el codo: donde lo dejó el Joy-Con, sin la parte que va hacia el control.
+            Vector3 pole = Vector3.ProjectOnPlane(elbow - shoulder, axis);
+            if (pole.sqrMagnitude < 1e-8f) pole = Vector3.ProjectOnPlane(Vector3.down, axis);
+            if (pole.sqrMagnitude < 1e-8f) return;
+            pole.Normalize();
+
+            float cosShoulder = Mathf.Clamp((a * a + distance * distance - b * b) / (2f * a * distance), -1f, 1f);
+            Vector3 wantedElbow = shoulder + a * (cosShoulder * axis + Mathf.Sqrt(1f - cosShoulder * cosShoulder) * pole);
+
+            Quaternion upperFix = Quaternion.FromToRotation(elbow - shoulder, wantedElbow - shoulder);
+            upper.rotation = Quaternion.Slerp(Quaternion.identity, upperFix, weight) * upper.rotation;
+
+            Vector3 foreNow = hand.position - fore.position, foreWanted = target - fore.position;
+            if (foreNow.sqrMagnitude < 1e-8f || foreWanted.sqrMagnitude < 1e-8f) return;
+            Quaternion foreFix = Quaternion.FromToRotation(foreNow, foreWanted);
+            fore.rotation = Quaternion.Slerp(Quaternion.identity, foreFix, weight) * fore.rotation;
         }
 
         private float LowestFootY()
