@@ -37,7 +37,8 @@ namespace PujJoycon
         [SerializeField, Range(0f, 1f)] private float weight = 1f;
         [Tooltip("El rumbo del cuerpo lo da Meta (visor). Si se apaga, el rumbo viene de los Joy-Cons y deriva.")]
         [SerializeField] private bool headingFromTracking = true;
-        [Tooltip("Mantener la cabeza orientada como el visor aunque el tronco se mueva con el Joy-Con.")]
+        [Tooltip("Mantener la cabeza orientada como el visor aunque el tronco se mueva con el Joy-Con. " +
+                 "La orientación se toma de Head Reference (la cámara del visor), no del hueso de la cabeza.")]
         [SerializeField] private bool keepHeadFromTracking = true;
         [Tooltip("Mantener las manos orientadas como los controles aunque los antebrazos se muevan con Joy-Cons.")]
         [SerializeField] private bool keepHandsFromTracking = true;
@@ -47,6 +48,10 @@ namespace PujJoycon
         [SerializeField] private bool aimForearmsAtTrackedHands = true;
         [Tooltip("Mover pelvis y tronco con sus Joy-Cons. Apagar para descartar que el giro raro venga de ahí.")]
         [SerializeField] private bool driveTorso = true;
+        [Tooltip("Controles del visor (LeftHandAnchor / RightHandAnchor del Camera Rig). Si Meta no pone las manos, " +
+                 "las manos siguen a los controles. Vacío = se buscan solos junto a Head Reference.")]
+        [SerializeField] private Transform leftController;
+        [SerializeField] private Transform rightController;
 
         [Header("Pies en el piso")]
         [Tooltip("Sube o baja todo el avatar para que el pie más bajo quede en el piso (la altura de los pies al " +
@@ -84,6 +89,23 @@ namespace PujJoycon
         // que el rumbo se realimente y el cuerpo gire sin parar.
         private Quaternion _hipsWritten, _hipsFromTracking;
         private bool _hipsWrittenValid, _hipsFromTrackingValid;
+
+        // Cabeza: Meta no reescribe ese hueso cada frame, así que leerlo y volver a ponerlo acumulaba en cada
+        // frame la diferencia entre el tronco de Meta y el del Joy-Con (la cabeza daba vueltas tras calibrar).
+        // Se orienta con la cámara del visor: cabeza = cámara * desfase tomado al calibrar.
+        private Transform _neck;
+        private Quaternion _headLocalRest, _headOffset;
+        private bool _headOffsetValid;
+
+        // Manos: igual que la cabeza, solo se fuerzan si Meta las reescribió este frame (su rotación local
+        // cambió respecto a la que dejamos); si no, se acumularía el mismo error.
+        private Quaternion _leftHandLocalWritten, _rightHandLocalWritten;
+        private bool _handsWrittenValid;
+
+        // Mano respecto a su control, tomada al calibrar (la persona tiene los controles en la mano, en postura N).
+        private Vector3 _leftGripPos, _rightGripPos;
+        private Quaternion _leftGripRot, _rightGripRot;
+        private bool _gripValid;
         private Transform[] _spine;          // Spine, Chest, UpperChest (los que existan)
         private Transform[] _limbBones;
 
@@ -141,6 +163,14 @@ namespace PujJoycon
             _rightHand = avatar.GetBoneTransform(HumanBodyBones.RightHand);
             _leftFoot = avatar.GetBoneTransform(HumanBodyBones.LeftFoot);
             _rightFoot = avatar.GetBoneTransform(HumanBodyBones.RightFoot);
+            _neck = avatar.GetBoneTransform(HumanBodyBones.Neck);
+            if (_head != null) _headLocalRest = _head.localRotation; // postura de reposo del modelo (cabeza derecha)
+
+            if (headReference != null)
+            {
+                if (leftController == null) leftController = FindInRig("LeftHandAnchor");
+                if (rightController == null) rightController = FindInRig("RightHandAnchor");
+            }
 
             var spine = new System.Collections.Generic.List<Transform>();
             foreach (var b in new[] { HumanBodyBones.Spine, HumanBodyBones.Chest, HumanBodyBones.UpperChest })
@@ -170,6 +200,26 @@ namespace PujJoycon
 
             _hipsTracked0 = TrackedHipsRotation();
             _hipsBone0 = _hipsTracked0;
+
+            // Cabeza derecha sobre el cuello (postura de reposo del modelo), mirando a donde mira el visor.
+            // Se usa el reposo y no la rotación actual del hueso, que pudo quedar torcida.
+            _headOffsetValid = false;
+            if (_head != null && headReference != null)
+            {
+                Transform headParent = _neck != null ? _neck : _head.parent;
+                Quaternion headNeutral = headParent != null ? headParent.rotation * _headLocalRest : _head.rotation;
+                _headOffset = PostureMath.Inverse(headReference.rotation) * headNeutral;
+                _headOffsetValid = true;
+            }
+
+            _gripValid = leftController != null && rightController != null && _leftHand != null && _rightHand != null;
+            if (_gripValid)
+            {
+                _leftGripPos = leftController.InverseTransformPoint(_leftHand.position);
+                _leftGripRot = PostureMath.Inverse(leftController.rotation) * _leftHand.rotation;
+                _rightGripPos = rightController.InverseTransformPoint(_rightHand.position);
+                _rightGripRot = PostureMath.Inverse(rightController.rotation) * _rightHand.rotation;
+            }
             if (_spine.Length > 0) _spineTop0 = _spine[_spine.Length - 1].rotation;
             for (int i = 0; i < Limbs.Length; i++)
             {
@@ -191,16 +241,22 @@ namespace PujJoycon
             if (!_calibrated || !estimator.IsCalibrated || weight <= 0f)
             {
                 _hipsWrittenValid = false;
+                _handsWrittenValid = false;
                 return;
             }
+
+            // ¿Meta reescribió las manos este frame? (si no, su rotación local sigue como la dejamos)
+            bool leftHandFromMeta = HandRewritten(_leftHand, _leftHandLocalWritten);
+            bool rightHandFromMeta = HandRewritten(_rightHand, _rightHandLocalWritten);
 
             // Lo que Meta puso este frame, antes de tocar nada.
             Quaternion hipsTracked = TrackedHipsRotation();
             Quaternion headTracked = _head != null ? _head.rotation : Quaternion.identity;
-            Quaternion leftHandTracked = _leftHand != null ? _leftHand.rotation : Quaternion.identity;
-            Quaternion rightHandTracked = _rightHand != null ? _rightHand.rotation : Quaternion.identity;
-            Vector3 leftHandTrackedPos = _leftHand != null ? _leftHand.position : Vector3.zero;
-            Vector3 rightHandTrackedPos = _rightHand != null ? _rightHand.position : Vector3.zero;
+            // Dónde va cada mano: donde la puso Meta este frame o, si Meta no la tocó, en su control.
+            bool leftHasTarget = HandTarget(_leftHand, leftHandFromMeta, leftController, _leftGripPos, _leftGripRot,
+                                            out Vector3 leftHandTrackedPos, out Quaternion leftHandTracked);
+            bool rightHasTarget = HandTarget(_rightHand, rightHandFromMeta, rightController, _rightGripPos, _rightGripRot,
+                                             out Vector3 rightHandTrackedPos, out Quaternion rightHandTracked);
 
             // Rumbo: lo que ha girado el cuerpo según Meta, y lo que ha girado la referencia
             // (pelvis o tronco) según los Joy-Cons, que se descuenta de todos los segmentos.
@@ -245,21 +301,62 @@ namespace PujJoycon
 
             if (aimForearmsAtTrackedHands)
             {
-                ReachHand(BodySegment.UpperArmLeft, BodySegment.ForearmLeft, HumanBodyBones.LeftUpperArm,
-                          HumanBodyBones.LeftLowerArm, _leftHand, leftHandTrackedPos);
-                ReachHand(BodySegment.UpperArmRight, BodySegment.ForearmRight, HumanBodyBones.RightUpperArm,
-                          HumanBodyBones.RightLowerArm, _rightHand, rightHandTrackedPos);
+                if (leftHasTarget)
+                    ReachHand(BodySegment.UpperArmLeft, BodySegment.ForearmLeft, HumanBodyBones.LeftUpperArm,
+                              HumanBodyBones.LeftLowerArm, _leftHand, leftHandTrackedPos);
+                if (rightHasTarget)
+                    ReachHand(BodySegment.UpperArmRight, BodySegment.ForearmRight, HumanBodyBones.RightUpperArm,
+                              HumanBodyBones.RightLowerArm, _rightHand, rightHandTrackedPos);
             }
 
-            if (keepHeadFromTracking && _head != null) _head.rotation = headTracked;
+            if (keepHeadFromTracking && _head != null)
+            {
+                if (_headOffsetValid) _head.rotation = headReference.rotation * _headOffset;
+                else _head.rotation = headTracked; // sin cámara del visor (no debería pasar en Core)
+            }
             if (keepHandsFromTracking)
             {
-                if (_leftHand != null) _leftHand.rotation = leftHandTracked;
-                if (_rightHand != null) _rightHand.rotation = rightHandTracked;
+                if (leftHasTarget) _leftHand.rotation = leftHandTracked;
+                if (rightHasTarget) _rightHand.rotation = rightHandTracked;
             }
 
             _hipsWritten = _hips.rotation;
             _hipsWrittenValid = true;
+            if (_leftHand != null) _leftHandLocalWritten = _leftHand.localRotation;
+            if (_rightHand != null) _rightHandLocalWritten = _rightHand.localRotation;
+            _handsWrittenValid = true;
+        }
+
+        private bool HandRewritten(Transform hand, Quaternion localWritten)
+        {
+            if (hand == null) return false;
+            return !_handsWrittenValid || Quaternion.Angle(hand.localRotation, localWritten) > 0.01f;
+        }
+
+        private bool HandTarget(Transform hand, bool fromMeta, Transform controller, Vector3 gripPos, Quaternion gripRot,
+                                out Vector3 position, out Quaternion rotation)
+        {
+            position = Vector3.zero;
+            rotation = Quaternion.identity;
+            if (hand == null) return false;
+            if (fromMeta)
+            {
+                position = hand.position;
+                rotation = hand.rotation;
+                return true;
+            }
+            if (!_gripValid || controller == null) return false;
+            position = controller.TransformPoint(gripPos);
+            rotation = controller.rotation * gripRot;
+            return true;
+        }
+
+        // LeftHandAnchor / RightHandAnchor en el mismo Camera Rig que la cámara del visor.
+        private Transform FindInRig(string name)
+        {
+            foreach (var t in headReference.root.GetComponentsInChildren<Transform>(true))
+                if (t.name == name) return t;
+            return null;
         }
 
         // La cadera según Meta. Si sigue exactamente como la dejamos el frame anterior, Meta no la reescribió
