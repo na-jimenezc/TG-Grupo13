@@ -28,7 +28,8 @@
 // CSV para Excel en español: separador ';' y decimales con coma.
 // Solo se identifica al participante por su Id (no se guarda nombre ni correo en los CSV).
 //
-// Sin GameFlowManager (escena de prueba) se graba a mano con los botones en pantalla.
+// Sin GameFlowManager (escena de prueba), o en Core mientras no hay una sesión en curso (prueba con
+// el visor en la sala de espera), se graba a mano con los botones en pantalla.
 
 using System;
 using System.Collections.Generic;
@@ -197,6 +198,12 @@ namespace PujJoycon
         private void Update()
         {
             var flow = GameFlowManager.Instance;
+            // Una prueba manual en Core (sin sesión) se cierra sola si el Game Master inicia una sesión de verdad.
+            if (flow != null && _manual && _active && flow.simulacionEnCurso)
+            {
+                EndSession("prueba terminada: empezó una sesión");
+            }
+
             if (flow != null && !_manual)
             {
                 bool running = flow.simulacionEnCurso && flow.usuarioActivo != null;
@@ -1017,11 +1024,16 @@ namespace PujJoycon
         // ------------------------------------------------------------------
 
         /// <summary>Escena de prueba: empieza (si hace falta) y graba la condición dada de actividadPrueba.</summary>
+        // Se puede grabar a mano en la escena de prueba o en Core mientras no haya una sesión en curso
+        // (así se prueba con el visor, con el espejo de la sala de espera, sin crear participantes).
+        private bool PuedeGrabarPrueba =>
+            _manual || GameFlowManager.Instance == null || (!GameFlowManager.Instance.simulacionEnCurso && !_active);
+
         public void GrabarPrueba(string condicion)
         {
-            if (GameFlowManager.Instance != null && !_manual)
+            if (!PuedeGrabarPrueba)
             {
-                Debug.LogWarning("[REBA] Hay GameFlowManager: la grabación la maneja el flujo de la sesión.", this);
+                Debug.LogWarning("[REBA] Hay una sesión en curso: la grabación la maneja el flujo de la sesión.", this);
                 return;
             }
             if (!_active)
@@ -1089,7 +1101,7 @@ namespace PujJoycon
                 }
             }
 
-            if (GameFlowManager.Instance == null || _manual)
+            if (PuedeGrabarPrueba)
             {
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Grabar PRE")) GrabarPrueba("pre");

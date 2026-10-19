@@ -43,6 +43,16 @@ namespace PujJoycon
                  "Meta puso la mano (el control). Apagar en pruebas sin visor: ahí nadie mueve las manos.")]
         [SerializeField] private bool aimForearmsAtTrackedHands = true;
 
+        [Header("Pies en el piso")]
+        [Tooltip("Sube o baja todo el avatar para que el pie más bajo quede en el piso (la altura de los pies al " +
+                 "calibrar). Sin esto, al doblar las rodillas con los Joy-Cons el avatar queda flotando o se hunde, " +
+                 "porque la cadera la pone Meta (o queda fija en las pruebas sin visor).")]
+        [SerializeField] private bool groundFeet = true;
+        [Tooltip("Máximo que se puede mover el avatar hacia arriba o abajo (metros).")]
+        [SerializeField, Range(0f, 1f)] private float maxGroundCorrection = 0.25f;
+        [Tooltip("Qué tan rápido sigue al piso (1/s). Más alto = más pegado pero puede temblar.")]
+        [SerializeField, Range(1f, 30f)] private float groundSmoothing = 12f;
+
         // Hueso del avatar que mueve cada segmento con Joy-Con.
         private static readonly (BodySegment segment, HumanBodyBones bone)[] Limbs =
         {
@@ -56,7 +66,13 @@ namespace PujJoycon
             (BodySegment.ShankRight, HumanBodyBones.RightLowerLeg),
         };
 
-        private Transform _hips, _head, _leftHand, _rightHand;
+        private Transform _hips, _head, _leftHand, _rightHand, _leftFoot, _rightFoot;
+
+        // Pies en el piso: altura de los pies al calibrar y desplazamiento aplicado a la cadera.
+        private float _floorFootY;
+        private float _groundOffset;
+        private Vector3 _lastHipsPosition;
+        private bool _groundApplied;
         private Transform[] _spine;          // Spine, Chest, UpperChest (los que existan)
         private Transform[] _limbBones;
 
@@ -112,6 +128,8 @@ namespace PujJoycon
             _head = avatar.GetBoneTransform(HumanBodyBones.Head);
             _leftHand = avatar.GetBoneTransform(HumanBodyBones.LeftHand);
             _rightHand = avatar.GetBoneTransform(HumanBodyBones.RightHand);
+            _leftFoot = avatar.GetBoneTransform(HumanBodyBones.LeftFoot);
+            _rightFoot = avatar.GetBoneTransform(HumanBodyBones.RightFoot);
 
             var spine = new System.Collections.Generic.List<Transform>();
             foreach (var b in new[] { HumanBodyBones.Spine, HumanBodyBones.Chest, HumanBodyBones.UpperChest })
@@ -132,6 +150,12 @@ namespace PujJoycon
             fwd.y = 0f;
             if (fwd.sqrMagnitude < 1e-6f) fwd = Vector3.forward;
             _body0 = Quaternion.LookRotation(fwd.normalized, Vector3.up);
+
+            // La persona está de pie en postura N: el pie más bajo marca el piso. Si había un desplazamiento
+            // aplicado (recalibración en las pruebas sin visor), se mide sin él.
+            float previousOffset = _groundApplied && _hips.position == _lastHipsPosition ? _groundOffset : 0f;
+            _floorFootY = LowestFootY() - previousOffset;
+            _groundOffset = previousOffset;
 
             _hipsTracked0 = _hips.rotation;
             _hipsBone0 = _hips.rotation;
@@ -200,6 +224,10 @@ namespace PujJoycon
                 Apply(_limbBones[i], PostureMath.BoneWorldRotation(seg, referenceHeading, bodyNow, _body0, _limbBone0[i]));
             }
 
+            // Antes de apuntar los antebrazos: mover la cadera mueve los codos.
+            if (groundFeet) GroundFeet();
+            else _groundApplied = false;
+
             if (aimForearmsAtTrackedHands)
             {
                 AimForearm(BodySegment.UpperArmLeft, BodySegment.ForearmLeft, HumanBodyBones.LeftLowerArm, _leftHand, leftHandTrackedPos);
@@ -235,6 +263,33 @@ namespace PujJoycon
             if (current.sqrMagnitude < 1e-8f || wanted.sqrMagnitude < 1e-8f) return;
             Quaternion aim = Quaternion.FromToRotation(current, wanted);
             fore.rotation = Quaternion.Slerp(Quaternion.identity, aim, weight) * fore.rotation;
+        }
+
+        private float LowestFootY()
+        {
+            if (_leftFoot != null && _rightFoot != null) return Mathf.Min(_leftFoot.position.y, _rightFoot.position.y);
+            if (_leftFoot != null) return _leftFoot.position.y;
+            return _rightFoot != null ? _rightFoot.position.y : _hips.position.y;
+        }
+
+        // Desplaza la cadera (y con ella todo el cuerpo) en vertical para que el pie más bajo quede en el piso.
+        // Con Meta, CharacterRetargeter vuelve a poner la cadera cada frame; sin Meta (pruebas sin visor) la cadera
+        // se queda donde la dejamos. Por eso se parte de la cadera "sin corregir": si nadie la movió desde el frame
+        // anterior, se le quita el desplazamiento que le habíamos puesto.
+        private void GroundFeet()
+        {
+            if (_leftFoot == null && _rightFoot == null) return;
+
+            Vector3 basePosition = _hips.position;
+            if (_groundApplied && basePosition == _lastHipsPosition) basePosition -= Vector3.up * _groundOffset;
+            _hips.position = basePosition;
+
+            float wanted = Mathf.Clamp(_floorFootY - LowestFootY(), -maxGroundCorrection, maxGroundCorrection) * weight;
+            _groundOffset = Mathf.Lerp(_groundOffset, wanted, 1f - Mathf.Exp(-groundSmoothing * Time.deltaTime));
+
+            _hips.position = basePosition + Vector3.up * _groundOffset;
+            _lastHipsPosition = _hips.position;
+            _groundApplied = true;
         }
 
         private void Apply(Transform bone, Quaternion target)
