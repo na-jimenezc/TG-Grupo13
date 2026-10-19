@@ -48,6 +48,7 @@ public static class ConfigurarJoyconsEnEscena
         var estimator = Asegurar<RebaPostureEstimator>(joycons);
         var driver = Asegurar<JoyconAvatarDriver>(joycons);
         var calibrator = Asegurar<JoyconSessionCalibrator>(joycons);
+        ConectarGrabador(joycons, estimator, receiver, calibrator);
 
         // Cabeza = visor; antebrazos y manos = huesos del avatar (Meta pone las manos en
         // los controles y JoyconAvatarDriver apunta cada antebrazo hacia su mano).
@@ -142,6 +143,7 @@ public static class ConfigurarJoyconsEnEscena
         var estimator = Asegurar<RebaPostureEstimator>(joycons);
         var driver = Asegurar<JoyconAvatarDriver>(joycons);
         var calibrator = Asegurar<JoyconSessionCalibrator>(joycons);
+        ConectarGrabador(joycons, estimator, receiver, calibrator);
         var postura = Asegurar<JoyconPruebaPosturaN>(avatar.gameObject);
         Transform camara = Camera.main != null ? Camera.main.transform : null;
 
@@ -222,6 +224,18 @@ public static class ConfigurarJoyconsEnEscena
     {
         var c = go.GetComponent<T>();
         return c != null ? c : Undo.AddComponent<T>(go);
+    }
+
+    // Grabador de REBA (CSV por sesión + resumen en el historial del participante).
+    private static void ConectarGrabador(GameObject joycons, RebaPostureEstimator estimator,
+                                         JoyconReceiver receiver, JoyconSessionCalibrator calibrator)
+    {
+        var recorder = Asegurar<RebaSessionRecorder>(joycons);
+        var so = new SerializedObject(recorder);
+        so.FindProperty("estimator").objectReferenceValue = estimator;
+        so.FindProperty("receiver").objectReferenceValue = receiver;
+        so.FindProperty("calibrator").objectReferenceValue = calibrator;
+        so.ApplyModifiedProperties();
     }
 
     // En Play los cambios a la escena no se pueden guardar y se pierden al salir; además

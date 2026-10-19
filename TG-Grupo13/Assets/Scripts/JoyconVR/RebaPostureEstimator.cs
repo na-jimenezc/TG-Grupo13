@@ -165,6 +165,17 @@ namespace PujJoycon
         public float LoadKg { get => loadKg; set => loadKg = value; }
         public int Coupling { get => coupling; set => coupling = Mathf.Clamp(value, 0, 3); }
         public int Activity { get => activity; set => activity = Mathf.Clamp(value, 0, 3); }
+        public bool ShockOrRapidForce { get => shockOrRapidForce; set => shockOrRapidForce = value; }
+
+        /// <summary>Entradas de REBA del último frame (ángulos ya convertidos + factores manuales), por lado.</summary>
+        public RebaInputs LeftInputs => _leftInputs;
+        public RebaInputs RightInputs => _rightInputs;
+        public RebaThresholds Thresholds => thresholds;
+        public float GravityUpY => gravityUpY;
+        /// <summary>Asignación sensor -> segmento (con el mountingEuler de la última calibración). Solo lectura.</summary>
+        public System.Collections.Generic.IReadOnlyList<SegmentBinding> Bindings => bindings;
+
+        private RebaInputs _leftInputs, _rightInputs;
 
         private void Awake()
         {
@@ -339,8 +350,10 @@ namespace PujJoycon
             }
 
             currentAngles = ComputeAngles();
-            left = Reba.Compute(BuildInputs(currentAngles, currentAngles.left, true), thresholds);
-            right = Reba.Compute(BuildInputs(currentAngles, currentAngles.right, false), thresholds);
+            _leftInputs = BuildInputs(currentAngles, currentAngles.left, true);
+            _rightInputs = BuildInputs(currentAngles, currentAngles.right, false);
+            left = Reba.Compute(_leftInputs, thresholds);
+            right = Reba.Compute(_rightInputs, thresholds);
             worstScoreSoFar = Mathf.Max(worstScoreSoFar, Worst.final);
         }
 

@@ -100,6 +100,7 @@ namespace PujJoycon
         }
 
         public int ServerCount => _serverStatus.Length;
+        public int SmoothingSamples => smoothingSamples;
         public JoyconServerStatus GetServerStatus(int server) => _serverStatus[server];
 
         private void OnEnable()
