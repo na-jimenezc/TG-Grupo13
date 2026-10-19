@@ -52,8 +52,20 @@ namespace PujJoycon
                  "las manos siguen a los controles. Vacío = se buscan solos junto a Head Reference.")]
         [SerializeField] private Transform leftController;
         [SerializeField] private Transform rightController;
+        [Tooltip("Corrección de la mano izquierda respecto al control, en centímetros y en los ejes del control " +
+                 "(x = derecha, y = arriba, z = adelante). Se ajusta con Play activo mirando el espejo hasta que la " +
+                 "mano agarre el control; luego se copia el valor con Play apagado.")]
+        [SerializeField] private Vector3 leftHandOffsetCm = Vector3.zero;
+        [Tooltip("Igual que la izquierda, para la mano derecha.")]
+        [SerializeField] private Vector3 rightHandOffsetCm = Vector3.zero;
 
-        [Header("Pies en el piso")]
+        [Header("Cabeza en la cámara")]
+        [Tooltip("Mueve todo el avatar para que su cabeza quede donde está el visor (con la distancia que tenía al " +
+                 "calibrar). Evita que, al caminar o inclinarse, el tronco o los hombros del avatar queden delante " +
+                 "de los ojos y se vea todo gris. Si está activo, manda sobre 'Pies en el piso'.")]
+        [SerializeField] private bool keepHeadAtCamera = true;
+
+        [Header("Pies en el piso (solo sin visor, o con 'Cabeza en la cámara' apagado)")]
         [Tooltip("Sube o baja todo el avatar para que el pie más bajo quede en el piso (la altura de los pies al " +
                  "calibrar). Sin esto, al doblar las rodillas con los Joy-Cons el avatar queda flotando o se hunde, " +
                  "porque la cadera la pone Meta (o queda fija en las pruebas sin visor).")]
@@ -96,6 +108,7 @@ namespace PujJoycon
         private Transform _neck;
         private Quaternion _headLocalRest, _headOffset;
         private bool _headOffsetValid;
+        private Vector3 _headPositionInCamera; // dónde va el hueso de la cabeza respecto al visor (tomado al calibrar)
 
         // Manos: igual que la cabeza, solo se fuerzan si Meta las reescribió este frame (su rotación local
         // cambió respecto a la que dejamos); si no, se acumularía el mismo error.
@@ -209,6 +222,7 @@ namespace PujJoycon
                 Transform headParent = _neck != null ? _neck : _head.parent;
                 Quaternion headNeutral = headParent != null ? headParent.rotation * _headLocalRest : _head.rotation;
                 _headOffset = PostureMath.Inverse(headReference.rotation) * headNeutral;
+                _headPositionInCamera = headReference.InverseTransformPoint(_head.position);
                 _headOffsetValid = true;
             }
 
@@ -254,9 +268,9 @@ namespace PujJoycon
             Quaternion headTracked = _head != null ? _head.rotation : Quaternion.identity;
             // Dónde va cada mano: donde la puso Meta este frame o, si Meta no la tocó, en su control.
             bool leftHasTarget = HandTarget(_leftHand, leftHandFromMeta, leftController, _leftGripPos, _leftGripRot,
-                                            out Vector3 leftHandTrackedPos, out Quaternion leftHandTracked);
+                                            leftHandOffsetCm, out Vector3 leftHandTrackedPos, out Quaternion leftHandTracked);
             bool rightHasTarget = HandTarget(_rightHand, rightHandFromMeta, rightController, _rightGripPos, _rightGripRot,
-                                             out Vector3 rightHandTrackedPos, out Quaternion rightHandTracked);
+                                             rightHandOffsetCm, out Vector3 rightHandTrackedPos, out Quaternion rightHandTracked);
 
             // Rumbo: lo que ha girado el cuerpo según Meta, y lo que ha girado la referencia
             // (pelvis o tronco) según los Joy-Cons, que se descuenta de todos los segmentos.
@@ -296,7 +310,13 @@ namespace PujJoycon
             }
 
             // Antes de apuntar los antebrazos: mover la cadera mueve los codos.
-            if (groundFeet) GroundFeet();
+            if (keepHeadAtCamera && _headOffsetValid)
+            {
+                // Todo el cuerpo se corre para que la cabeza quede en el visor (manda sobre los pies en el piso).
+                _hips.position += headReference.TransformPoint(_headPositionInCamera) - _head.position;
+                _groundApplied = false;
+            }
+            else if (groundFeet) GroundFeet();
             else _groundApplied = false;
 
             if (aimForearmsAtTrackedHands)
@@ -334,7 +354,7 @@ namespace PujJoycon
         }
 
         private bool HandTarget(Transform hand, bool fromMeta, Transform controller, Vector3 gripPos, Quaternion gripRot,
-                                out Vector3 position, out Quaternion rotation)
+                                Vector3 offsetCm, out Vector3 position, out Quaternion rotation)
         {
             position = Vector3.zero;
             rotation = Quaternion.identity;
@@ -343,11 +363,16 @@ namespace PujJoycon
             {
                 position = hand.position;
                 rotation = hand.rotation;
-                return true;
             }
-            if (!_gripValid || controller == null) return false;
-            position = controller.TransformPoint(gripPos);
-            rotation = controller.rotation * gripRot;
+            else
+            {
+                if (!_gripValid || controller == null) return false;
+                position = controller.TransformPoint(gripPos);
+                rotation = controller.rotation * gripRot;
+            }
+            // Corrección a mano, en los ejes del control (o de la mano, si no se encontró el control).
+            Quaternion axes = controller != null ? controller.rotation : rotation;
+            position += axes * (offsetCm * 0.01f);
             return true;
         }
 
@@ -387,7 +412,8 @@ namespace PujJoycon
         private void ReachHand(BodySegment upperArm, BodySegment forearm, HumanBodyBones upperBone,
                                HumanBodyBones foreBone, Transform hand, Vector3 target)
         {
-            if (hand == null || !Drives(upperArm, out _) || estimator.IsJoyconSegment(forearm)) return;
+            // Con Joy-Con en el brazo o sin él (brazo de Meta): el codo sale hacia donde está ahora.
+            if (hand == null || estimator.IsJoyconSegment(forearm)) return;
             Transform upper = avatar.GetBoneTransform(upperBone);
             Transform fore = avatar.GetBoneTransform(foreBone);
             if (upper == null || fore == null) return;

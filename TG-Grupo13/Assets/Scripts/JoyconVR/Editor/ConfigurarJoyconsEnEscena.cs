@@ -50,11 +50,15 @@ public static class ConfigurarJoyconsEnEscena
         var calibrator = Asegurar<JoyconSessionCalibrator>(joycons);
         ConectarGrabador(joycons, estimator, receiver, calibrator);
 
-        // Cabeza = visor; antebrazos y manos = huesos del avatar (Meta pone las manos en
-        // los controles y JoyconAvatarDriver apunta cada antebrazo hacia su mano).
+        // Cabeza = visor; brazos, antebrazos y manos = huesos del avatar, que mueve Meta con los
+        // controles. Los Joy-Cons de los brazos no se usan: en las pruebas con visor el brazo giraba
+        // sobre su eje y los controles resultaron más precisos. (Si un segmento tiene Tracked
+        // Transform, se usa ese en vez de su Joy-Con.)
         var rastreados = new Dictionary<BodySegment, Transform>
         {
             { BodySegment.Head, cabeza },
+            { BodySegment.UpperArmLeft, avatar.GetBoneTransform(HumanBodyBones.LeftUpperArm) },
+            { BodySegment.UpperArmRight, avatar.GetBoneTransform(HumanBodyBones.RightUpperArm) },
             { BodySegment.ForearmLeft, avatar.GetBoneTransform(HumanBodyBones.LeftLowerArm) },
             { BodySegment.HandLeft, avatar.GetBoneTransform(HumanBodyBones.LeftHand) },
             { BodySegment.ForearmRight, avatar.GetBoneTransform(HumanBodyBones.RightLowerArm) },
