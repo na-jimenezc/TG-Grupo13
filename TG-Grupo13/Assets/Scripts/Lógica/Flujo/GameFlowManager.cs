@@ -108,10 +108,14 @@ public class GameFlowManager : MonoBehaviour
     //Mostrar la pantalla de espera si no hay simulación en curso al iniciar la aplicación.
     private void Start()
     {
-        if (!simulacionEnCurso && waitScreenCanvas != null)
-        {
+        if (Instance != this || simulacionEnCurso) return;
+
+        if (waitScreenCanvas != null)
             waitScreenCanvas.SetActive(true);
-        }
+
+        //Core no trae el entorno de espera: se carga de forma aditiva para que sea lo primero que ve el usuario
+        //(antes solo aparecía si la escena estaba abierta a mano en el editor junto a Core).
+        StartCoroutine(CargarEscenaAditiva(escenaEsperaNombre));
     }
 
     //Inicia la sesión con el usuario proporcionado y lanza la simulación VR si no es administrador.
