@@ -169,7 +169,6 @@ public static class ConfigurarJoyconsEnEscena
         so.FindProperty("estimator").objectReferenceValue = estimator;
         so.FindProperty("receiver").objectReferenceValue = receiver;
         so.FindProperty("headReference").objectReferenceValue = camara;
-        so.FindProperty("calibrateOnSessionStart").boolValue = false; // no hay GameFlowManager: se calibra a mano
         so.ApplyModifiedProperties();
 
         so = new SerializedObject(postura);

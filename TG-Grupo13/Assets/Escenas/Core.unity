@@ -955,7 +955,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ManoIzquierdaController
   acumulador: {fileID: 131089218}
-  ramosRequeridos: 5
   retardoAntesDeAvanzar: 1.5
 --- !u!114 &72866724
 MonoBehaviour:
@@ -9721,6 +9720,9 @@ MonoBehaviour:
   colorCondicionPendiente: {r: 0.6792453, g: 0, b: 0, a: 1}
   panelConfirmacionAvanceForzado: {fileID: 691472195}
   progresoAdmin: {fileID: 0}
+  terminarSesionButton: {fileID: 0}
+  posicionBotonTerminar: {x: 0, y: -260}
+  colorBotonTerminar: {r: 0.75, g: 0.2, b: 0.2, a: 1}
 --- !u!114 &791101935
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11425,6 +11427,7 @@ MonoBehaviour:
   edadInput: {fileID: 1614178962}
   manoDropdown: {fileID: 907078239}
   mensajeError: {fileID: 1715399749}
+  segundosMensajeExito: 1.5
 --- !u!1 &939252639
 GameObject:
   m_ObjectHideFlags: 0
@@ -20999,6 +21002,463 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1654879190}
   m_CullTransparentMesh: 1
+--- !u!1 &1659203171
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1659203177}
+  - component: {fileID: 1659203176}
+  - component: {fileID: 1659203175}
+  - component: {fileID: 1659203174}
+  - component: {fileID: 1659203173}
+  - component: {fileID: 1659203172}
+  m_Layer: 0
+  m_Name: Joycons
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1659203172
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1659203171}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd09bed6cfbbaff4c9d0d963e31dd2a7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PujJoycon.RebaSessionRecorder
+  estimator: {fileID: 1659203175}
+  receiver: {fileID: 1659203176}
+  calibrator: {fileID: 1659203173}
+  muestrasPorSegundo: 10
+  grabarTutorial: 1
+  esperarCalibracionParaGrabar: 1
+  factores:
+  - actividad: 0
+    condicion: 0
+    cargaKg: 0
+    impactoOFuerzaBrusca: 0
+    agarre: 0
+    hombroElevado: 0
+    brazoApoyadoOAFavorDeGravedad: 0
+    partesEstaticas: 0
+    movimientosRepetitivos: 0
+    cambiosPosturalesOInestables: 0
+    troncoRotacionOInclinacion: 0
+    cuelloTorsionOInclinacion: 0
+    brazoRotado: 0
+    munecaTorsionODesviacion: 0
+  - actividad: 0
+    condicion: 1
+    cargaKg: 0
+    impactoOFuerzaBrusca: 0
+    agarre: 0
+    hombroElevado: 0
+    brazoApoyadoOAFavorDeGravedad: 0
+    partesEstaticas: 0
+    movimientosRepetitivos: 0
+    cambiosPosturalesOInestables: 0
+    troncoRotacionOInclinacion: 0
+    cuelloTorsionOInclinacion: 0
+    brazoRotado: 0
+    munecaTorsionODesviacion: 0
+  - actividad: 0
+    condicion: 2
+    cargaKg: 0
+    impactoOFuerzaBrusca: 0
+    agarre: 0
+    hombroElevado: 0
+    brazoApoyadoOAFavorDeGravedad: 0
+    partesEstaticas: 0
+    movimientosRepetitivos: 0
+    cambiosPosturalesOInestables: 0
+    troncoRotacionOInclinacion: 0
+    cuelloTorsionOInclinacion: 0
+    brazoRotado: 0
+    munecaTorsionODesviacion: 0
+  - actividad: 1
+    condicion: 0
+    cargaKg: 0
+    impactoOFuerzaBrusca: 0
+    agarre: 0
+    hombroElevado: 0
+    brazoApoyadoOAFavorDeGravedad: 0
+    partesEstaticas: 0
+    movimientosRepetitivos: 0
+    cambiosPosturalesOInestables: 0
+    troncoRotacionOInclinacion: 0
+    cuelloTorsionOInclinacion: 0
+    brazoRotado: 0
+    munecaTorsionODesviacion: 0
+  - actividad: 1
+    condicion: 1
+    cargaKg: 0
+    impactoOFuerzaBrusca: 0
+    agarre: 0
+    hombroElevado: 0
+    brazoApoyadoOAFavorDeGravedad: 0
+    partesEstaticas: 0
+    movimientosRepetitivos: 0
+    cambiosPosturalesOInestables: 0
+    troncoRotacionOInclinacion: 0
+    cuelloTorsionOInclinacion: 0
+    brazoRotado: 0
+    munecaTorsionODesviacion: 0
+  - actividad: 1
+    condicion: 2
+    cargaKg: 0
+    impactoOFuerzaBrusca: 0
+    agarre: 0
+    hombroElevado: 0
+    brazoApoyadoOAFavorDeGravedad: 0
+    partesEstaticas: 0
+    movimientosRepetitivos: 0
+    cambiosPosturalesOInestables: 0
+    troncoRotacionOInclinacion: 0
+    cuelloTorsionOInclinacion: 0
+    brazoRotado: 0
+    munecaTorsionODesviacion: 0
+  - actividad: 2
+    condicion: 0
+    cargaKg: 0
+    impactoOFuerzaBrusca: 0
+    agarre: 0
+    hombroElevado: 0
+    brazoApoyadoOAFavorDeGravedad: 0
+    partesEstaticas: 0
+    movimientosRepetitivos: 0
+    cambiosPosturalesOInestables: 0
+    troncoRotacionOInclinacion: 0
+    cuelloTorsionOInclinacion: 0
+    brazoRotado: 0
+    munecaTorsionODesviacion: 0
+  - actividad: 2
+    condicion: 1
+    cargaKg: 0
+    impactoOFuerzaBrusca: 0
+    agarre: 0
+    hombroElevado: 0
+    brazoApoyadoOAFavorDeGravedad: 0
+    partesEstaticas: 0
+    movimientosRepetitivos: 0
+    cambiosPosturalesOInestables: 0
+    troncoRotacionOInclinacion: 0
+    cuelloTorsionOInclinacion: 0
+    brazoRotado: 0
+    munecaTorsionODesviacion: 0
+  - actividad: 2
+    condicion: 2
+    cargaKg: 0
+    impactoOFuerzaBrusca: 0
+    agarre: 0
+    hombroElevado: 0
+    brazoApoyadoOAFavorDeGravedad: 0
+    partesEstaticas: 0
+    movimientosRepetitivos: 0
+    cambiosPosturalesOInestables: 0
+    troncoRotacionOInclinacion: 0
+    cuelloTorsionOInclinacion: 0
+    brazoRotado: 0
+    munecaTorsionODesviacion: 0
+  guardarEnHistorial: 1
+  actividadPrueba: 0
+  participantePruebaId: 0
+  showOverlay: 1
+--- !u!114 &1659203173
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1659203171}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db1064f53a07c11439105bcce0c2b3a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PujJoycon.JoyconSessionCalibrator
+  estimator: {fileID: 1659203175}
+  receiver: {fileID: 1659203176}
+  headReference: {fileID: 71452799}
+  messageText: {fileID: 0}
+  showCalibrateButton: 1
+  ocultarDiagnosticoEnSimulacion: 1
+  countdownSeconds: 5
+  waitForDataSeconds: 15
+  poseInstructions: "Calibraci\xF3n de sensores\n\nP\xE1rese derecho, mirando al
+    frente,\ncon los brazos relajados a los lados\ny las palmas hacia los muslos."
+  calibrateMountingWithSquat: 1
+  squatPrepareSeconds: 4
+  squatHoldSeconds: 2
+  squatInstructions: 'Ahora la sentadilla:
+
+
+    Doble las rodillas, incline un poco
+
+    el
+    tronco hacia adelante y estire
+
+    los brazos al frente.'
+  recaptureNPoseAfterSquat: 1
+  finalPoseSeconds: 4
+  quickPoseSeconds: 4
+--- !u!114 &1659203174
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1659203171}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7402f5fb7ad8ed745b379d142c97bd5f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PujJoycon.JoyconAvatarDriver
+  estimator: {fileID: 1659203175}
+  avatar: {fileID: 1866945682}
+  headReference: {fileID: 71452799}
+  weight: 1
+  headingFromTracking: 1
+  keepHeadFromTracking: 1
+  keepHandsFromTracking: 1
+  aimForearmsAtTrackedHands: 1
+--- !u!114 &1659203175
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1659203171}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdf59261886afdd4497094217be5af9f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PujJoycon.RebaPostureEstimator
+  receiver: {fileID: 1659203176}
+  bindings:
+  - segment: 1
+    sensorIndex: 0
+    trackedTransform: {fileID: 0}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 3
+    sensorIndex: 1
+    trackedTransform: {fileID: 0}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 9
+    sensorIndex: 2
+    trackedTransform: {fileID: 0}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 10
+    sensorIndex: 3
+    trackedTransform: {fileID: 0}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 0
+    sensorIndex: 4
+    trackedTransform: {fileID: 0}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 6
+    sensorIndex: 5
+    trackedTransform: {fileID: 0}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 11
+    sensorIndex: 6
+    trackedTransform: {fileID: 0}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 12
+    sensorIndex: 7
+    trackedTransform: {fileID: 0}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 2
+    sensorIndex: -1
+    trackedTransform: {fileID: 71452799}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 4
+    sensorIndex: -1
+    trackedTransform: {fileID: 232115367}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 5
+    sensorIndex: -1
+    trackedTransform: {fileID: 232115368}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 7
+    sensorIndex: -1
+    trackedTransform: {fileID: 232115340}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  - segment: 8
+    sensorIndex: -1
+    trackedTransform: {fileID: 232115341}
+    mountingEuler: {x: 0, y: 0, z: 0}
+  bodyForwardReference: {fileID: 71452799}
+  gravityUpY: 1
+  minMovementAngle: 15
+  thresholds:
+    trunkUprightTolerance: 5
+    neckExtensionTolerance: 5
+    twistOrSideBendThreshold: 10
+    twistThreshold: 15
+    armAbductionThreshold: 20
+    armRotationThreshold: 30
+  loadKg: 0
+  shockOrRapidForce: 0
+  coupling: 0
+  activity: 0
+  legsUnilateralOrUnstable: 0
+  sitting: 0
+  shoulderRaisedLeft: 0
+  shoulderRaisedRight: 0
+  armSupportedLeft: 0
+  armSupportedRight: 0
+  staticPosture: 0
+  repetitiveMovements: 0
+  rapidChangesOrUnstable: 0
+  currentAngles:
+    hasTrunk: 0
+    hasNeck: 0
+    hasTrunkTwist: 0
+    hasKnee: 0
+    trunkFlexion: 0
+    trunkLateral: 0
+    trunkTwist: 0
+    neckFlexion: 0
+    neckLateral: 0
+    neckTwist: 0
+    kneeFlexionLeft: 0
+    kneeFlexionRight: 0
+    left:
+      measured: 0
+      upperArmFlexion: 0
+      upperArmAbduction: 0
+      upperArmElevation: 0
+      upperArmRotation: 0
+      elbowFlexion: 0
+      wristFlexion: 0
+      wristDeviation: 0
+      hasElbow: 0
+      hasWrist: 0
+    right:
+      measured: 0
+      upperArmFlexion: 0
+      upperArmAbduction: 0
+      upperArmElevation: 0
+      upperArmRotation: 0
+      elbowFlexion: 0
+      wristFlexion: 0
+      wristDeviation: 0
+      hasElbow: 0
+      hasWrist: 0
+  left:
+    trunk: 0
+    neck: 0
+    legs: 0
+    load: 0
+    upperArm: 0
+    lowerArm: 0
+    wrist: 0
+    coupling: 0
+    tableA: 0
+    scoreA: 0
+    tableB: 0
+    scoreB: 0
+    tableC: 0
+    activity: 0
+    final: 0
+    risk: 0
+    trunkBase: 0
+    trunkAdjust: 0
+    neckBase: 0
+    neckAdjust: 0
+    legsBase: 0
+    kneeAdjust: 0
+    loadBase: 0
+    shockAdjust: 0
+    upperArmBase: 0
+    upperArmAbductedAdjust: 0
+    shoulderRaisedAdjust: 0
+    armSupportedAdjust: 0
+    wristBase: 0
+    wristAdjust: 0
+    activityStatic: 0
+    activityRepetitive: 0
+    activityRapid: 0
+  right:
+    trunk: 0
+    neck: 0
+    legs: 0
+    load: 0
+    upperArm: 0
+    lowerArm: 0
+    wrist: 0
+    coupling: 0
+    tableA: 0
+    scoreA: 0
+    tableB: 0
+    scoreB: 0
+    tableC: 0
+    activity: 0
+    final: 0
+    risk: 0
+    trunkBase: 0
+    trunkAdjust: 0
+    neckBase: 0
+    neckAdjust: 0
+    legsBase: 0
+    kneeAdjust: 0
+    loadBase: 0
+    shockAdjust: 0
+    upperArmBase: 0
+    upperArmAbductedAdjust: 0
+    shoulderRaisedAdjust: 0
+    armSupportedAdjust: 0
+    wristBase: 0
+    wristAdjust: 0
+    activityStatic: 0
+    activityRepetitive: 0
+    activityRapid: 0
+  worstScoreSoFar: 0
+  showOverlay: 1
+--- !u!114 &1659203176
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1659203171}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dfb32740b0c17f941814ab7fca8b6a02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PujJoycon.JoyconReceiver
+  serverHost: 172.20.10.3
+  serverPort: 60123
+  additionalServers:
+  - host: 172.20.10.2
+    port: 60123
+    sensorOffset: 4
+  staleAfterSeconds: 0.5
+  showDebugOverlay: 1
+  smoothingSamples: 15
+--- !u!4 &1659203177
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1659203171}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1671339375
 GameObject:
   m_ObjectHideFlags: 0
@@ -22927,6 +23387,7 @@ MonoBehaviour:
   contenedorCapacitaciones: {fileID: 257865287}
   capacitacionCardPrefab: {fileID: 778016876686062684, guid: f16893719a0def149b116a8d7634fc35, type: 3}
   mensajeVacio: {fileID: 789136195}
+  tituloPanel: {fileID: 0}
 --- !u!114 &1854976091
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -25066,7 +25527,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Panel de Administrador\n(En Construcci\xF3n)"
+  m_text: Panel de Administrador
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -26229,3 +26690,4 @@ SceneRoots:
   - {fileID: 788317427}
   - {fileID: 1316628779}
   - {fileID: 1124975055}
+  - {fileID: 1659203177}

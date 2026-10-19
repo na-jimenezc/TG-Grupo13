@@ -540,6 +540,13 @@ namespace PujJoycon
         private bool Has(BodySegment s) => _hasSegment[(int)s];
         private Quaternion Seg(BodySegment s) => _segments[(int)s];
 
+        /// <summary>Muestra u oculta el recuadro de ángulos y puntajes REBA en la vista Game.</summary>
+        public bool ShowOverlay
+        {
+            get => showOverlay;
+            set => showOverlay = value;
+        }
+
         private void OnGUI()
         {
             if (!showOverlay) return;

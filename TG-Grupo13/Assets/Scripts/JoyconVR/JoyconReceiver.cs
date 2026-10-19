@@ -262,6 +262,13 @@ namespace PujJoycon
         }
 
         /// <summary>De qué servidor viene el sensor global (−1 si de ninguno).</summary>
+        /// <summary>Muestra u oculta el recuadro de diagnóstico (servidores y sensores) en la vista Game.</summary>
+        public bool ShowOverlay
+        {
+            get => showDebugOverlay;
+            set => showDebugOverlay = value;
+        }
+
         public int GetSensorServer(int sensorIndex)
         {
             if (sensorIndex < 0 || sensorIndex >= _sourceServer.Length) return -1;

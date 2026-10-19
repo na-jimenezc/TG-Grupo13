@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using TMPro;
 
 /*Agrega por código una etiqueta encima de un campo del formulario (InputField o Dropdown) y, opcionalmente,
@@ -17,6 +18,10 @@ public static class EtiquetaCampoUI
     private const float FuenteCampoMaxima = 28f;
     private const float MargenHorizontalCampo = 8f;
     private const float MargenVerticalCampo = 2f;
+
+    //Alto de cada opción de un desplegable abierto, en proporción al tamaño de la letra.
+    private const float AltoOpcionPorTamano = 1.5f;
+    private const float MargenContenidoOpciones = 8f;
 
     public static void Etiquetar(TMP_InputField campo, string etiqueta, string ayuda = null)
     {
@@ -50,7 +55,26 @@ public static class EtiquetaCampoUI
             AjustarTextoCampo(campo.captionText, tamano);
         }
         if (campo.itemText != null)
+        {
             campo.itemText.fontSize = tamano;
+            campo.itemText.verticalAlignment = VerticalAlignmentOptions.Middle;
+            AjustarAltoOpciones(campo, tamano);
+        }
+    }
+
+    //Con la letra más grande, las opciones de la lista desplegada quedaban montadas unas sobre otras:
+    //cada opción (Item de la plantilla) medía 20 de alto. Se agranda para que quepa el texto.
+    private static void AjustarAltoOpciones(TMP_Dropdown campo, float tamano)
+    {
+        var opcion = campo.itemText.GetComponentInParent<Toggle>(true);
+        if (opcion == null) return;
+
+        float alto = Mathf.Ceil(tamano * AltoOpcionPorTamano);
+        var rtOpcion = (RectTransform)opcion.transform;
+        rtOpcion.sizeDelta = new Vector2(rtOpcion.sizeDelta.x, alto);
+        //El contenido de la plantilla debe medir al menos una opción (TMP_Dropdown calcula el resto al abrirse).
+        if (rtOpcion.parent is RectTransform contenido)
+            contenido.sizeDelta = new Vector2(contenido.sizeDelta.x, alto + MargenContenidoOpciones);
     }
 
     private static float TamanoFuenteCampo(RectTransform campo)

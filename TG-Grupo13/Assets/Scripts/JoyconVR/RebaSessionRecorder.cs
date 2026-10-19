@@ -19,6 +19,8 @@
 //   "pre"      la actividad antes de ver el tutorial
 //   "tutorial" durante el tutorial
 //   "post"     la actividad después del tutorial
+// Cada momento empieza a grabarse cuando el Game Master termina una recalibración
+// (JoyconSessionCalibrator) después de que empezó; antes queda "en espera".
 //
 // Al terminar la sesión también guarda el resumen pre/tutorial/post en el historial del
 // participante (Capacitacion -> ActividadRealizada -> RebaData en usuarios.json).
@@ -100,6 +102,9 @@ namespace PujJoycon
         [Header("Muestreo")]
         [SerializeField, Range(1f, 60f)] private float muestrasPorSegundo = 10f;
         [SerializeField] private bool grabarTutorial = true;
+        [Tooltip("Cada momento (pre, tutorial, post) empieza a grabarse solo cuando el Game Master termina una " +
+                 "calibración (rápida o completa) DESPUÉS de que empezó. Así cada tramo arranca con el 'cero' recién tomado.")]
+        [SerializeField] private bool esperarCalibracionParaGrabar = true;
 
         [Header("Factores de REBA que no miden los sensores (por actividad y condición)")]
         [Tooltip("Una entrada por actividad x condición (pre / tutorial / post). Si falta una, se usa la de la misma " +
@@ -148,8 +153,19 @@ namespace PujJoycon
         private bool[] _serverWasReceiving = new bool[0];
         private readonly CsvRow _row = new CsvRow();
 
+        // Momento que ya empezó en el juego pero espera la calibración para grabarse.
+        private bool _pending;
+        private string _pendingCondicion;
+        private ActivityType _pendingActividad;
+        private int _pendingIndice;
+        private int _pendingCalibraciones;
+
         public bool Grabando => _tramo != null;
         public string CarpetaSesion => _folder;
+
+        /// <summary>Hay un momento (pre/tutorial/post) esperando una calibración para empezar a grabarse.</summary>
+        public bool EsperandoCalibracion => _active && _pending;
+        public string MomentoPendiente => _pending ? $"{_pendingActividad} · {_pendingCondicion}" : "";
 
         private void Awake()
         {
@@ -203,6 +219,12 @@ namespace PujJoycon
                         _reachedResults = true;
                         FinalizeData("completa");
                     }
+                    // El momento pendiente empieza a grabarse cuando termina una calibración lanzada después.
+                    if (_pending && calibrator != null && !calibrator.IsCalibrating &&
+                        calibrator.CalibracionesTerminadas > _pendingCalibraciones)
+                    {
+                        StartPending(null);
+                    }
                 }
             }
 
@@ -245,6 +267,7 @@ namespace PujJoycon
             _attempts.Clear();
             _seenTutorial.Clear();
             _tramo = null;
+            _pending = false;
             _lastFase = FaseSesion.SinSesion;
             _lastIndex = int.MinValue;
             _lastActivity = null;
@@ -272,7 +295,31 @@ namespace PujJoycon
                     condicion = _seenTutorial.Contains(indice) ? "post" : "pre";
                 }
             }
+
+            if (_pending) LogEvent("aviso", $"{MomentoPendiente} no se grabó: se pasó a otra fase sin calibrar");
+            _pending = false;
+            if (condicion != null && esperarCalibracionParaGrabar && calibrator != null)
+            {
+                // Se cierra el momento anterior y el nuevo queda esperando la calibración.
+                SetCondition(null, null, -1);
+                _pending = true;
+                _pendingCondicion = condicion;
+                _pendingActividad = actividad.Value;
+                _pendingIndice = indice;
+                _pendingCalibraciones = calibrator.CalibracionesTerminadas;
+                LogEvent("esperando_calibracion", $"{actividad} {condicion}: se graba cuando terminen la calibración");
+                return;
+            }
             SetCondition(condicion, actividad, indice);
+        }
+
+        /// <summary>Empieza a grabar el momento pendiente. motivoSinCalibrar != null: se empezó sin calibrar.</summary>
+        private void StartPending(string motivoSinCalibrar)
+        {
+            if (!_pending) return;
+            _pending = false;
+            SetCondition(_pendingCondicion, _pendingActividad, _pendingIndice);
+            if (motivoSinCalibrar != null) LogEvent("aviso", motivoSinCalibrar);
         }
 
         private void SetCondition(string condicion, ActivityType? actividad, int indice)
@@ -298,6 +345,10 @@ namespace PujJoycon
             _tramoT0 = Time.unscaledTime;
             _nextSampleT = Time.unscaledTime;
             LogEvent("inicio_tramo", $"{_tramo.actividad} {condicion} intento {n}");
+
+            // La calibración completa la lanza el Game Master: si se olvidó, queda anotado para revisar después.
+            if (!_manual && calibrator != null && !calibrator.CalibradoEnEstaSesion)
+                LogEvent("aviso", "el tramo empezó SIN la calibración completa de este participante");
         }
 
         private static Condicion ToCondicion(string condicion) =>
@@ -376,6 +427,8 @@ namespace PujJoycon
         private void EndSession(string motivo)
         {
             if (!_active) return;
+            if (_pending) LogEvent("aviso", $"{MomentoPendiente} no se grabó: nunca se calibró");
+            _pending = false;
             SetCondition(null, null, -1);
             if (!_finalized) FinalizeData(motivo);
             LogEvent("fin_sesion", motivo);
@@ -997,15 +1050,43 @@ namespace PujJoycon
         private void OnGUI()
         {
             if (!showOverlay) return;
-            float w = 420, x = Screen.width - w - 10, y = Screen.height - 100;
-            GUILayout.BeginArea(new Rect(x, y, w, 90), GUI.skin.box);
+            var flow = GameFlowManager.Instance;
+            bool inTutorial = flow != null && !_manual && _active && flow.Fase == FaseSesion.Tutorial && flow.ActividadActual != null;
+
+            bool pending = EsperandoCalibracion;
+            float w = 420, h = 90 + (inTutorial ? 60 : 0) + (pending ? 60 : 0);
+            float x = Screen.width - w - 10, y = Screen.height - h - 10;
+            GUILayout.BeginArea(new Rect(x, y, w, h), GUI.skin.box);
             if (_tramo != null)
             {
                 GUILayout.Label($"● Grabando REBA: {_tramo.actividad} · {_tramo.condicion} · intento {_tramo.intento} · {_tramo.stats.Count} muestras");
             }
+            else if (pending)
+            {
+                GUILayout.Label($"REBA en espera: {MomentoPendiente}. Se graba al terminar la recalibración rápida.");
+            }
             else
             {
                 GUILayout.Label(_active ? "REBA: sesión abierta, sin actividad en curso" : "REBA: no está grabando");
+            }
+
+            // Plan B si la persona no puede quedarse quieta para calibrar: graba igual, queda el aviso en eventos.csv.
+            if (pending && !(calibrator != null && calibrator.IsCalibrating) &&
+                GUILayout.Button("Grabar SIN recalibrar (queda anotado)", GUILayout.Height(30)))
+            {
+                StartPending($"{MomentoPendiente} se empezó a grabar SIN recalibrar (decisión del Game Master)");
+            }
+
+            // El tutorial lanza solo la actividad (post) al terminar. Si no se puede terminar, se lanza desde aquí.
+            // Ojo: "Continuar" del panel del equipo pasa a la SIGUIENTE actividad y se pierde el post.
+            if (inTutorial)
+            {
+                GUILayout.Label("Tutorial: NO presione 'Continuar' hasta grabar el post.");
+                if (GUILayout.Button($"Terminar tutorial → {flow.ActividadActual} POST", GUILayout.Height(30)))
+                {
+                    LogEvent("tutorial_terminado_a_mano", $"{flow.ActividadActual}");
+                    flow.LanzarActividadDirecta(flow.ActividadActual.Value);
+                }
             }
 
             if (GameFlowManager.Instance == null || _manual)

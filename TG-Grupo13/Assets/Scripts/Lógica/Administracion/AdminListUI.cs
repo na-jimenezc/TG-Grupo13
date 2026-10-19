@@ -25,11 +25,17 @@ public class AdminListUI : MonoBehaviour
         foreach (Transform hijo in contenedorLista)
             Destroy(hijo.gameObject);
 
+        //Primero los participantes y al final los administradores (ellos no hacen capacitaciones, pero siguen en la
+        //lista para poder cambiarles la contraseña con "Actualizar" o eliminarlos).
         List<UserProfile> usuarios = UserDatabase.ObtenerTodosLosUsuarios();
-        foreach (var usuario in usuarios)
+        foreach (bool administradores in new[] { false, true })
         {
-            GameObject fila = Instantiate(filaPrefab, contenedorLista);
-            fila.GetComponent<UserRowUI>().Configurar(usuario, this);
+            foreach (var usuario in usuarios)
+            {
+                if (usuario.EsAdministrador != administradores) continue;
+                GameObject fila = Instantiate(filaPrefab, contenedorLista);
+                fila.GetComponent<UserRowUI>().Configurar(usuario, this);
+            }
         }
     }
 
@@ -39,6 +45,14 @@ public class AdminListUI : MonoBehaviour
         gameObject.SetActive(false);
         panelInfo.SetActive(true);
         verInfoUI.CargarUsuario(usuario, this);
+    }
+
+    //Botón "Revisión REBA": el mismo panel de información, pero con la tabla REBA (pre / tutorial / post) de cada capacitación
+    public void MostrarRevisionReba(UserProfile usuario)
+    {
+        gameObject.SetActive(false);
+        panelInfo.SetActive(true);
+        verInfoUI.CargarUsuario(usuario, this, true);
     }
 
     //Se carga la información del usuario seleccionado en el panel de actualización y se oculta la lista
