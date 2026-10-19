@@ -426,9 +426,11 @@ namespace PujJoycon
             return new RebaInputs
             {
                 trunkFlexion = a.trunkFlexion,
-                trunkTwistedOrSideBent = Mathf.Abs(a.trunkLateral) > tw || (a.hasTrunkTwist && Mathf.Abs(a.trunkTwist) > tw),
+                trunkTwistedOrSideBent = Mathf.Abs(a.trunkLateral) > tw ||
+                                         (a.hasTrunkTwist && Mathf.Abs(a.trunkTwist) > thresholds.twistThreshold),
                 neckFlexion = a.neckFlexion,
-                neckTwistedOrSideBent = a.hasNeck && (Mathf.Abs(a.neckLateral) > tw || Mathf.Abs(a.neckTwist) > tw),
+                neckTwistedOrSideBent = a.hasNeck && (Mathf.Abs(a.neckLateral) > tw ||
+                                                      Mathf.Abs(a.neckTwist) > thresholds.twistThreshold),
                 legsUnilateralOrUnstable = legsUnilateralOrUnstable,
                 kneeFlexion = Mathf.Max(a.kneeFlexionLeft, a.kneeFlexionRight),
                 sitting = sitting,

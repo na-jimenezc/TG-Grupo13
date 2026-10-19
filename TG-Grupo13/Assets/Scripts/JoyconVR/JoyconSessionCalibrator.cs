@@ -12,6 +12,9 @@
 //   5. Pide volver a la postura N y toma el "cero" otra vez (lo que se corrieron
 //      los Joy-Cons en la sentadilla no queda como si la persona estuviera torcida).
 //
+// Además, al empezar cada actividad de la cola (IndiceActividadActual cambia)
+// hace una recalibración rápida: solo postura N, sin sentadilla.
+//
 // También se puede lanzar a mano: Calibrar() desde un botón del Game Master, o
 // el menú ⋮ del componente -> "Calibrar ahora".
 //
@@ -62,7 +65,17 @@ namespace PujJoycon
         [SerializeField] private bool recaptureNPoseAfterSquat = true;
         [SerializeField] private float finalPoseSeconds = 4f;
 
+        [Header("Recalibración rápida al empezar cada actividad")]
+        [Tooltip("Al pasar a la siguiente actividad (Siembra, Deshierbe, Corte) vuelve a tomar solo el 'cero' " +
+                 "en postura N (sin sentadilla: el montaje no cambia). Así lo que se corran los Joy-Cons sobre " +
+                 "la piel no se acumula de una actividad a otra.")]
+        [SerializeField] private bool quickRecalibrateEachActivity = true;
+        [Tooltip("Espera tras cambiar de actividad, para que cargue la escena.")]
+        [SerializeField] private float quickDelaySeconds = 2f;
+        [SerializeField] private float quickPoseSeconds = 4f;
+
         private bool _sessionWasRunning;
+        private int _lastActivityIndex = -1;
         private Coroutine _routine;
         private GameObject _runtimeMessage;
 
@@ -76,16 +89,62 @@ namespace PujJoycon
 
         private void Update()
         {
-            if (!calibrateOnSessionStart) return;
             var flow = GameFlowManager.Instance;
             bool running = flow != null && flow.simulacionEnCurso;
-            if (running && !_sessionWasRunning) StartCalibration(delayAfterSessionStart);
+            if (calibrateOnSessionStart && running && !_sessionWasRunning) StartCalibration(delayAfterSessionStart);
             _sessionWasRunning = running;
+
+            if (!running)
+            {
+                _lastActivityIndex = -1;
+                return;
+            }
+
+            // Nueva actividad de la cola: recalibración rápida (si no hay otra calibración en curso).
+            if (quickRecalibrateEachActivity && flow.ActividadActual != null &&
+                flow.IndiceActividadActual != _lastActivityIndex)
+            {
+                _lastActivityIndex = flow.IndiceActividadActual;
+                if (_routine == null && estimator != null && estimator.IsCalibrated) StartQuickRecalibration(quickDelaySeconds);
+            }
         }
 
         /// <summary>Para un botón del Game Master: calibra ya (con cuenta regresiva).</summary>
         [ContextMenu("Calibrar ahora")]
         public void Calibrar() => StartCalibration(0f);
+
+        /// <summary>Solo vuelve a tomar el "cero" en postura N (sin sentadilla). Requiere una calibración completa antes.</summary>
+        [ContextMenu("Recalibrar rápido (solo postura N)")]
+        public void RecalibrarRapido()
+        {
+            if (estimator == null || !estimator.IsCalibrated)
+            {
+                Debug.LogWarning("[Joycon] Recalibración rápida: primero haga una calibración completa.", this);
+                return;
+            }
+            StartQuickRecalibration(0f);
+        }
+
+        private void StartQuickRecalibration(float delay)
+        {
+            if (_routine != null) StopCoroutine(_routine);
+            _routine = StartCoroutine(QuickRoutine(delay));
+        }
+
+        private IEnumerator QuickRoutine(float delay)
+        {
+            if (delay > 0f) yield return new WaitForSeconds(delay);
+            for (float left = quickPoseSeconds; left > 0f; left -= Time.unscaledDeltaTime)
+            {
+                ShowMessage($"Recalibración rápida\n\n{poseInstructions}\n\nQuédese quieto: {Mathf.CeilToInt(left)}");
+                yield return null;
+            }
+            estimator.Calibrate(); // mismo montaje, nuevo "cero" (y nueva postura del avatar)
+            ShowMessage(estimator.IsCalibrated ? "¡Listo! Ya puede moverse." : "No se pudo recalibrar.\nAvise al encargado.");
+            yield return new WaitForSeconds(1.5f);
+            HideMessage();
+            _routine = null;
+        }
 
         private void StartCalibration(float delay)
         {
@@ -183,10 +242,13 @@ namespace PujJoycon
             if (_routine != null)
             {
                 GUI.Box(area, "Calibrando...");
+                return;
             }
-            else if (GUI.Button(area, "Calibrar Joy-Cons"))
+            if (GUI.Button(area, "Calibrar Joy-Cons")) Calibrar();
+            if (estimator != null && estimator.IsCalibrated &&
+                GUI.Button(new Rect(240, Screen.height - 50, 220, 40), "Recalibrar rápido (postura N)"))
             {
-                Calibrar();
+                RecalibrarRapido();
             }
         }
 

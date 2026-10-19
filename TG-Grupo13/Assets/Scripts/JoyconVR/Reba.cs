@@ -22,8 +22,14 @@ namespace PujJoycon
         public float trunkUprightTolerance = 5f;
         /// <summary>Extensión de cuello por debajo de −esto cuenta como "en extensión".</summary>
         public float neckExtensionTolerance = 5f;
-        /// <summary>Torsión o inclinación lateral por encima de esto suma +1 (tronco, cuello, muñeca).</summary>
+        /// <summary>Inclinación lateral (tronco, cuello) o desviación de muñeca por encima de esto suma +1.</summary>
         public float twistOrSideBendThreshold = 10f;
+        /// <summary>
+        /// Torsión (tronco respecto a la pelvis, cuello respecto al tronco) por encima de esto suma +1.
+        /// Más alto que el de inclinación porque la torsión es lo que menos precisión tiene con
+        /// IMU sin magnetómetro (se midieron ±5–9° de error tras mover las piernas).
+        /// </summary>
+        public float twistThreshold = 15f;
         /// <summary>Abducción o rotación de brazo por encima de esto suma +1.</summary>
         public float armAbductionThreshold = 20f;
         public float armRotationThreshold = 30f;
