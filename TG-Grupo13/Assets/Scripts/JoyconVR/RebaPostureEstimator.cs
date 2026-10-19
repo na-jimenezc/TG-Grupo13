@@ -34,6 +34,12 @@ namespace PujJoycon
         ThighLeft, ShankLeft, ThighRight, ShankRight,
     }
 
+    /// <summary>
+    /// De dónde sale una pregunta de sí/no de REBA: de los sensores (con su umbral) o de la
+    /// decisión de las investigadoras (siempre sí / siempre no).
+    /// </summary>
+    public enum FuenteSiNo { Sensores, Si, No }
+
     [Serializable]
     public class SegmentBinding
     {
@@ -141,6 +147,12 @@ namespace PujJoycon
         [SerializeField] private bool sitting;
         [SerializeField] private bool shoulderRaisedLeft, shoulderRaisedRight;
         [SerializeField] private bool armSupportedLeft, armSupportedRight;
+        [Tooltip("Actividad REBA (+1 cada una): una o más partes del cuerpo estáticas más de 1 minuto.")]
+        [SerializeField] private bool staticPosture;
+        [Tooltip("Actividad REBA: movimientos repetitivos (más de 4 por minuto, en rango pequeño).")]
+        [SerializeField] private bool repetitiveMovements;
+        [Tooltip("Actividad REBA: cambios posturales grandes y rápidos, o postura/base inestable.")]
+        [SerializeField] private bool rapidChangesOrUnstable;
 
         [Header("Salida (solo lectura, visible en Play)")]
         [SerializeField] private PostureAngles currentAngles;
@@ -166,6 +178,23 @@ namespace PujJoycon
         public int Coupling { get => coupling; set => coupling = Mathf.Clamp(value, 0, 3); }
         public int Activity { get => activity; set => activity = Mathf.Clamp(value, 0, 3); }
         public bool ShockOrRapidForce { get => shockOrRapidForce; set => shockOrRapidForce = value; }
+        /// <summary>Hombro elevado (encogido): no lo mide el Joy-Con; se aplica a los dos brazos.</summary>
+        public bool ShoulderRaised { set { shoulderRaisedLeft = value; shoulderRaisedRight = value; } }
+        /// <summary>Brazo apoyado o postura a favor de la gravedad (−1): se aplica a los dos brazos.</summary>
+        public bool ArmSupported { set { armSupportedLeft = value; armSupportedRight = value; } }
+        // Preguntas de sí/no que se pueden decidir a mano en vez de medir (RebaSessionRecorder las fija
+        // por actividad y condición). Por defecto las miden los sensores.
+        public FuenteSiNo TrunkTwistOrSideBendSource { get; set; } = FuenteSiNo.Sensores;
+        public FuenteSiNo NeckTwistOrSideBendSource { get; set; } = FuenteSiNo.Sensores;
+        public FuenteSiNo ArmRotatedSource { get; set; } = FuenteSiNo.Sensores;
+        public FuenteSiNo WristDeviatedOrTwistedSource { get; set; } = FuenteSiNo.Sensores;
+
+        private static bool Resolve(FuenteSiNo source, bool measured) =>
+            source == FuenteSiNo.Si || (source == FuenteSiNo.Sensores && measured);
+
+        public bool StaticPosture { get => staticPosture; set => staticPosture = value; }
+        public bool RepetitiveMovements { get => repetitiveMovements; set => repetitiveMovements = value; }
+        public bool RapidChangesOrUnstable { get => rapidChangesOrUnstable; set => rapidChangesOrUnstable = value; }
 
         /// <summary>Entradas de REBA del último frame (ángulos ya convertidos + factores manuales), por lado.</summary>
         public RebaInputs LeftInputs => _leftInputs;
@@ -436,14 +465,18 @@ namespace PujJoycon
                 upperArm = arm.upperArmFlexion;
             }
 
+            bool abducted = arm.measured && arm.upperArmAbduction > thresholds.armAbductionThreshold;
+            bool rotated = Resolve(ArmRotatedSource,
+                                   arm.measured && Mathf.Abs(arm.upperArmRotation) > thresholds.armRotationThreshold);
+
             return new RebaInputs
             {
                 trunkFlexion = a.trunkFlexion,
-                trunkTwistedOrSideBent = Mathf.Abs(a.trunkLateral) > tw ||
-                                         (a.hasTrunkTwist && Mathf.Abs(a.trunkTwist) > thresholds.twistThreshold),
+                trunkTwistedOrSideBent = Resolve(TrunkTwistOrSideBendSource,
+                    Mathf.Abs(a.trunkLateral) > tw || (a.hasTrunkTwist && Mathf.Abs(a.trunkTwist) > thresholds.twistThreshold)),
                 neckFlexion = a.neckFlexion,
-                neckTwistedOrSideBent = a.hasNeck && (Mathf.Abs(a.neckLateral) > tw ||
-                                                      Mathf.Abs(a.neckTwist) > thresholds.twistThreshold),
+                neckTwistedOrSideBent = Resolve(NeckTwistOrSideBendSource,
+                    a.hasNeck && (Mathf.Abs(a.neckLateral) > tw || Mathf.Abs(a.neckTwist) > thresholds.twistThreshold)),
                 legsUnilateralOrUnstable = legsUnilateralOrUnstable,
                 kneeFlexion = Mathf.Max(a.kneeFlexionLeft, a.kneeFlexionRight),
                 sitting = sitting,
@@ -451,16 +484,19 @@ namespace PujJoycon
                 shockOrRapidForce = shockOrRapidForce,
 
                 upperArmFlexion = arm.measured ? upperArm : 0f,
-                upperArmAbductedOrRotated = arm.measured &&
-                    (arm.upperArmAbduction > thresholds.armAbductionThreshold ||
-                     Mathf.Abs(arm.upperArmRotation) > thresholds.armRotationThreshold),
+                upperArmAbductedOrRotated = abducted || rotated,
+                upperArmAbducted = abducted,
+                upperArmRotated = rotated,
                 shoulderRaised = isLeft ? shoulderRaisedLeft : shoulderRaisedRight,
                 armSupportedOrLeaning = isLeft ? armSupportedLeft : armSupportedRight,
                 // Sin datos de codo se asume 80° (puntaje 1) en vez de 0° (que daría 2).
                 elbowFlexion = arm.hasElbow ? arm.elbowFlexion : 80f,
                 wristFlexion = arm.hasWrist ? arm.wristFlexion : 0f,
-                wristDeviatedOrTwisted = arm.hasWrist && Mathf.Abs(arm.wristDeviation) > tw,
+                wristDeviatedOrTwisted = Resolve(WristDeviatedOrTwistedSource, arm.hasWrist && Mathf.Abs(arm.wristDeviation) > tw),
                 coupling = coupling,
+                staticPosture = staticPosture,
+                repetitiveMovements = repetitiveMovements,
+                rapidChangesOrUnstable = rapidChangesOrUnstable,
                 activity = activity,
             };
         }

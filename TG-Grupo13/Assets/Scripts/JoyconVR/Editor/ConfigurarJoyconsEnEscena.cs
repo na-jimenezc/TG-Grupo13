@@ -231,6 +231,8 @@ public static class ConfigurarJoyconsEnEscena
                                          JoyconReceiver receiver, JoyconSessionCalibrator calibrator)
     {
         var recorder = Asegurar<RebaSessionRecorder>(joycons);
+        Undo.RecordObject(recorder, "Factores REBA por actividad y condición");
+        recorder.RestablecerFactores(); // 9 entradas (3 actividades x pre/tutorial/post), conserva lo ya puesto
         var so = new SerializedObject(recorder);
         so.FindProperty("estimator").objectReferenceValue = estimator;
         so.FindProperty("receiver").objectReferenceValue = receiver;

@@ -3,6 +3,8 @@
 // Guarda REBA de cada sesión para el análisis de la tesis. Por sesión crea la carpeta
 //   <persistentDataPath>/REBA/<fecha>_P<id del participante>/
 // con:
+//   hoja_reba.csv los ítems de la hoja REBA en su orden, una fila por muestra: el valor medido
+//                 (grados, sí/no) y los puntos que suma cada uno, hasta el REBA final y la actuación.
 //   muestras.csv  una fila cada 1/muestrasPorSegundo s mientras hay actividad o tutorial:
 //                 todos los ángulos, las entradas y puntajes de REBA de cada lado, qué
 //                 segmentos tenían datos y la orientación de cada segmento (cuaternión)
@@ -39,16 +41,53 @@ namespace PujJoycon
     [DefaultExecutionOrder(50)]
     public class RebaSessionRecorder : MonoBehaviour
     {
+        public enum Condicion { Pre, Tutorial, Post }
+
+        // Lo que REBA pregunta y los sensores no miden (o no miden con confianza): lo deciden las
+        // investigadoras por actividad y por condición (pre / tutorial / post).
         [Serializable]
         public class FactoresActividad
         {
             public ActivityType actividad;
-            [Tooltip("Carga que se manipula en esta actividad (kg). REBA: <5 kg = 0, 5–10 = +1, >10 = +2.")]
+            public Condicion condicion;
+            [Header("Carga y agarre")]
+            [Tooltip("Carga que se manipula (kg). REBA: <5 kg = 0, 5–10 = +1, >10 = +2. En este estudio siempre < 5 kg.")]
             public float cargaKg;
             [Tooltip("Golpes o fuerza brusca (+1 a la carga).")]
             public bool impactoOFuerzaBrusca;
-            [Tooltip("Agarre: 0 bueno, 1 regular, 2 malo, 3 inaceptable.")]
+            [Tooltip("Agarre: 0 bueno, 1 regular, 2 malo, 3 inaceptable. En este estudio siempre bueno (0).")]
             [Range(0, 3)] public int agarre;
+            [Header("Brazos (no lo mide el Joy-Con)")]
+            [Tooltip("Hombro elevado (encogido): +1 al brazo.")]
+            public bool hombroElevado;
+            [Tooltip("Brazo apoyado o postura a favor de la gravedad: −1 al brazo.")]
+            public bool brazoApoyadoOAFavorDeGravedad;
+            [Header("Actividad (+1 cada una)")]
+            [Tooltip("Una o más partes del cuerpo estáticas (más de 1 minuto).")]
+            public bool partesEstaticas;
+            [Tooltip("Movimientos repetitivos (más de 4 por minuto, en rango pequeño).")]
+            public bool movimientosRepetitivos;
+            [Tooltip("Cambios posturales grandes y rápidos, o postura inestable.")]
+            public bool cambiosPosturalesOInestables;
+
+            [Header("Preguntas de sí/no: Sensores (con su umbral) o decisión de las investigadoras")]
+            [Tooltip("Tronco con rotación o inclinación lateral (+1). Usar Si/No si el Joy-Con de la pelvis falla o no se confía en la torsión.")]
+            public FuenteSiNo troncoRotacionOInclinacion = FuenteSiNo.Sensores;
+            [Tooltip("Cuello con torsión o inclinación lateral (+1).")]
+            public FuenteSiNo cuelloTorsionOInclinacion = FuenteSiNo.Sensores;
+            [Tooltip("Brazo rotado (cuenta para el +1 de abducido o rotado; la abducción siempre la miden los sensores).")]
+            public FuenteSiNo brazoRotado = FuenteSiNo.Sensores;
+            [Tooltip("Muñeca con torsión o desviación radial/cubital (+1).")]
+            public FuenteSiNo munecaTorsionODesviacion = FuenteSiNo.Sensores;
+        }
+
+        private static FactoresActividad[] FactoresPorDefecto()
+        {
+            var list = new List<FactoresActividad>();
+            foreach (ActivityType a in Enum.GetValues(typeof(ActivityType)))
+                foreach (Condicion c in Enum.GetValues(typeof(Condicion)))
+                    list.Add(new FactoresActividad { actividad = a, condicion = c });
+            return list.ToArray();
         }
 
         public const string CarpetaRaiz = "REBA";
@@ -62,13 +101,10 @@ namespace PujJoycon
         [SerializeField, Range(1f, 60f)] private float muestrasPorSegundo = 10f;
         [SerializeField] private bool grabarTutorial = true;
 
-        [Header("Factores de REBA que no miden los sensores (por actividad)")]
-        [SerializeField] private FactoresActividad[] factores =
-        {
-            new FactoresActividad { actividad = ActivityType.Siembra },
-            new FactoresActividad { actividad = ActivityType.Deshierbe },
-            new FactoresActividad { actividad = ActivityType.Corte },
-        };
+        [Header("Factores de REBA que no miden los sensores (por actividad y condición)")]
+        [Tooltip("Una entrada por actividad x condición (pre / tutorial / post). Si falta una, se usa la de la misma " +
+                 "actividad con otra condición. Menú ⋮ -> 'Restablecer factores' crea las 9.")]
+        [SerializeField] private FactoresActividad[] factores = FactoresPorDefecto();
 
         [Header("Historial del participante (usuarios.json)")]
         [Tooltip("Al terminar la sesión crea una Capacitacion con una ActividadRealizada por actividad y su RebaData.")]
@@ -96,8 +132,8 @@ namespace PujJoycon
         private int _participantId;
         private string _participantName, _age;
         private bool _leftHanded;
-        private StreamWriter _samples, _events;
-        private bool _samplesHeaderWritten;
+        private StreamWriter _samples, _events, _sheet;
+        private bool _samplesHeaderWritten, _sheetHeaderWritten;
         private float _nextFlush;
 
         private FaseSesion _lastFase = FaseSesion.SinSesion;
@@ -176,6 +212,7 @@ namespace PujJoycon
             if (Time.unscaledTime >= _nextFlush)
             {
                 _samples?.Flush();
+                _sheet?.Flush();
                 _events?.Flush();
                 _nextFlush = Time.unscaledTime + 1f;
             }
@@ -198,9 +235,11 @@ namespace PujJoycon
 
             var utf8Bom = new UTF8Encoding(true); // con BOM: Excel muestra bien las tildes
             _samples = new StreamWriter(Path.Combine(_folder, "muestras.csv"), false, utf8Bom);
+            _sheet = new StreamWriter(Path.Combine(_folder, "hoja_reba.csv"), false, utf8Bom);
             _events = new StreamWriter(Path.Combine(_folder, "eventos.csv"), false, utf8Bom);
             _events.WriteLine(string.Join(Sep.ToString(), "fecha_hora", "t_sesion_s", "tipo", "detalle"));
             _samplesHeaderWritten = false;
+            _sheetHeaderWritten = false;
 
             _tramos.Clear();
             _attempts.Clear();
@@ -247,12 +286,9 @@ namespace PujJoycon
                 _tramo = null;
             }
 
-            if (actividad != null && actividad != _lastActivity)
-            {
-                ApplyFactors(actividad.Value);
-                _lastActivity = actividad;
-            }
             if (condicion == null || actividad == null) return;
+            _lastActivity = actividad;
+            ApplyFactors(actividad.Value, condicion); // cada tramo con los factores de su actividad y condición
 
             string key = $"{indice}|{condicion}";
             _attempts.TryGetValue(key, out int n);
@@ -264,18 +300,77 @@ namespace PujJoycon
             LogEvent("inicio_tramo", $"{_tramo.actividad} {condicion} intento {n}");
         }
 
-        private void ApplyFactors(ActivityType actividad)
+        private static Condicion ToCondicion(string condicion) =>
+            condicion == "tutorial" ? Condicion.Tutorial : (condicion == "post" ? Condicion.Post : Condicion.Pre);
+
+        // La entrada de esa actividad y condición; si no existe, la primera de la misma actividad.
+        private FactoresActividad FindFactors(ActivityType actividad, Condicion condicion)
         {
-            if (estimator == null || factores == null) return;
+            if (factores == null) return null;
+            FactoresActividad sameActivity = null;
             foreach (var f in factores)
             {
                 if (f == null || f.actividad != actividad) continue;
-                estimator.LoadKg = f.cargaKg;
-                estimator.ShockOrRapidForce = f.impactoOFuerzaBrusca;
-                estimator.Coupling = f.agarre;
-                LogEvent("factores", $"{actividad}: carga {F(f.cargaKg)} kg, impacto {(f.impactoOFuerzaBrusca ? "sí" : "no")}, agarre {f.agarre}");
+                if (f.condicion == condicion) return f;
+                if (sameActivity == null) sameActivity = f;
+            }
+            return sameActivity;
+        }
+
+        private void ApplyFactors(ActivityType actividad, string condicionTexto)
+        {
+            if (estimator == null) return;
+            Condicion condicion = ToCondicion(condicionTexto);
+            var f = FindFactors(actividad, condicion);
+            if (f == null)
+            {
+                LogEvent("aviso", $"no hay factores para {actividad} {condicionTexto}: se mantienen los anteriores");
                 return;
             }
+            estimator.LoadKg = f.cargaKg;
+            estimator.ShockOrRapidForce = f.impactoOFuerzaBrusca;
+            estimator.Coupling = f.agarre;
+            estimator.ShoulderRaised = f.hombroElevado;
+            estimator.ArmSupported = f.brazoApoyadoOAFavorDeGravedad;
+            estimator.StaticPosture = f.partesEstaticas;
+            estimator.RepetitiveMovements = f.movimientosRepetitivos;
+            estimator.RapidChangesOrUnstable = f.cambiosPosturalesOInestables;
+            estimator.TrunkTwistOrSideBendSource = f.troncoRotacionOInclinacion;
+            estimator.NeckTwistOrSideBendSource = f.cuelloTorsionOInclinacion;
+            estimator.ArmRotatedSource = f.brazoRotado;
+            estimator.WristDeviatedOrTwistedSource = f.munecaTorsionODesviacion;
+
+            string usada = f.condicion == condicion ? "" : $" (no había entrada para {condicionTexto}: se usó la de {f.condicion})";
+            LogEvent("factores", $"{actividad} {condicionTexto}{usada}: carga {F(f.cargaKg)} kg, impacto {SiNo(f.impactoOFuerzaBrusca)}, " +
+                                 $"agarre {f.agarre}, hombro elevado {SiNo(f.hombroElevado)}, " +
+                                 $"brazo apoyado {SiNo(f.brazoApoyadoOAFavorDeGravedad)}, " +
+                                 $"partes estáticas {SiNo(f.partesEstaticas)}, repetitivos {SiNo(f.movimientosRepetitivos)}, " +
+                                 $"cambios posturales {SiNo(f.cambiosPosturalesOInestables)}, " +
+                                 $"tronco rot/incl {Fuente(f.troncoRotacionOInclinacion)}, cuello tors/incl {Fuente(f.cuelloTorsionOInclinacion)}, " +
+                                 $"brazo rotado {Fuente(f.brazoRotado)}, muñeca tors/desv {Fuente(f.munecaTorsionODesviacion)}");
+        }
+
+        private static string Fuente(FuenteSiNo s) =>
+            s == FuenteSiNo.Sensores ? "sensores" : (s == FuenteSiNo.Si ? "investigadoras: sí" : "investigadoras: no");
+
+        /// <summary>Deja una entrada por actividad x condición (9), conservando los valores que ya existan.</summary>
+        [ContextMenu("Restablecer factores (3 actividades x pre/tutorial/post)")]
+        public void RestablecerFactores()
+        {
+            var nuevos = FactoresPorDefecto();
+            for (int i = 0; i < nuevos.Length; i++)
+            {
+                var existente = FindFactors(nuevos[i].actividad, nuevos[i].condicion);
+                if (existente == null) continue;
+                // Copia los valores (de la misma condición o, si no había, de la misma actividad).
+                var copia = JsonUtility.FromJson<FactoresActividad>(JsonUtility.ToJson(existente));
+                copia.condicion = nuevos[i].condicion;
+                nuevos[i] = copia;
+            }
+            factores = nuevos;
+#if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(this);
+#endif
         }
 
         private void EndSession(string motivo)
@@ -285,8 +380,9 @@ namespace PujJoycon
             if (!_finalized) FinalizeData(motivo);
             LogEvent("fin_sesion", motivo);
             _samples?.Dispose();
+            _sheet?.Dispose();
             _events?.Dispose();
-            _samples = _events = null;
+            _samples = _events = _sheet = null;
             _active = false;
             _manual = false;
             Debug.Log($"[REBA] Sesión guardada ({motivo}) en {_folder}", this);
@@ -308,6 +404,7 @@ namespace PujJoycon
             // Las recalibraciones (persona en postura N) se graban marcadas pero no entran al resumen.
             bool calibrando = calibrator != null && calibrator.IsCalibrating;
             WriteSampleRow(now, calibrando);
+            WriteSheetRow(now, calibrando);
             if (!calibrando) _tramo.stats.Add(estimator.Left, estimator.Right, period);
         }
 
@@ -362,7 +459,7 @@ namespace PujJoycon
             AddResult("der", estimator.Right);
             var worst = estimator.Worst;
             r.Add("reba_final", worst.final);
-            r.Add("riesgo_final", worst.risk.ToString());
+            r.Add("riesgo_final", Reba.RiskName(worst.risk));
             r.Add("lado_peor", estimator.Left.final >= estimator.Right.final ? "izq" : "der");
 
             // Orientación de cada segmento en el marco del cuerpo (para recalcular después).
@@ -427,7 +524,146 @@ namespace PujJoycon
             r.Add($"{side}_tabla_c", x.tableC);
             r.Add($"{side}_p_actividad", x.activity);
             r.Add($"{side}_reba", x.final);
-            r.Add($"{side}_riesgo", x.risk.ToString());
+            r.Add($"{side}_riesgo", Reba.RiskName(x.risk));
+        }
+
+        // ------------------------------------------------------------------
+        // hoja_reba.csv: los ítems de la hoja REBA, en su orden, con valor -> puntos
+        // ------------------------------------------------------------------
+
+        private readonly CsvRow _sheetRow = new CsvRow();
+
+        private void WriteSheetRow(float now, bool calibrando)
+        {
+            var r = _sheetRow;
+            var a = estimator.CurrentAngles;
+            var li = estimator.LeftInputs;
+            RebaResult L = estimator.Left, R = estimator.Right, worst = estimator.Worst;
+
+            r.Begin();
+            r.Add("fecha_hora", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture));
+            r.Add("t_sesion_s", now - _sessionT0);
+            r.Add("participante_id", _participantId);
+            r.Add("actividad", _tramo.actividad.ToString());
+            r.Add("condicion", _tramo.condicion);
+            r.Add("intento", _tramo.intento);
+            r.Add("t_tramo_s", now - _tramoT0);
+            r.Add("calibrando", SiNo(calibrando));
+
+            // ---- Parte 1 (grupo A). Tronco, cuello y piernas son iguales para los dos lados. ----
+            r.Add("tronco_flexion_extension_grados", a.trunkFlexion, a.hasTrunk);
+            r.Add("tronco_flexion_extension_puntos", L.trunkBase);
+            r.Add("tronco_inclinacion_lateral_grados", a.trunkLateral, a.hasTrunk);
+            r.Add("tronco_rotacion_medida", SiNo(a.hasTrunkTwist)); // no: sin datos del Joy-Con de la pelvis
+            r.Add("tronco_rotacion_grados", a.trunkTwist, a.hasTrunkTwist);
+            r.Add("tronco_rotacion_o_inclinacion_lateral", SiNo(li.trunkTwistedOrSideBent));
+            r.Add("tronco_rotacion_o_inclinacion_lateral_fuente", Fuente(estimator.TrunkTwistOrSideBendSource));
+            r.Add("tronco_rotacion_o_inclinacion_lateral_puntos", L.trunkAdjust);
+            r.Add("tronco_total", L.trunk);
+
+            r.Add("cuello_medido", SiNo(a.hasNeck));
+            r.Add("cuello_flexion_extension_grados", a.neckFlexion, a.hasNeck);
+            r.Add("cuello_flexion_extension_puntos", L.neckBase);
+            r.Add("cuello_inclinacion_lateral_grados", a.neckLateral, a.hasNeck);
+            r.Add("cuello_torsion_grados", a.neckTwist, a.hasNeck);
+            r.Add("cuello_torsion_o_inclinacion_lateral", SiNo(li.neckTwistedOrSideBent));
+            r.Add("cuello_torsion_o_inclinacion_lateral_fuente", Fuente(estimator.NeckTwistOrSideBendSource));
+            r.Add("cuello_torsion_o_inclinacion_lateral_puntos", L.neckAdjust);
+            r.Add("cuello_total", L.neck);
+
+            r.Add("piernas_soporte", li.legsUnilateralOrUnstable ? "unilateral" : "bilateral");
+            r.Add("piernas_soporte_puntos", L.legsBase);
+            r.Add("rodilla_izq_flexion_grados", a.kneeFlexionLeft, a.hasKnee);
+            r.Add("rodilla_der_flexion_grados", a.kneeFlexionRight, a.hasKnee);
+            r.Add("rodillas_flexion_grados_reba", li.kneeFlexion, a.hasKnee); // la más flexionada
+            r.Add("rodillas_flexion_puntos", L.kneeAdjust);
+            r.Add("piernas_total", L.legs);
+
+            r.Add("tabla_a", L.tableA);
+            r.Add("carga_kg", li.loadKg);
+            r.Add("carga_puntos", L.loadBase);
+            r.Add("impacto_o_fuerza_brusca", SiNo(li.shockOrRapidForce));
+            r.Add("impacto_puntos", L.shockAdjust);
+            r.Add("puntaje_a", L.scoreA);
+
+            // ---- Parte 2 (grupo B), por lado ----
+            AddSheetArm("izq", a.left, estimator.LeftInputs, L);
+            AddSheetArm("der", a.right, estimator.RightInputs, R);
+
+            // ---- Parte final ----
+            r.Add("partes_del_cuerpo_estaticas", SiNo(li.staticPosture));
+            r.Add("partes_del_cuerpo_estaticas_puntos", L.activityStatic);
+            r.Add("movimientos_repetitivos", SiNo(li.repetitiveMovements));
+            r.Add("movimientos_repetitivos_puntos", L.activityRepetitive);
+            r.Add("cambios_posturales_o_postura_inestable", SiNo(li.rapidChangesOrUnstable));
+            r.Add("cambios_posturales_o_postura_inestable_puntos", L.activityRapid);
+            r.Add("actividad_puntos", L.activity);
+
+            r.Add("reba_izq", L.final);
+            r.Add("reba_der", R.final);
+            r.Add("reba_final", worst.final);
+            r.Add("lado_peor", L.final >= R.final ? "izq" : "der");
+            r.Add("nivel_de_riesgo", Reba.RiskName(worst.risk));
+            r.Add("actuacion", Reba.RiskAction(worst.risk));
+
+            if (!_sheetHeaderWritten)
+            {
+                _sheet.WriteLine(r.Header(Sep));
+                _sheetHeaderWritten = true;
+            }
+            _sheet.WriteLine(r.Values(Sep));
+        }
+
+        private void AddSheetArm(string side, ArmAngles arm, RebaInputs i, RebaResult x)
+        {
+            var r = _sheetRow;
+            r.Add($"brazo_{side}_medido", SiNo(arm.measured));
+            // El ángulo que puntúa REBA: la elevación del brazo (o la extensión si va hacia atrás).
+            r.Add($"brazo_{side}_flexion_grados", i.upperArmFlexion, arm.measured);
+            r.Add($"brazo_{side}_flexion_puntos", x.upperArmBase);
+            r.Add($"hombro_{side}_abduccion_grados", arm.upperArmAbduction, arm.measured);
+            r.Add($"hombro_{side}_abducido", SiNo(i.upperArmAbducted));
+            r.Add($"brazo_{side}_rotacion_grados", arm.upperArmRotation, arm.measured);
+            r.Add($"brazo_{side}_rotado", SiNo(i.upperArmRotated));
+            r.Add($"brazo_{side}_rotado_fuente", Fuente(estimator.ArmRotatedSource));
+            r.Add($"brazo_{side}_abducido_o_rotado_puntos", x.upperArmAbductedAdjust);
+            r.Add($"hombro_{side}_elevado", SiNo(i.shoulderRaised));
+            r.Add($"hombro_{side}_elevado_fuente", "investigadoras");
+            r.Add($"hombro_{side}_elevado_puntos", x.shoulderRaisedAdjust);
+            r.Add($"brazo_{side}_apoyo_o_a_favor_de_gravedad", SiNo(i.armSupportedOrLeaning));
+            r.Add($"brazo_{side}_apoyo_o_a_favor_de_gravedad_fuente", "investigadoras");
+            r.Add($"brazo_{side}_apoyo_o_a_favor_de_gravedad_puntos", x.armSupportedAdjust);
+            r.Add($"brazo_{side}_total", x.upperArm);
+
+            r.Add($"antebrazo_{side}_medido", SiNo(arm.hasElbow));
+            r.Add($"antebrazo_{side}_flexion_grados", arm.elbowFlexion, arm.hasElbow);
+            r.Add($"antebrazo_{side}_puntos", x.lowerArm);
+
+            r.Add($"muneca_{side}_medida", SiNo(arm.hasWrist));
+            r.Add($"muneca_{side}_flexion_extension_grados", arm.wristFlexion, arm.hasWrist);
+            r.Add($"muneca_{side}_flexion_extension_puntos", x.wristBase);
+            r.Add($"muneca_{side}_desviacion_grados", arm.wristDeviation, arm.hasWrist);
+            r.Add($"muneca_{side}_torsion_o_desviacion", SiNo(i.wristDeviatedOrTwisted));
+            r.Add($"muneca_{side}_torsion_o_desviacion_fuente", Fuente(estimator.WristDeviatedOrTwistedSource));
+            r.Add($"muneca_{side}_torsion_o_desviacion_puntos", x.wristAdjust);
+            r.Add($"muneca_{side}_total", x.wrist);
+
+            r.Add($"tabla_b_{side}", x.tableB);
+            r.Add($"agarre_{side}", CouplingName(i.coupling));
+            r.Add($"agarre_{side}_puntos", x.coupling);
+            r.Add($"puntaje_b_{side}", x.scoreB);
+            r.Add($"tabla_c_{side}", x.tableC);
+        }
+
+        private static string CouplingName(int coupling)
+        {
+            switch (coupling)
+            {
+                case 0: return "bueno";
+                case 1: return "regular";
+                case 2: return "malo";
+                default: return "inaceptable";
+            }
         }
 
         private static string SegmentColumn(BodySegment s)
@@ -512,6 +748,7 @@ namespace PujJoycon
             }
             _events?.Flush();
             _samples?.Flush();
+            _sheet?.Flush();
         }
 
         private static readonly string[] SummaryHeader =
@@ -785,6 +1022,7 @@ namespace PujJoycon
         }
 
         private static string F(double v) => CsvRow.Number(v);
+        private static string SiNo(bool v) => v ? "sí" : "no";
     }
 
 }
