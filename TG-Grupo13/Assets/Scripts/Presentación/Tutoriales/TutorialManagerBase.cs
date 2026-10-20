@@ -141,8 +141,57 @@ public abstract class TutorialManagerBase : MonoBehaviour
             var escala = Vector3.Scale(prefabs[i].transform.localScale, punto.lossyScale);
             if (zurdo) escala.x = -escala.x;
             pose.transform.localScale = escala;
+            AsentarEnPiso(pose.transform, punto);
             _posesInstanciadas.Add(pose);
         }
+    }
+
+    // Cada FBX de pose trae su propio desfase desde Blender y los puntos no están todos a la misma altura,
+    // así que algunos maniquíes quedaban hundidos (pies, o rodillas y pantorrillas si están agachados).
+    // Se sube o baja la pose para que su punto más bajo quede justo sobre el piso que hay debajo del punto.
+    private static void AsentarEnPiso(Transform pose, Transform punto)
+    {
+        float? puntoMasBajo = PuntoMasBajo(pose);
+        if (!puntoMasBajo.HasValue) return;
+
+        float piso = punto.position.y;
+        if (Physics.Raycast(punto.position + Vector3.up * 0.5f, Vector3.down, out var hit, 2f, ~0, QueryTriggerInteraction.Ignore))
+            piso = hit.point.y;
+
+        pose.position += Vector3.up * (piso - puntoMasBajo.Value);
+    }
+
+    // Se recorren los vértices reales (las mallas con huesos se hornean en su pose) porque los bounds de un
+    // SkinnedMeshRenderer no siguen la pose y no sirven para saber dónde quedan los pies.
+    private static float? PuntoMasBajo(Transform pose)
+    {
+        float? minimo = null;
+        var horneada = new Mesh();
+
+        foreach (var r in pose.GetComponentsInChildren<SkinnedMeshRenderer>())
+        {
+            if (r.sharedMesh == null) continue;
+            r.BakeMesh(horneada, true);
+            minimo = MinimoY(horneada.vertices, r.transform.localToWorldMatrix, minimo);
+        }
+        foreach (var f in pose.GetComponentsInChildren<MeshFilter>())
+        {
+            if (f.sharedMesh == null || !f.sharedMesh.isReadable) continue;
+            minimo = MinimoY(f.sharedMesh.vertices, f.transform.localToWorldMatrix, minimo);
+        }
+
+        Destroy(horneada);
+        return minimo;
+    }
+
+    private static float? MinimoY(Vector3[] vertices, Matrix4x4 aMundo, float? minimo)
+    {
+        foreach (var v in vertices)
+        {
+            float y = aMundo.MultiplyPoint3x4(v).y;
+            if (!minimo.HasValue || y < minimo.Value) minimo = y;
+        }
+        return minimo;
     }
 
     // Los controles se crean como hijos del punto para que hereden su escala y sigan al panel si este se mueve.
