@@ -389,7 +389,7 @@ namespace PujJoycon
 
         private void OnPhase(FaseSesion fase, int indice, ActivityType? actividad)
         {
-            LogEvent("fase", $"{fase} | actividad {(actividad?.ToString() ?? "-")} | índice {indice}");
+            LogEvent("fase", $"{fase} | actividad {(actividad?.ToString() ?? "-")} | índice {indice} | entradas: {EntradasActivas()}");
 
             string condicion = null;
             if (actividad != null && indice >= 0)
@@ -418,6 +418,27 @@ namespace PujJoycon
                 _pendingCalibraciones = calibrator.CalibracionesTerminadas;
                 LogEvent("esperando_calibracion", $"{actividad} {condicion}: se graba desde ya, pero cuenta desde que terminen la recalibración rápida");
             }
+        }
+
+        // Qué se estaba presionando cuando cambió la fase (para saber qué la cambió: el mouse del Game Master,
+        // una tecla o un control del visor).
+        private static string EntradasActivas()
+        {
+            var activas = new List<string>();
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (mouse != null && (mouse.leftButton.isPressed || mouse.leftButton.wasReleasedThisFrame)) activas.Add("clic del mouse");
+            var teclado = UnityEngine.InputSystem.Keyboard.current;
+            if (teclado != null && teclado.anyKey.isPressed) activas.Add("teclado");
+            foreach (var dispositivo in UnityEngine.InputSystem.InputSystem.devices)
+            {
+                if (!(dispositivo is UnityEngine.InputSystem.XR.XRController)) continue;
+                foreach (var control in dispositivo.allControls)
+                {
+                    if (control is UnityEngine.InputSystem.Controls.ButtonControl b && !b.synthetic && b.isPressed)
+                        activas.Add($"{dispositivo.name}/{control.name}");
+                }
+            }
+            return activas.Count > 0 ? string.Join(", ", activas) : "ninguna";
         }
 
         // ¿Hay una calibración terminada hace poco que todavía no abrió ningún momento?
