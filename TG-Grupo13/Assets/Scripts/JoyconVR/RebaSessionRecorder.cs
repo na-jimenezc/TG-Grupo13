@@ -161,8 +161,37 @@ namespace PujJoycon
         private int _pendingIndice;
         private int _pendingCalibraciones;
 
+        // Resultados de la última sesión terminada (para la pantalla de resultados del visor).
+        private List<ActividadRealizada> _lastResults = new List<ActividadRealizada>();
+        private int _lastResultsVersion;
+
         public bool Grabando => _tramo != null;
         public string CarpetaSesion => _folder;
+
+        /// <summary>true cuando ya se calcularon los resultados de la sesión actual (al llegar a Resultados).</summary>
+        public bool ResultadosListos => _finalized;
+        public int VersionResultados => _lastResultsVersion;
+
+        /// <summary>Resumen REBA (pre / tutorial / post) de una actividad de la última sesión terminada, si se midió.</summary>
+        public bool TryGetResultado(ActivityType actividad, out RebaData reba)
+        {
+            foreach (var r in _lastResults)
+            {
+                if (r.Tipo == actividad && r.Reba != null)
+                {
+                    reba = r.Reba;
+                    return true;
+                }
+            }
+            reba = null;
+            return false;
+        }
+
+        /// <summary>Para que otros componentes (p. ej. el semáforo) dejen constancia en eventos.csv.</summary>
+        public void RegistrarEvento(string tipo, string detalle)
+        {
+            if (_active) LogEvent(tipo, detalle);
+        }
 
         /// <summary>Hay un momento (pre/tutorial/post) esperando una calibración para empezar a grabarse.</summary>
         public bool EsperandoCalibracion => _active && _pending;
@@ -173,6 +202,10 @@ namespace PujJoycon
             if (estimator == null) estimator = FindAnyObjectByType<RebaPostureEstimator>();
             if (receiver == null) receiver = FindAnyObjectByType<JoyconReceiver>();
             if (calibrator == null) calibrator = FindAnyObjectByType<JoyconSessionCalibrator>();
+
+            // Pantalla de resultados y semáforo de postura: se agregan solos (así no hay que tocar Core).
+            if (GetComponent<RebaResultadosEnPantalla>() == null) gameObject.AddComponent<RebaResultadosEnPantalla>();
+            if (GetComponent<RebaSemaforoPostura>() == null) gameObject.AddComponent<RebaSemaforoPostura>();
         }
 
         private void OnEnable()
@@ -798,7 +831,10 @@ namespace PujJoycon
             {
                 WriteSummaries(estado);
                 WriteMeta(estado);
-                if (guardarEnHistorial && !_manual) SaveToHistory(estado);
+                var results = BuildResults(estado);
+                _lastResults = results;
+                _lastResultsVersion++;
+                if (guardarEnHistorial && !_manual) SaveToHistory(results);
                 LogEvent("resumen_guardado", estado);
             }
             catch (Exception e)
@@ -881,13 +917,10 @@ namespace PujJoycon
             return groups;
         }
 
-        private void SaveToHistory(string estado)
+        // Resumen por actividad de la sesión (pre / tutorial / post), para el historial y la pantalla de resultados.
+        private List<ActividadRealizada> BuildResults(string estado)
         {
-            if (string.IsNullOrEmpty(_participantName)) return;
-            var user = UserDatabase.ObtenerUsuario(_participantName);
-            if (user == null || user.EsAdministrador) return;
-
-            var cap = new Capacitacion { Fecha = _sessionStart.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) };
+            var results = new List<ActividadRealizada>();
             var groups = GroupByCondition();
             var indices = new List<int>();
             foreach (var g in groups) if (!indices.Contains(g.indice)) indices.Add(g.indice);
@@ -904,7 +937,7 @@ namespace PujJoycon
                 string p90Pre = pre != null && pre.stats.Count > 0 ? F(pre.stats.Percentile(90)) : "-";
                 string p90Post = post != null && post.stats.Count > 0 ? F(post.stats.Percentile(90)) : "-";
 
-                cap.Actividades.Add(new ActividadRealizada
+                results.Add(new ActividadRealizada
                 {
                     Tipo = any.actividad,
                     TiempoTomado = TimeSpan.FromSeconds(activeSeconds).ToString(@"hh\:mm\:ss"),
@@ -918,7 +951,17 @@ namespace PujJoycon
                     },
                 });
             }
+            return results;
+        }
 
+        private void SaveToHistory(List<ActividadRealizada> results)
+        {
+            if (string.IsNullOrEmpty(_participantName)) return;
+            var user = UserDatabase.ObtenerUsuario(_participantName);
+            if (user == null || user.EsAdministrador) return;
+
+            var cap = new Capacitacion { Fecha = _sessionStart.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) };
+            cap.Actividades.AddRange(results);
             if (user.Capacitaciones == null) user.Capacitaciones = new List<Capacitacion>();
             user.Capacitaciones.Add(cap);
             UserDatabase.ActualizarUsuario(user.Nombre, user);
