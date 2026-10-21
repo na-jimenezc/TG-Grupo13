@@ -7,8 +7,8 @@ using UnityEngine.SceneManagement;
  * 1. Objetos fuera de la cápsula: el "cuerpo" físico del jugador en el rig de Meta (Locomotor -> CharacterController)
  *    es una cápsula que choca con Default, TransparentFX, Ignore Raycast y Water, y que se sube a lo que mida hasta
  *    30 cm (_maxStep). Los objetos de las actividades estaban en Default: la cápsula se subía a ellos y la cámara subía.
- *    Aquí lo que se puede agarrar y los huecos/tallos plantados pasan a la capa "Jugador", que choca con el piso, las
- *    manos y los demás objetos (la física y los agarres siguen igual), pero que la cápsula ignora.
+ *    Aquí lo que se puede agarrar pasa a la capa "Jugador", que choca con el piso, las manos y los demás objetos (la
+ *    física y los agarres siguen igual), pero que la cápsula ignora.
  *
  * 2. Altura fija: los pisos de las actividades son planos, así que el rig nunca necesita subir ni bajar. Si algo lo
  *    mueve en vertical (lo que sea), se devuelve a la altura del piso antes de dibujar la imagen. La altura se toma
@@ -81,11 +81,9 @@ public class ObjetosFueraDeLaCapsula : MonoBehaviour
         if (_capa < 0 || Time.unscaledTime < _proxima) return;
         _proxima = Time.unscaledTime + SegundosEntreRevisiones;
 
-        // Todo lo que se puede agarrar (bulbos, canasta, pala, ortigas, bolsa, tijeras, capuchones, ramos...).
+        // Solo lo que se puede agarrar (bulbos, canasta, pala, ortigas, bolsa, tijeras, capuchones, ramos...): es lo que
+        // queda suelto en el piso. Los huecos y tallos plantados no se tocan (de eso ya se encarga la altura fija).
         foreach (var agarrable in FindObjectsByType<Grabbable>(FindObjectsSortMode.None)) Mover(agarrable.gameObject);
-        // Y lo que está en el piso de la actividad: huecos de siembra y tallos plantados.
-        foreach (var hueco in FindObjectsByType<PlantingSlot>(FindObjectsSortMode.None)) Mover(hueco.gameObject);
-        foreach (var tallo in FindObjectsByType<TalloEnPlantacion>(FindObjectsSortMode.None)) Mover(tallo.gameObject);
     }
 
     //El objeto y sus hijos (los colliders suelen estar en los hijos). Lo que ya está en una capa propia no se toca.
