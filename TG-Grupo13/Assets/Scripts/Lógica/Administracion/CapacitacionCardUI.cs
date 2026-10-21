@@ -96,13 +96,13 @@ public class CapacitacionCardUI : MonoBehaviour
             }
 
             sb.AppendLine(Fila("", "<b>Pre</b>", "<b>Tutorial</b>", "<b>Post</b>"));
-            sb.AppendLine(Fila("REBA P90", P90(reba.PreTutorial), P90(reba.Tutorial), P90(reba.PostTutorial)));
-            sb.AppendLine(Fila("REBA promedio", Promedio(reba.PreTutorial), Promedio(reba.Tutorial), Promedio(reba.PostTutorial)));
+            sb.AppendLine(Fila("REBA más frecuente (moda)", Moda(reba.PreTutorial), Moda(reba.Tutorial), Moda(reba.PostTutorial)));
             sb.AppendLine(Fila("% tiempo riesgo alto o muy alto", PctAlto(reba.PreTutorial), PctAlto(reba.Tutorial), PctAlto(reba.PostTutorial)));
-            sb.AppendLine(Fila("Duración grabada", Duracion(reba.PreTutorial), Duracion(reba.Tutorial), Duracion(reba.PostTutorial)));
+            sb.AppendLine(Fila("Duración que cuenta", Duracion(reba.PreTutorial), Duracion(reba.Tutorial), Duracion(reba.PostTutorial)));
         }
         sb.AppendLine();
-        sb.Append("<size=80%>P90: el 10 % del tiempo el puntaje REBA estuvo por encima de este valor. " +
+        sb.Append("<size=80%>Moda: el puntaje REBA que más se repitió (la postura más frecuente) en el tiempo que cuenta " +
+                  "(sin calibración, caminatas ni momentos sin tarea). " +
                   "Riesgo: 1 insignificante, 2-3 bajo, 4-7 medio, 8-10 alto, 11+ muy alto.</size>");
         return sb.ToString();
     }
@@ -110,10 +110,13 @@ public class CapacitacionCardUI : MonoBehaviour
     private static string Fila(string nombre, string pre, string tutorial, string post) =>
         $"{nombre}<pos=50%>{pre}<pos=67%>{tutorial}<pos=84%>{post}";
 
-    private static string P90(RebaResumen r) =>
-        r.HayDatos ? $"{Mathf.RoundToInt(r.Percentil90)} ({Riesgo(Mathf.RoundToInt(r.Percentil90))})" : "—";
-
-    private static string Promedio(RebaResumen r) => r.HayDatos ? r.Promedio.ToString("0.0", Espanol) : "—";
+    //La moda; en registros viejos (antes de guardarla) se usa la mediana.
+    private static string Moda(RebaResumen r)
+    {
+        if (!r.HayDatos) return "—";
+        int moda = r.Moda > 0 ? r.Moda : Mathf.RoundToInt(r.Mediana);
+        return $"{moda} ({Riesgo(moda)})";
+    }
 
     private static string PctAlto(RebaResumen r) =>
         r.HayDatos ? (r.PorcentajeAlto + r.PorcentajeMuyAlto).ToString("0", Espanol) + " %" : "—";

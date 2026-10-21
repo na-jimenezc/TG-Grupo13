@@ -456,14 +456,10 @@ namespace PujJoycon
         {
             float tw = thresholds.twistOrSideBendThreshold;
 
-            // Brazo: REBA puntúa la elevación del brazo. Si va hacia atrás (más
-            // extensión que abducción) se usa el ángulo sagital negativo; si no,
-            // la elevación total, para no subestimar brazos levantados de lado.
-            float upperArm = arm.upperArmElevation;
-            if (arm.upperArmFlexion < 0f && Mathf.Abs(arm.upperArmAbduction) < Mathf.Abs(arm.upperArmFlexion))
-            {
-                upperArm = arm.upperArmFlexion;
-            }
+            // Brazo: criterio estricto de REBA, solo la flexión (+) / extensión (−) en el plano sagital
+            // (hacia adelante / atrás). Levantar el brazo de lado no suma grados aquí: lo cuenta el +1 de
+            // "abducido" (así no se cuenta dos veces). La elevación total queda en los datos crudos.
+            float upperArm = arm.upperArmFlexion;
 
             bool abducted = arm.measured && arm.upperArmAbduction > thresholds.armAbductionThreshold;
             bool rotated = Resolve(ArmRotatedSource,

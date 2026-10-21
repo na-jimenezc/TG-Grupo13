@@ -13,6 +13,7 @@ public class RebaResumen
     public int Muestras;
     public float Promedio;             //REBA final promedio
     public float Mediana;
+    public int Moda;                   //REBA más repetido (postura más frecuente); el que se muestra en pantalla
     public float Percentil90;          //el 10% del tiempo estuvo por encima de este valor
     public int Maximo;
     //% del tiempo en cada nivel de riesgo de REBA (1: insignificante, 2-3: bajo, 4-7: medio, 8-10: alto, 11+: muy alto)

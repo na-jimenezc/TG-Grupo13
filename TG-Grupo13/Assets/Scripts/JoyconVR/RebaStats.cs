@@ -84,6 +84,30 @@ namespace PujJoycon
 
         public double Median => Percentile(50);
 
+        /// <summary>
+        /// Moda: el REBA que más se repitió (la postura más frecuente). Si dos valores empatan, se toma el
+        /// mayor (criterio conservador). 0 si no hay muestras.
+        /// </summary>
+        public int Mode
+        {
+            get
+            {
+                if (Count == 0) return 0;
+                var counts = new Dictionary<int, int>();
+                foreach (int f in _finals) counts[f] = counts.TryGetValue(f, out int c) ? c + 1 : 1;
+                int mode = 0, best = -1;
+                foreach (var kv in counts)
+                {
+                    if (kv.Value > best || (kv.Value == best && kv.Key > mode))
+                    {
+                        mode = kv.Key;
+                        best = kv.Value;
+                    }
+                }
+                return mode;
+            }
+        }
+
         /// <summary>Percentil por rango más cercano (p en 0..100). 0 si no hay muestras.</summary>
         public double Percentile(double p)
         {

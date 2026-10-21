@@ -90,6 +90,9 @@ namespace PujJoycon
         /// empezar cada momento (pre/tutorial/post) solo después de una calibración.</summary>
         public int CalibracionesTerminadas { get; private set; }
 
+        /// <summary>Time.unscaledTime en que terminó bien la última calibración (rápida o completa).</summary>
+        public float UltimaCalibracionFin { get; private set; } = -9999f;
+
         private void Awake()
         {
             if (estimator == null) estimator = FindAnyObjectByType<RebaPostureEstimator>();
@@ -114,7 +117,9 @@ namespace PujJoycon
         {
             var flow = GameFlowManager.Instance;
             bool running = flow != null && flow.simulacionEnCurso;
-            if (running != _sessionWasRunning) _fullDoneThisSession = false; // participante nuevo: falta su calibración
+            // Al TERMINAR una sesión, la calibración ya no sirve para el siguiente participante. (No se borra al
+            // empezar: una calibración completa hecha justo antes de iniciar la sesión sí cuenta.)
+            if (_sessionWasRunning && !running) _fullDoneThisSession = false;
             _sessionWasRunning = running;
         }
 
@@ -161,7 +166,11 @@ namespace PujJoycon
                 yield return null;
             }
             estimator.Calibrate(); // mismo montaje, nuevo "cero" (y nueva postura del avatar)
-            if (estimator.IsCalibrated) CalibracionesTerminadas++;
+            if (estimator.IsCalibrated)
+            {
+                CalibracionesTerminadas++;
+                UltimaCalibracionFin = Time.unscaledTime;
+            }
             ShowMessage(estimator.IsCalibrated ? "¡Listo! Ya puede moverse." : "No se pudo recalibrar.\nAvise al encargado.");
             _step = "terminando";
             yield return new WaitForSeconds(1.5f);
@@ -251,6 +260,7 @@ namespace PujJoycon
 
             _fullDoneThisSession = true;
             CalibracionesTerminadas++; // también vale como recalibración del momento actual
+            UltimaCalibracionFin = Time.unscaledTime;
             yield return Finish("¡Listo! Ya puede moverse.", 2.5f);
         }
 

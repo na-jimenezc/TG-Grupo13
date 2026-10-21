@@ -1,35 +1,46 @@
 // RebaSessionRecorder.cs
 //
-// Guarda REBA de cada sesión para el análisis de la tesis. Por sesión crea la carpeta
-//   <persistentDataPath>/REBA/<fecha>_P<id del participante>/
-// con:
-//   hoja_reba.csv los ítems de la hoja REBA en su orden, una fila por muestra: el valor medido
-//                 (grados, sí/no) y los puntos que suma cada uno, hasta el REBA final y la actuación.
-//   muestras.csv  una fila cada 1/muestrasPorSegundo s mientras hay actividad o tutorial:
-//                 todos los ángulos, las entradas y puntajes de REBA de cada lado, qué
-//                 segmentos tenían datos y la orientación de cada segmento (cuaternión)
-//                 para poder recalcular todo después con otros umbrales.
-//   resumen.csv   una fila por actividad x condición x intento (y el total de los intentos):
-//                 promedio, mediana, percentil 90, máximo, % del tiempo en cada riesgo...
-//   eventos.csv   calibraciones, cambios de fase, sensores perdidos, fin de la sesión.
-//   sesion.json   cómo se midió: umbrales, suavizado, sensores, montajes, factores.
-// y agrega el resumen a REBA/resumen_todas_las_sesiones.csv (una tabla para todos los participantes).
+// Guarda REBA de cada sesión para el análisis de la tesis.
 //
-// La condición se etiqueta sola con GameFlowManager.Fase, por actividad:
-//   "pre"      la actividad antes de ver el tutorial
-//   "tutorial" durante el tutorial
-//   "post"     la actividad después del tutorial
-// Cada momento empieza a grabarse cuando el Game Master termina una recalibración
-// (JoyconSessionCalibrator) después de que empezó; antes queda "en espera".
+// Por sesión, en <persistentDataPath>/REBA/<fecha>_P<id del participante>/:
+//   muestras.csv  5 filas por segundo mientras hay actividad o tutorial: subtarea, si la muestra
+//                 cuenta para el análisis (y si no, por qué), ángulos clave, puntos de cada parte
+//                 y REBA. Es la tabla para gráficas en el tiempo y análisis por muestra.
+//   crudos.csv    la orientación de cada segmento (cuaternión) en las mismas filas, para poder
+//                 recalcular todo después con otros criterios.
+//   eventos.csv   calibraciones, cambios de fase, avisos del semáforo, sensores perdidos.
+//   sesion.json   cómo se midió: umbrales, sensores, montajes, factores, criterios de "cuenta".
 //
-// Al terminar la sesión también guarda el resumen pre/tutorial/post en el historial del
-// participante (Capacitacion -> ActividadRealizada -> RebaData en usuarios.json).
+// Y para todos los participantes, en <persistentDataPath>/REBA/:
+//   resumen_participantes.csv  una fila por participante x actividad x momento (pre/tutorial/post).
+//   resumen_subtareas.csv      lo mismo, separado por subtarea (Cavar hueco, Cortar tallo...).
 //
-// CSV para Excel en español: separador ';' y decimales con coma.
-// Solo se identifica al participante por su Id (no se guarda nombre ni correo en los CSV).
+// Qué muestras "cuentan" (columna cuenta = 1). El resto se guarda igual, con su motivo:
+//   calibrando         la persona está en postura N para la recalibración
+//   sin tarea          en la actividad no está haciendo ninguna subtarea (camina hacia la
+//                      siguiente planta, mira alrededor...). En el tutorial siempre hay un paso.
+//   caminando          el visor se mueve en horizontal a más de umbralCaminando
+//   mirando a un lado  la cabeza está girada más de umbralCabezaGirada respecto al tronco
+//                      (p. ej. leyendo instrucciones a un lado)
+// El resumen trae el REBA de todo el tiempo (_total) y el del tiempo que cuenta (el resto).
 //
-// Sin GameFlowManager (escena de prueba), o en Core mientras no hay una sesión en curso (prueba con
-// el visor en la sala de espera), se graba a mano con los botones en pantalla.
+// El momento se etiqueta solo con GameFlowManager.Fase, por actividad:
+//   "pre" la actividad antes del tutorial, "tutorial", "post" la actividad después del tutorial.
+// Cada momento se graba desde que termina una recalibración del Game Master: la que se haga
+// después de que empezó, o una hecha poco antes (calibracionReciente) que no se haya usado.
+//
+// Factores de REBA que no miden los sensores: los deciden las investigadoras, uno por actividad
+// (iguales en pre, tutorial y post). Carga < 5 kg, agarre bueno y sin impactos son fijos.
+//
+// Al terminar la sesión guarda el resumen pre/tutorial/post en el historial del participante
+// (Capacitacion -> ActividadRealizada -> RebaData en usuarios.json) y lo deja listo para la
+// pantalla de resultados del visor.
+//
+// CSV para Excel en español: separador ';' y decimales con coma. El participante solo se
+// identifica por su Id (no se guarda nombre ni correo en los CSV).
+//
+// Sin GameFlowManager (escena de prueba), o en Core mientras no hay una sesión en curso, se
+// graba a mano con los botones en pantalla.
 
 using System;
 using System.Collections.Generic;
@@ -44,56 +55,34 @@ namespace PujJoycon
     [DefaultExecutionOrder(50)]
     public class RebaSessionRecorder : MonoBehaviour
     {
-        public enum Condicion { Pre, Tutorial, Post }
-
-        // Lo que REBA pregunta y los sensores no miden (o no miden con confianza): lo deciden las
-        // investigadoras por actividad y por condición (pre / tutorial / post).
+        // Lo que REBA pregunta y los sensores no miden: lo deciden las investigadoras por actividad.
         [Serializable]
         public class FactoresActividad
         {
             public ActivityType actividad;
-            public Condicion condicion;
-            [Header("Carga y agarre")]
-            [Tooltip("Carga que se manipula (kg). REBA: <5 kg = 0, 5–10 = +1, >10 = +2. En este estudio siempre < 5 kg.")]
-            public float cargaKg;
-            [Tooltip("Golpes o fuerza brusca (+1 a la carga).")]
-            public bool impactoOFuerzaBrusca;
-            [Tooltip("Agarre: 0 bueno, 1 regular, 2 malo, 3 inaceptable. En este estudio siempre bueno (0).")]
-            [Range(0, 3)] public int agarre;
-            [Header("Brazos (no lo mide el Joy-Con)")]
             [Tooltip("Hombro elevado (encogido): +1 al brazo.")]
             public bool hombroElevado;
             [Tooltip("Brazo apoyado o postura a favor de la gravedad: −1 al brazo.")]
             public bool brazoApoyadoOAFavorDeGravedad;
-            [Header("Actividad (+1 cada una)")]
-            [Tooltip("Una o más partes del cuerpo estáticas (más de 1 minuto).")]
+            [Tooltip("Una o más partes del cuerpo estáticas (más de 1 minuto): +1.")]
             public bool partesEstaticas;
-            [Tooltip("Movimientos repetitivos (más de 4 por minuto, en rango pequeño).")]
+            [Tooltip("Movimientos repetitivos (más de 4 por minuto, en rango pequeño): +1.")]
             public bool movimientosRepetitivos;
-            [Tooltip("Cambios posturales grandes y rápidos, o postura inestable.")]
+            [Tooltip("Cambios posturales grandes y rápidos, o postura inestable: +1.")]
             public bool cambiosPosturalesOInestables;
-
-            [Header("Preguntas de sí/no: Sensores (con su umbral) o decisión de las investigadoras")]
-            [Tooltip("Tronco con rotación o inclinación lateral (+1). Usar Si/No si el Joy-Con de la pelvis falla o no se confía en la torsión.")]
-            public FuenteSiNo troncoRotacionOInclinacion = FuenteSiNo.Sensores;
-            [Tooltip("Cuello con torsión o inclinación lateral (+1).")]
-            public FuenteSiNo cuelloTorsionOInclinacion = FuenteSiNo.Sensores;
-            [Tooltip("Brazo rotado (cuenta para el +1 de abducido o rotado; la abducción siempre la miden los sensores).")]
-            public FuenteSiNo brazoRotado = FuenteSiNo.Sensores;
-            [Tooltip("Muñeca con torsión o desviación radial/cubital (+1).")]
-            public FuenteSiNo munecaTorsionODesviacion = FuenteSiNo.Sensores;
         }
 
         private static FactoresActividad[] FactoresPorDefecto()
         {
             var list = new List<FactoresActividad>();
-            foreach (ActivityType a in Enum.GetValues(typeof(ActivityType)))
-                foreach (Condicion c in Enum.GetValues(typeof(Condicion)))
-                    list.Add(new FactoresActividad { actividad = a, condicion = c });
+            foreach (ActivityType a in Enum.GetValues(typeof(ActivityType))) list.Add(new FactoresActividad { actividad = a });
             return list.ToArray();
         }
 
         public const string CarpetaRaiz = "REBA";
+        private const string ArchivoParticipantes = "resumen_participantes.csv";
+        private const string ArchivoSubtareas = "resumen_subtareas.csv";
+        private const string SinTarea = "sin tarea";
         private const char Sep = ';';
 
         [SerializeField] private RebaPostureEstimator estimator;
@@ -101,19 +90,29 @@ namespace PujJoycon
         [SerializeField] private JoyconSessionCalibrator calibrator;
 
         [Header("Muestreo")]
-        [SerializeField, Range(1f, 60f)] private float muestrasPorSegundo = 10f;
+        [SerializeField, Range(1f, 30f)] private float frecuenciaMuestreo = 5f;
         [SerializeField] private bool grabarTutorial = true;
-        [Tooltip("Cada momento (pre, tutorial, post) empieza a grabarse solo cuando el Game Master termina una " +
-                 "calibración (rápida o completa) DESPUÉS de que empezó. Así cada tramo arranca con el 'cero' recién tomado.")]
-        [SerializeField] private bool esperarCalibracionParaGrabar = true;
+        [Tooltip("Guardar crudos.csv (orientación de cada segmento) para poder recalcular después.")]
+        [SerializeField] private bool guardarCrudos = true;
 
-        [Header("Factores de REBA que no miden los sensores (por actividad y condición)")]
-        [Tooltip("Una entrada por actividad x condición (pre / tutorial / post). Si falta una, se usa la de la misma " +
-                 "actividad con otra condición. Menú ⋮ -> 'Restablecer factores' crea las 9.")]
-        [SerializeField] private FactoresActividad[] factores = FactoresPorDefecto();
+        [Header("Calibración antes de cada momento")]
+        [Tooltip("Cada momento (pre, tutorial, post) se graba desde que termina una recalibración del Game Master.")]
+        [SerializeField] private bool esperarCalibracionParaGrabar = true;
+        [Tooltip("Una calibración terminada hace menos de estos segundos (y que no usó otro momento) vale para el " +
+                 "momento que empieza: no hay que volver a calibrar si se acaba de hacer.")]
+        [SerializeField] private float calibracionReciente = 90f;
+
+        [Header("Qué muestras cuentan para el análisis")]
+        [Tooltip("Velocidad horizontal del visor (m/s) desde la que se considera que la persona camina.")]
+        [SerializeField] private float umbralCaminando = 0.4f;
+        [Tooltip("Giro de la cabeza respecto al tronco (grados) desde el que se considera que mira a un lado.")]
+        [SerializeField] private float umbralCabezaGirada = 45f;
+
+        [Header("Factores de REBA que no miden los sensores (uno por actividad)")]
+        [Tooltip("Iguales en pre, tutorial y post. Carga < 5 kg, agarre bueno y sin impactos son fijos.")]
+        [SerializeField] private FactoresActividad[] factoresPorActividad = FactoresPorDefecto();
 
         [Header("Historial del participante (usuarios.json)")]
-        [Tooltip("Al terminar la sesión crea una Capacitacion con una ActividadRealizada por actividad y su RebaData.")]
         [SerializeField] private bool guardarEnHistorial = true;
 
         [Header("Prueba sin GameFlowManager (escena PruebaJoycons)")]
@@ -121,14 +120,67 @@ namespace PujJoycon
         [SerializeField] private int participantePruebaId = 0;
         [SerializeField] private bool showOverlay = true;
 
-        // Un tramo = una actividad en una condición en un intento.
+        // Lo acumulado de un momento (o de una subtarea dentro de él).
+        private sealed class Acumulado
+        {
+            public readonly RebaStats total = new RebaStats();   // todo menos la calibración
+            public readonly RebaStats util = new RebaStats();    // solo lo que cuenta
+            public readonly Exposicion exposicion = new Exposicion();
+            public int acciones, alertas;
+
+            public void Merge(Acumulado o)
+            {
+                total.Merge(o.total);
+                util.Merge(o.util);
+                exposicion.Merge(o.exposicion);
+                acciones += o.acciones;
+                alertas += o.alertas;
+            }
+        }
+
+        // % del tiempo que cuenta con cada parte del cuerpo por encima de su umbral (exposición).
+        private sealed class Exposicion
+        {
+            public double tiempo, troncoMas20, troncoMas60, troncoTorcido, cuelloMas20, brazoMas45, brazoMas90, rodillaMas60;
+
+            public void Add(PostureAngles a, RebaInputs izq, RebaInputs der, double dt)
+            {
+                tiempo += dt;
+                if (a.hasTrunk && a.trunkFlexion > 20f) troncoMas20 += dt;
+                if (a.hasTrunk && a.trunkFlexion > 60f) troncoMas60 += dt;
+                if (izq.trunkTwistedOrSideBent) troncoTorcido += dt;
+                if (a.hasNeck && a.neckFlexion > 20f) cuelloMas20 += dt;
+                float brazo = Mathf.Max(a.left.measured ? izq.upperArmFlexion : 0f, a.right.measured ? der.upperArmFlexion : 0f);
+                if (brazo > 45f) brazoMas45 += dt;
+                if (brazo > 90f) brazoMas90 += dt;
+                if (a.hasKnee && Mathf.Max(a.kneeFlexionLeft, a.kneeFlexionRight) > 60f) rodillaMas60 += dt;
+            }
+
+            public void Merge(Exposicion o)
+            {
+                tiempo += o.tiempo; troncoMas20 += o.troncoMas20; troncoMas60 += o.troncoMas60;
+                troncoTorcido += o.troncoTorcido; cuelloMas20 += o.cuelloMas20; brazoMas45 += o.brazoMas45;
+                brazoMas90 += o.brazoMas90; rodillaMas60 += o.rodillaMas60;
+            }
+
+            public double Pct(double t) => tiempo > 0 ? 100.0 * t / tiempo : 0;
+        }
+
+        // Un tramo = una actividad en un momento en un intento.
         private sealed class Tramo
         {
             public int indice;
             public ActivityType actividad;
             public string condicion;
             public int intento;
-            public readonly RebaStats stats = new RebaStats();
+            public readonly Acumulado todo = new Acumulado();
+            public readonly Dictionary<string, Acumulado> porSubtarea = new Dictionary<string, Acumulado>();
+
+            public Acumulado Subtarea(string nombre)
+            {
+                if (!porSubtarea.TryGetValue(nombre, out var a)) porSubtarea[nombre] = a = new Acumulado();
+                return a;
+            }
         }
 
         private bool _active, _manual, _finalized;
@@ -138,21 +190,27 @@ namespace PujJoycon
         private int _participantId;
         private string _participantName, _age;
         private bool _leftHanded;
-        private StreamWriter _samples, _events, _sheet;
-        private bool _samplesHeaderWritten, _sheetHeaderWritten;
+        private StreamWriter _samples, _raw, _events;
+        private bool _samplesHeaderWritten, _rawHeaderWritten;
         private float _nextFlush;
 
         private FaseSesion _lastFase = FaseSesion.SinSesion;
         private int _lastIndex = int.MinValue;
-        private ActivityType? _lastActivity;
         private Tramo _tramo;
         private float _tramoT0, _nextSampleT;
+        private string _lastSubtarea = SinTarea;
+        private int _lastAcciones;
         private readonly HashSet<int> _seenTutorial = new HashSet<int>();
         private readonly Dictionary<string, int> _attempts = new Dictionary<string, int>();
         private readonly List<Tramo> _tramos = new List<Tramo>();
         private bool _reachedResults;
         private bool[] _serverWasReceiving = new bool[0];
         private readonly CsvRow _row = new CsvRow();
+        private readonly CsvRow _rawRow = new CsvRow();
+        private RebaSubtareas _subtareas;
+
+        // Velocidad del visor (para "caminando").
+        private readonly Queue<(float t, Vector3 p)> _headTrail = new Queue<(float, Vector3)>();
 
         // Momento que ya empezó en el juego pero espera la calibración para grabarse.
         private bool _pending;
@@ -160,17 +218,16 @@ namespace PujJoycon
         private ActivityType _pendingActividad;
         private int _pendingIndice;
         private int _pendingCalibraciones;
+        private int _calibracionesUsadas = -1; // la última calibración que ya abrió un momento
 
         // Resultados de la última sesión terminada (para la pantalla de resultados del visor).
         private List<ActividadRealizada> _lastResults = new List<ActividadRealizada>();
-        private int _lastResultsVersion;
 
         public bool Grabando => _tramo != null;
         public string CarpetaSesion => _folder;
 
         /// <summary>true cuando ya se calcularon los resultados de la sesión actual (al llegar a Resultados).</summary>
         public bool ResultadosListos => _finalized;
-        public int VersionResultados => _lastResultsVersion;
 
         /// <summary>Resumen REBA (pre / tutorial / post) de una actividad de la última sesión terminada, si se midió.</summary>
         public bool TryGetResultado(ActivityType actividad, out RebaData reba)
@@ -190,7 +247,13 @@ namespace PujJoycon
         /// <summary>Para que otros componentes (p. ej. el semáforo) dejen constancia en eventos.csv.</summary>
         public void RegistrarEvento(string tipo, string detalle)
         {
-            if (_active) LogEvent(tipo, detalle);
+            if (!_active) return;
+            LogEvent(tipo, detalle);
+            if (tipo == "semaforo" && _tramo != null)
+            {
+                _tramo.todo.alertas++;
+                _tramo.Subtarea(_lastSubtarea).alertas++;
+            }
         }
 
         /// <summary>Hay un momento (pre/tutorial/post) esperando una calibración para empezar a grabarse.</summary>
@@ -203,9 +266,11 @@ namespace PujJoycon
             if (receiver == null) receiver = FindAnyObjectByType<JoyconReceiver>();
             if (calibrator == null) calibrator = FindAnyObjectByType<JoyconSessionCalibrator>();
 
-            // Pantalla de resultados y semáforo de postura: se agregan solos (así no hay que tocar Core).
+            // Se agregan solos (así no hay que tocar Core).
             if (GetComponent<RebaResultadosEnPantalla>() == null) gameObject.AddComponent<RebaResultadosEnPantalla>();
             if (GetComponent<RebaSemaforoPostura>() == null) gameObject.AddComponent<RebaSemaforoPostura>();
+            _subtareas = GetComponent<RebaSubtareas>();
+            if (_subtareas == null) _subtareas = gameObject.AddComponent<RebaSubtareas>();
         }
 
         private void OnEnable()
@@ -230,6 +295,8 @@ namespace PujJoycon
 
         private void Update()
         {
+            TrackHead();
+
             var flow = GameFlowManager.Instance;
             // Una prueba manual en Core (sin sesión) se cierra sola si el Game Master inicia una sesión de verdad.
             if (flow != null && _manual && _active && flow.simulacionEnCurso)
@@ -274,7 +341,7 @@ namespace PujJoycon
             if (Time.unscaledTime >= _nextFlush)
             {
                 _samples?.Flush();
-                _sheet?.Flush();
+                _raw?.Flush();
                 _events?.Flush();
                 _nextFlush = Time.unscaledTime + 1f;
             }
@@ -297,11 +364,11 @@ namespace PujJoycon
 
             var utf8Bom = new UTF8Encoding(true); // con BOM: Excel muestra bien las tildes
             _samples = new StreamWriter(Path.Combine(_folder, "muestras.csv"), false, utf8Bom);
-            _sheet = new StreamWriter(Path.Combine(_folder, "hoja_reba.csv"), false, utf8Bom);
+            _raw = guardarCrudos ? new StreamWriter(Path.Combine(_folder, "crudos.csv"), false, utf8Bom) : null;
             _events = new StreamWriter(Path.Combine(_folder, "eventos.csv"), false, utf8Bom);
             _events.WriteLine(string.Join(Sep.ToString(), "fecha_hora", "t_sesion_s", "tipo", "detalle"));
             _samplesHeaderWritten = false;
-            _sheetHeaderWritten = false;
+            _rawHeaderWritten = false;
 
             _tramos.Clear();
             _attempts.Clear();
@@ -310,7 +377,6 @@ namespace PujJoycon
             _pending = false;
             _lastFase = FaseSesion.SinSesion;
             _lastIndex = int.MinValue;
-            _lastActivity = null;
             _serverWasReceiving = new bool[receiver != null ? receiver.ServerCount : 0];
 
             WriteMeta("en curso");
@@ -338,7 +404,8 @@ namespace PujJoycon
 
             if (_pending) LogEvent("aviso", $"{MomentoPendiente} no se grabó: se pasó a otra fase sin calibrar");
             _pending = false;
-            if (condicion != null && esperarCalibracionParaGrabar && calibrator != null)
+
+            if (condicion != null && esperarCalibracionParaGrabar && calibrator != null && !CalibracionRecienteSinUsar())
             {
                 // Se cierra el momento anterior y el nuevo queda esperando la calibración.
                 SetCondition(null, null, -1);
@@ -351,6 +418,14 @@ namespace PujJoycon
                 return;
             }
             SetCondition(condicion, actividad, indice);
+        }
+
+        // ¿Hay una calibración terminada hace poco que todavía no abrió ningún momento?
+        private bool CalibracionRecienteSinUsar()
+        {
+            if (calibrator == null || calibrator.IsCalibrating) return false;
+            if (calibrator.CalibracionesTerminadas <= _calibracionesUsadas || calibrator.CalibracionesTerminadas == 0) return false;
+            return Time.unscaledTime - calibrator.UltimaCalibracionFin <= calibracionReciente;
         }
 
         /// <summary>Empieza a grabar el momento pendiente. motivoSinCalibrar != null: se empezó sin calibrar.</summary>
@@ -369,13 +444,12 @@ namespace PujJoycon
             if (_tramo != null)
             {
                 LogEvent("fin_tramo", $"{_tramo.actividad} {_tramo.condicion} intento {_tramo.intento}: " +
-                                      $"{_tramo.stats.Count} muestras, {F(_tramo.stats.DurationSeconds)} s");
+                                      $"{F(_tramo.todo.total.DurationSeconds)} s, de los que cuentan {F(_tramo.todo.util.DurationSeconds)} s");
                 _tramo = null;
             }
 
             if (condicion == null || actividad == null) return;
-            _lastActivity = actividad;
-            ApplyFactors(actividad.Value, condicion); // cada tramo con los factores de su actividad y condición
+            ApplyFactors(actividad.Value);
 
             string key = $"{indice}|{condicion}";
             _attempts.TryGetValue(key, out int n);
@@ -384,6 +458,9 @@ namespace PujJoycon
             _tramos.Add(_tramo);
             _tramoT0 = Time.unscaledTime;
             _nextSampleT = Time.unscaledTime;
+            _lastSubtarea = SinTarea;
+            _lastAcciones = _subtareas != null ? _subtareas.AccionesCompletadas(actividad) : 0;
+            if (calibrator != null) _calibracionesUsadas = calibrator.CalibracionesTerminadas;
             LogEvent("inicio_tramo", $"{_tramo.actividad} {condicion} intento {n}");
 
             // La calibración completa la lanza el Game Master: si se olvidó, queda anotado para revisar después.
@@ -391,74 +468,51 @@ namespace PujJoycon
                 LogEvent("aviso", "el tramo empezó SIN la calibración completa de este participante");
         }
 
-        private static Condicion ToCondicion(string condicion) =>
-            condicion == "tutorial" ? Condicion.Tutorial : (condicion == "post" ? Condicion.Post : Condicion.Pre);
-
-        // La entrada de esa actividad y condición; si no existe, la primera de la misma actividad.
-        private FactoresActividad FindFactors(ActivityType actividad, Condicion condicion)
+        private FactoresActividad FindFactors(ActivityType actividad)
         {
-            if (factores == null) return null;
-            FactoresActividad sameActivity = null;
-            foreach (var f in factores)
-            {
-                if (f == null || f.actividad != actividad) continue;
-                if (f.condicion == condicion) return f;
-                if (sameActivity == null) sameActivity = f;
-            }
-            return sameActivity;
+            if (factoresPorActividad == null) return null;
+            foreach (var f in factoresPorActividad) if (f != null && f.actividad == actividad) return f;
+            return null;
         }
 
-        private void ApplyFactors(ActivityType actividad, string condicionTexto)
+        private void ApplyFactors(ActivityType actividad)
         {
             if (estimator == null) return;
-            Condicion condicion = ToCondicion(condicionTexto);
-            var f = FindFactors(actividad, condicion);
-            if (f == null)
-            {
-                LogEvent("aviso", $"no hay factores para {actividad} {condicionTexto}: se mantienen los anteriores");
-                return;
-            }
-            estimator.LoadKg = f.cargaKg;
-            estimator.ShockOrRapidForce = f.impactoOFuerzaBrusca;
-            estimator.Coupling = f.agarre;
+            var f = FindFactors(actividad) ?? new FactoresActividad { actividad = actividad };
+
+            // Fijos en este estudio.
+            estimator.LoadKg = 0f;          // < 5 kg
+            estimator.Coupling = 0;         // agarre bueno
+            estimator.ShockOrRapidForce = false;
+            estimator.TrunkTwistOrSideBendSource = FuenteSiNo.Sensores;
+            estimator.NeckTwistOrSideBendSource = FuenteSiNo.Sensores;
+            estimator.ArmRotatedSource = FuenteSiNo.Sensores;
+            estimator.WristDeviatedOrTwistedSource = FuenteSiNo.Sensores;
+
+            // Los de la actividad.
             estimator.ShoulderRaised = f.hombroElevado;
             estimator.ArmSupported = f.brazoApoyadoOAFavorDeGravedad;
             estimator.StaticPosture = f.partesEstaticas;
             estimator.RepetitiveMovements = f.movimientosRepetitivos;
             estimator.RapidChangesOrUnstable = f.cambiosPosturalesOInestables;
-            estimator.TrunkTwistOrSideBendSource = f.troncoRotacionOInclinacion;
-            estimator.NeckTwistOrSideBendSource = f.cuelloTorsionOInclinacion;
-            estimator.ArmRotatedSource = f.brazoRotado;
-            estimator.WristDeviatedOrTwistedSource = f.munecaTorsionODesviacion;
 
-            string usada = f.condicion == condicion ? "" : $" (no había entrada para {condicionTexto}: se usó la de {f.condicion})";
-            LogEvent("factores", $"{actividad} {condicionTexto}{usada}: carga {F(f.cargaKg)} kg, impacto {SiNo(f.impactoOFuerzaBrusca)}, " +
-                                 $"agarre {f.agarre}, hombro elevado {SiNo(f.hombroElevado)}, " +
-                                 $"brazo apoyado {SiNo(f.brazoApoyadoOAFavorDeGravedad)}, " +
+            LogEvent("factores", $"{actividad}: hombro elevado {SiNo(f.hombroElevado)}, " +
+                                 $"brazo apoyado o a favor de la gravedad {SiNo(f.brazoApoyadoOAFavorDeGravedad)}, " +
                                  $"partes estáticas {SiNo(f.partesEstaticas)}, repetitivos {SiNo(f.movimientosRepetitivos)}, " +
-                                 $"cambios posturales {SiNo(f.cambiosPosturalesOInestables)}, " +
-                                 $"tronco rot/incl {Fuente(f.troncoRotacionOInclinacion)}, cuello tors/incl {Fuente(f.cuelloTorsionOInclinacion)}, " +
-                                 $"brazo rotado {Fuente(f.brazoRotado)}, muñeca tors/desv {Fuente(f.munecaTorsionODesviacion)}");
+                                 $"cambios posturales o inestable {SiNo(f.cambiosPosturalesOInestables)}");
         }
 
-        private static string Fuente(FuenteSiNo s) =>
-            s == FuenteSiNo.Sensores ? "sensores" : (s == FuenteSiNo.Si ? "investigadoras: sí" : "investigadoras: no");
-
-        /// <summary>Deja una entrada por actividad x condición (9), conservando los valores que ya existan.</summary>
-        [ContextMenu("Restablecer factores (3 actividades x pre/tutorial/post)")]
+        /// <summary>Deja una entrada por actividad (3), conservando los valores que ya existan.</summary>
+        [ContextMenu("Restablecer factores (una entrada por actividad)")]
         public void RestablecerFactores()
         {
             var nuevos = FactoresPorDefecto();
             for (int i = 0; i < nuevos.Length; i++)
             {
-                var existente = FindFactors(nuevos[i].actividad, nuevos[i].condicion);
-                if (existente == null) continue;
-                // Copia los valores (de la misma condición o, si no había, de la misma actividad).
-                var copia = JsonUtility.FromJson<FactoresActividad>(JsonUtility.ToJson(existente));
-                copia.condicion = nuevos[i].condicion;
-                nuevos[i] = copia;
+                var existente = FindFactors(nuevos[i].actividad);
+                if (existente != null) nuevos[i] = existente;
             }
-            factores = nuevos;
+            factoresPorActividad = nuevos;
 #if UNITY_EDITOR
             UnityEditor.EditorUtility.SetDirty(this);
 #endif
@@ -473,9 +527,9 @@ namespace PujJoycon
             if (!_finalized) FinalizeData(motivo);
             LogEvent("fin_sesion", motivo);
             _samples?.Dispose();
-            _sheet?.Dispose();
+            _raw?.Dispose();
             _events?.Dispose();
-            _samples = _events = _sheet = null;
+            _samples = _raw = _events = null;
             _active = false;
             _manual = false;
             Debug.Log($"[REBA] Sesión guardada ({motivo}) en {_folder}", this);
@@ -485,77 +539,152 @@ namespace PujJoycon
         // Muestras
         // ------------------------------------------------------------------
 
+        private void TrackHead()
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+            float now = Time.unscaledTime;
+            _headTrail.Enqueue((now, cam.transform.position));
+            while (_headTrail.Count > 2 && now - _headTrail.Peek().t > 0.5f) _headTrail.Dequeue();
+        }
+
+        // Velocidad horizontal del visor en el último medio segundo (m/s).
+        private float HeadSpeed()
+        {
+            if (_headTrail.Count < 2) return 0f;
+            var first = _headTrail.Peek();
+            (float t, Vector3 p) last = default;
+            foreach (var e in _headTrail) last = e;
+            float dt = last.t - first.t;
+            if (dt < 0.05f) return 0f;
+            Vector3 d = last.p - first.p;
+            d.y = 0f;
+            return d.magnitude / dt;
+        }
+
         private void Sample()
         {
             if (_tramo == null || estimator == null || !estimator.IsCalibrated) return;
             float now = Time.unscaledTime;
             if (now < _nextSampleT) return;
-            float period = 1f / Mathf.Max(1f, muestrasPorSegundo);
+            float period = 1f / Mathf.Max(1f, frecuenciaMuestreo);
             _nextSampleT += period;
             if (_nextSampleT < now) _nextSampleT = now + period; // tras una pausa no se "ponen al día" filas de golpe
 
-            // Las recalibraciones (persona en postura N) se graban marcadas pero no entran al resumen.
-            bool calibrando = calibrator != null && calibrator.IsCalibrating;
-            WriteSampleRow(now, calibrando);
-            WriteSheetRow(now, calibrando);
-            if (!calibrando) _tramo.stats.Add(estimator.Left, estimator.Right, period);
+            // Subtarea y acciones.
+            var fase = _manual ? (_tramo.condicion == "tutorial" ? FaseSesion.Tutorial : FaseSesion.Actividad)
+                               : (GameFlowManager.Instance != null ? GameFlowManager.Instance.Fase : FaseSesion.Actividad);
+            string subtarea = _subtareas != null ? _subtareas.Subtarea(fase, _tramo.actividad) : "";
+            if (string.IsNullOrEmpty(subtarea)) subtarea = SinTarea;
+            int acciones = _subtareas != null ? _subtareas.AccionesCompletadas(_tramo.actividad) : 0;
+            if (acciones > _lastAcciones)
+            {
+                // La acción se completa al terminar la subtarea: se le cuenta a la que venía.
+                _tramo.todo.acciones += acciones - _lastAcciones;
+                _tramo.Subtarea(_lastSubtarea == SinTarea ? subtarea : _lastSubtarea).acciones += acciones - _lastAcciones;
+            }
+            _lastAcciones = acciones;
+
+            // ¿Cuenta? (en la escena de prueba no hay objetos de la actividad: ahí no se exige subtarea)
+            var a = estimator.CurrentAngles;
+            string motivo = "";
+            if (calibrator != null && calibrator.IsCalibrating) motivo = "calibrando";
+            else if (subtarea == SinTarea && !_manual) motivo = SinTarea;
+            else if (HeadSpeed() > umbralCaminando) motivo = "caminando";
+            else if (a.hasNeck && Mathf.Abs(a.neckTwist) > umbralCabezaGirada) motivo = "mirando a un lado";
+            bool cuenta = motivo == "";
+
+            WriteSampleRow(now, subtarea, acciones, cuenta, motivo);
+            if (_raw != null) WriteRawRow(now);
+
+            if (motivo != "calibrando")
+            {
+                var li = estimator.LeftInputs;
+                var ri = estimator.RightInputs;
+                foreach (var acc in new[] { _tramo.todo, _tramo.Subtarea(subtarea) })
+                {
+                    acc.total.Add(estimator.Left, estimator.Right, period);
+                    if (!cuenta) continue;
+                    acc.util.Add(estimator.Left, estimator.Right, period);
+                    acc.exposicion.Add(a, li, ri, period);
+                }
+            }
+            _lastSubtarea = subtarea;
         }
 
-        private void WriteSampleRow(float now, bool calibrando)
+        private void WriteSampleRow(float now, string subtarea, int acciones, bool cuenta, string motivo)
         {
             var r = _row;
+            var a = estimator.CurrentAngles;
+            RebaResult L = estimator.Left, R = estimator.Right, worst = estimator.Worst;
+
             r.Begin();
             r.Add("fecha_hora", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture));
             r.Add("t_sesion_s", now - _sessionT0);
             r.Add("participante_id", _participantId);
             r.Add("actividad", _tramo.actividad.ToString());
-            r.Add("indice_actividad", _tramo.indice);
-            r.Add("condicion", _tramo.condicion);
+            r.Add("momento", _tramo.condicion);
             r.Add("intento", _tramo.intento);
-            r.Add("t_tramo_s", now - _tramoT0);
-            r.Add("calibrando", calibrando);
-            for (int s = 0; s < _serverWasReceiving.Length; s++)
-            {
-                r.Add($"pc{s + 1}_recibiendo", receiver != null && s < receiver.ServerCount && receiver.GetServerStatus(s).IsReceiving);
-            }
+            r.Add("t_momento_s", now - _tramoT0);
+            r.Add("subtarea", subtarea);
+            r.Add("acciones_completadas", acciones);
+            r.Add("cuenta", cuenta);
+            r.Add("motivo", motivo);
 
             // Ángulos (grados).
-            var a = estimator.CurrentAngles;
             r.Add("tronco_flexion", a.trunkFlexion, a.hasTrunk);
             r.Add("tronco_lateral", a.trunkLateral, a.hasTrunk);
             r.Add("tronco_torsion", a.trunkTwist, a.hasTrunkTwist);
             r.Add("cuello_flexion", a.neckFlexion, a.hasNeck);
             r.Add("cuello_lateral", a.neckLateral, a.hasNeck);
             r.Add("cuello_torsion", a.neckTwist, a.hasNeck);
-            r.Add("rodilla_izq_flexion", a.kneeFlexionLeft, a.hasKnee);
-            r.Add("rodilla_der_flexion", a.kneeFlexionRight, a.hasKnee);
-            AddArm("izq", a.left);
-            AddArm("der", a.right);
+            r.Add("rodilla_izq", a.kneeFlexionLeft, a.hasKnee);
+            r.Add("rodilla_der", a.kneeFlexionRight, a.hasKnee);
+            r.Add("brazo_izq_flexion", estimator.LeftInputs.upperArmFlexion, a.left.measured);
+            r.Add("brazo_izq_abduccion", a.left.upperArmAbduction, a.left.measured);
+            r.Add("brazo_der_flexion", estimator.RightInputs.upperArmFlexion, a.right.measured);
+            r.Add("brazo_der_abduccion", a.right.upperArmAbduction, a.right.measured);
+            r.Add("codo_izq", a.left.elbowFlexion, a.left.hasElbow);
+            r.Add("codo_der", a.right.elbowFlexion, a.right.hasElbow);
+            r.Add("muneca_izq", a.left.wristFlexion, a.left.hasWrist);
+            r.Add("muneca_der", a.right.wristFlexion, a.right.hasWrist);
 
-            // Entradas de REBA (lo que REBA "ve", incluidos los factores manuales).
-            var li = estimator.LeftInputs;
-            var ri = estimator.RightInputs;
-            r.Add("carga_kg", li.loadKg);
-            r.Add("impacto_o_fuerza_brusca", li.shockOrRapidForce);
-            r.Add("agarre", li.coupling);
-            r.Add("actividad_reba", li.activity);
-            r.Add("piernas_unilateral_o_inestable", li.legsUnilateralOrUnstable);
-            r.Add("sentado", li.sitting);
-            r.Add("tronco_torcido_o_inclinado", li.trunkTwistedOrSideBent);
-            r.Add("cuello_torcido_o_inclinado", li.neckTwistedOrSideBent);
-            r.Add("rodilla_reba", li.kneeFlexion);
-            AddArmInputs("izq", li);
-            AddArmInputs("der", ri);
+            // Puntos de cada parte (hoja REBA) y REBA.
+            r.Add("p_tronco", L.trunk);
+            r.Add("p_cuello", L.neck);
+            r.Add("p_piernas", L.legs);
+            r.Add("p_brazo_izq", L.upperArm);
+            r.Add("p_brazo_der", R.upperArm);
+            r.Add("p_antebrazo_izq", L.lowerArm);
+            r.Add("p_antebrazo_der", R.lowerArm);
+            r.Add("p_muneca_izq", L.wrist);
+            r.Add("p_muneca_der", R.wrist);
+            r.Add("p_actividad", L.activity);
+            r.Add("reba_izq", L.final);
+            r.Add("reba_der", R.final);
+            r.Add("reba", worst.final);
+            r.Add("riesgo", Reba.RiskName(worst.risk));
 
-            // Puntajes REBA de cada lado y el final.
-            AddResult("izq", estimator.Left);
-            AddResult("der", estimator.Right);
-            var worst = estimator.Worst;
-            r.Add("reba_final", worst.final);
-            r.Add("riesgo_final", Reba.RiskName(worst.risk));
-            r.Add("lado_peor", estimator.Left.final >= estimator.Right.final ? "izq" : "der");
+            if (!_samplesHeaderWritten)
+            {
+                _samples.WriteLine(r.Header(Sep));
+                _samplesHeaderWritten = true;
+            }
+            _samples.WriteLine(r.Values(Sep));
+        }
 
-            // Orientación de cada segmento en el marco del cuerpo (para recalcular después).
+        // Orientación de cada segmento en el marco del cuerpo, para recalcular después.
+        private void WriteRawRow(float now)
+        {
+            var r = _rawRow;
+            r.Begin();
+            r.Add("t_sesion_s", now - _sessionT0);
+            r.Add("actividad", _tramo.actividad.ToString());
+            r.Add("momento", _tramo.condicion);
+            for (int s = 0; s < _serverWasReceiving.Length; s++)
+            {
+                r.Add($"pc{s + 1}_recibiendo", receiver != null && s < receiver.ServerCount && receiver.GetServerStatus(s).IsReceiving);
+            }
             foreach (BodySegment seg in Enum.GetValues(typeof(BodySegment)))
             {
                 string n = SegmentColumn(seg);
@@ -566,223 +695,34 @@ namespace PujJoycon
                 r.Add($"{n}_qz", q.z, ok);
                 r.Add($"{n}_qw", q.w, ok);
             }
-
-            if (!_samplesHeaderWritten)
+            if (!_rawHeaderWritten)
             {
-                _samples.WriteLine(r.Header(Sep));
-                _samplesHeaderWritten = true;
+                _raw.WriteLine(r.Header(Sep));
+                _rawHeaderWritten = true;
             }
-            _samples.WriteLine(r.Values(Sep));
-        }
-
-        private void AddArm(string side, ArmAngles arm)
-        {
-            var r = _row;
-            r.Add($"brazo_{side}_flexion", arm.upperArmFlexion, arm.measured);
-            r.Add($"brazo_{side}_abduccion", arm.upperArmAbduction, arm.measured);
-            r.Add($"brazo_{side}_elevacion", arm.upperArmElevation, arm.measured);
-            r.Add($"brazo_{side}_rotacion", arm.upperArmRotation, arm.measured);
-            r.Add($"codo_{side}_flexion", arm.elbowFlexion, arm.hasElbow);
-            r.Add($"muneca_{side}_flexion", arm.wristFlexion, arm.hasWrist);
-            r.Add($"muneca_{side}_desviacion", arm.wristDeviation, arm.hasWrist);
-        }
-
-        private void AddArmInputs(string side, RebaInputs i)
-        {
-            var r = _row;
-            r.Add($"brazo_{side}_reba", i.upperArmFlexion);
-            r.Add($"brazo_{side}_abducido_o_rotado", i.upperArmAbductedOrRotated);
-            r.Add($"hombro_{side}_elevado", i.shoulderRaised);
-            r.Add($"brazo_{side}_apoyado", i.armSupportedOrLeaning);
-            r.Add($"codo_{side}_reba", i.elbowFlexion);
-            r.Add($"muneca_{side}_reba", i.wristFlexion);
-            r.Add($"muneca_{side}_desviada_o_torcida", i.wristDeviatedOrTwisted);
-        }
-
-        private void AddResult(string side, RebaResult x)
-        {
-            var r = _row;
-            r.Add($"{side}_p_tronco", x.trunk);
-            r.Add($"{side}_p_cuello", x.neck);
-            r.Add($"{side}_p_piernas", x.legs);
-            r.Add($"{side}_p_carga", x.load);
-            r.Add($"{side}_p_brazo", x.upperArm);
-            r.Add($"{side}_p_antebrazo", x.lowerArm);
-            r.Add($"{side}_p_muneca", x.wrist);
-            r.Add($"{side}_p_agarre", x.coupling);
-            r.Add($"{side}_tabla_a", x.tableA);
-            r.Add($"{side}_puntaje_a", x.scoreA);
-            r.Add($"{side}_tabla_b", x.tableB);
-            r.Add($"{side}_puntaje_b", x.scoreB);
-            r.Add($"{side}_tabla_c", x.tableC);
-            r.Add($"{side}_p_actividad", x.activity);
-            r.Add($"{side}_reba", x.final);
-            r.Add($"{side}_riesgo", Reba.RiskName(x.risk));
-        }
-
-        // ------------------------------------------------------------------
-        // hoja_reba.csv: los ítems de la hoja REBA, en su orden, con valor -> puntos
-        // ------------------------------------------------------------------
-
-        private readonly CsvRow _sheetRow = new CsvRow();
-
-        private void WriteSheetRow(float now, bool calibrando)
-        {
-            var r = _sheetRow;
-            var a = estimator.CurrentAngles;
-            var li = estimator.LeftInputs;
-            RebaResult L = estimator.Left, R = estimator.Right, worst = estimator.Worst;
-
-            r.Begin();
-            r.Add("fecha_hora", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture));
-            r.Add("t_sesion_s", now - _sessionT0);
-            r.Add("participante_id", _participantId);
-            r.Add("actividad", _tramo.actividad.ToString());
-            r.Add("condicion", _tramo.condicion);
-            r.Add("intento", _tramo.intento);
-            r.Add("t_tramo_s", now - _tramoT0);
-            r.Add("calibrando", SiNo(calibrando));
-
-            // ---- Parte 1 (grupo A). Tronco, cuello y piernas son iguales para los dos lados. ----
-            r.Add("tronco_flexion_extension_grados", a.trunkFlexion, a.hasTrunk);
-            r.Add("tronco_flexion_extension_puntos", L.trunkBase);
-            r.Add("tronco_inclinacion_lateral_grados", a.trunkLateral, a.hasTrunk);
-            r.Add("tronco_rotacion_medida", SiNo(a.hasTrunkTwist)); // no: sin datos del Joy-Con de la pelvis
-            r.Add("tronco_rotacion_grados", a.trunkTwist, a.hasTrunkTwist);
-            r.Add("tronco_rotacion_o_inclinacion_lateral", SiNo(li.trunkTwistedOrSideBent));
-            r.Add("tronco_rotacion_o_inclinacion_lateral_fuente", Fuente(estimator.TrunkTwistOrSideBendSource));
-            r.Add("tronco_rotacion_o_inclinacion_lateral_puntos", L.trunkAdjust);
-            r.Add("tronco_total", L.trunk);
-
-            r.Add("cuello_medido", SiNo(a.hasNeck));
-            r.Add("cuello_flexion_extension_grados", a.neckFlexion, a.hasNeck);
-            r.Add("cuello_flexion_extension_puntos", L.neckBase);
-            r.Add("cuello_inclinacion_lateral_grados", a.neckLateral, a.hasNeck);
-            r.Add("cuello_torsion_grados", a.neckTwist, a.hasNeck);
-            r.Add("cuello_torsion_o_inclinacion_lateral", SiNo(li.neckTwistedOrSideBent));
-            r.Add("cuello_torsion_o_inclinacion_lateral_fuente", Fuente(estimator.NeckTwistOrSideBendSource));
-            r.Add("cuello_torsion_o_inclinacion_lateral_puntos", L.neckAdjust);
-            r.Add("cuello_total", L.neck);
-
-            r.Add("piernas_soporte", li.legsUnilateralOrUnstable ? "unilateral" : "bilateral");
-            r.Add("piernas_soporte_puntos", L.legsBase);
-            r.Add("rodilla_izq_flexion_grados", a.kneeFlexionLeft, a.hasKnee);
-            r.Add("rodilla_der_flexion_grados", a.kneeFlexionRight, a.hasKnee);
-            r.Add("rodillas_flexion_grados_reba", li.kneeFlexion, a.hasKnee); // la más flexionada
-            r.Add("rodillas_flexion_puntos", L.kneeAdjust);
-            r.Add("piernas_total", L.legs);
-
-            r.Add("tabla_a", L.tableA);
-            r.Add("carga_kg", li.loadKg);
-            r.Add("carga_puntos", L.loadBase);
-            r.Add("impacto_o_fuerza_brusca", SiNo(li.shockOrRapidForce));
-            r.Add("impacto_puntos", L.shockAdjust);
-            r.Add("puntaje_a", L.scoreA);
-
-            // ---- Parte 2 (grupo B), por lado ----
-            AddSheetArm("izq", a.left, estimator.LeftInputs, L);
-            AddSheetArm("der", a.right, estimator.RightInputs, R);
-
-            // ---- Parte final ----
-            r.Add("partes_del_cuerpo_estaticas", SiNo(li.staticPosture));
-            r.Add("partes_del_cuerpo_estaticas_puntos", L.activityStatic);
-            r.Add("movimientos_repetitivos", SiNo(li.repetitiveMovements));
-            r.Add("movimientos_repetitivos_puntos", L.activityRepetitive);
-            r.Add("cambios_posturales_o_postura_inestable", SiNo(li.rapidChangesOrUnstable));
-            r.Add("cambios_posturales_o_postura_inestable_puntos", L.activityRapid);
-            r.Add("actividad_puntos", L.activity);
-
-            r.Add("reba_izq", L.final);
-            r.Add("reba_der", R.final);
-            r.Add("reba_final", worst.final);
-            r.Add("lado_peor", L.final >= R.final ? "izq" : "der");
-            r.Add("nivel_de_riesgo", Reba.RiskName(worst.risk));
-            r.Add("actuacion", Reba.RiskAction(worst.risk));
-
-            if (!_sheetHeaderWritten)
-            {
-                _sheet.WriteLine(r.Header(Sep));
-                _sheetHeaderWritten = true;
-            }
-            _sheet.WriteLine(r.Values(Sep));
-        }
-
-        private void AddSheetArm(string side, ArmAngles arm, RebaInputs i, RebaResult x)
-        {
-            var r = _sheetRow;
-            r.Add($"brazo_{side}_medido", SiNo(arm.measured));
-            // El ángulo que puntúa REBA: la elevación del brazo (o la extensión si va hacia atrás).
-            r.Add($"brazo_{side}_flexion_grados", i.upperArmFlexion, arm.measured);
-            r.Add($"brazo_{side}_flexion_puntos", x.upperArmBase);
-            r.Add($"hombro_{side}_abduccion_grados", arm.upperArmAbduction, arm.measured);
-            r.Add($"hombro_{side}_abducido", SiNo(i.upperArmAbducted));
-            r.Add($"brazo_{side}_rotacion_grados", arm.upperArmRotation, arm.measured);
-            r.Add($"brazo_{side}_rotado", SiNo(i.upperArmRotated));
-            r.Add($"brazo_{side}_rotado_fuente", Fuente(estimator.ArmRotatedSource));
-            r.Add($"brazo_{side}_abducido_o_rotado_puntos", x.upperArmAbductedAdjust);
-            r.Add($"hombro_{side}_elevado", SiNo(i.shoulderRaised));
-            r.Add($"hombro_{side}_elevado_fuente", "investigadoras");
-            r.Add($"hombro_{side}_elevado_puntos", x.shoulderRaisedAdjust);
-            r.Add($"brazo_{side}_apoyo_o_a_favor_de_gravedad", SiNo(i.armSupportedOrLeaning));
-            r.Add($"brazo_{side}_apoyo_o_a_favor_de_gravedad_fuente", "investigadoras");
-            r.Add($"brazo_{side}_apoyo_o_a_favor_de_gravedad_puntos", x.armSupportedAdjust);
-            r.Add($"brazo_{side}_total", x.upperArm);
-
-            r.Add($"antebrazo_{side}_medido", SiNo(arm.hasElbow));
-            r.Add($"antebrazo_{side}_flexion_grados", arm.elbowFlexion, arm.hasElbow);
-            r.Add($"antebrazo_{side}_puntos", x.lowerArm);
-
-            r.Add($"muneca_{side}_medida", SiNo(arm.hasWrist));
-            r.Add($"muneca_{side}_flexion_extension_grados", arm.wristFlexion, arm.hasWrist);
-            r.Add($"muneca_{side}_flexion_extension_puntos", x.wristBase);
-            r.Add($"muneca_{side}_desviacion_grados", arm.wristDeviation, arm.hasWrist);
-            r.Add($"muneca_{side}_torsion_o_desviacion", SiNo(i.wristDeviatedOrTwisted));
-            r.Add($"muneca_{side}_torsion_o_desviacion_fuente", Fuente(estimator.WristDeviatedOrTwistedSource));
-            r.Add($"muneca_{side}_torsion_o_desviacion_puntos", x.wristAdjust);
-            r.Add($"muneca_{side}_total", x.wrist);
-
-            r.Add($"tabla_b_{side}", x.tableB);
-            r.Add($"agarre_{side}", CouplingName(i.coupling));
-            r.Add($"agarre_{side}_puntos", x.coupling);
-            r.Add($"puntaje_b_{side}", x.scoreB);
-            r.Add($"tabla_c_{side}", x.tableC);
-        }
-
-        private static string CouplingName(int coupling)
-        {
-            switch (coupling)
-            {
-                case 0: return "bueno";
-                case 1: return "regular";
-                case 2: return "malo";
-                default: return "inaceptable";
-            }
+            _raw.WriteLine(r.Values(Sep));
         }
 
         private static string SegmentColumn(BodySegment s)
         {
             switch (s)
             {
-                case BodySegment.Pelvis: return "seg_pelvis";
-                case BodySegment.Trunk: return "seg_tronco";
-                case BodySegment.Head: return "seg_cabeza";
-                case BodySegment.UpperArmLeft: return "seg_brazo_izq";
-                case BodySegment.ForearmLeft: return "seg_antebrazo_izq";
-                case BodySegment.HandLeft: return "seg_mano_izq";
-                case BodySegment.UpperArmRight: return "seg_brazo_der";
-                case BodySegment.ForearmRight: return "seg_antebrazo_der";
-                case BodySegment.HandRight: return "seg_mano_der";
-                case BodySegment.ThighLeft: return "seg_muslo_izq";
-                case BodySegment.ShankLeft: return "seg_pierna_izq";
-                case BodySegment.ThighRight: return "seg_muslo_der";
-                case BodySegment.ShankRight: return "seg_pierna_der";
-                default: return "seg_" + s.ToString().ToLowerInvariant();
+                case BodySegment.Pelvis: return "pelvis";
+                case BodySegment.Trunk: return "tronco";
+                case BodySegment.Head: return "cabeza";
+                case BodySegment.UpperArmLeft: return "brazo_izq";
+                case BodySegment.ForearmLeft: return "antebrazo_izq";
+                case BodySegment.HandLeft: return "mano_izq";
+                case BodySegment.UpperArmRight: return "brazo_der";
+                case BodySegment.ForearmRight: return "antebrazo_der";
+                case BodySegment.HandRight: return "mano_der";
+                case BodySegment.ThighLeft: return "muslo_izq";
+                case BodySegment.ShankLeft: return "pierna_izq";
+                case BodySegment.ThighRight: return "muslo_der";
+                case BodySegment.ShankRight: return "pierna_der";
+                default: return s.ToString().ToLowerInvariant();
             }
         }
-
-        // ------------------------------------------------------------------
-        // Eventos
-        // ------------------------------------------------------------------
 
         private void OnCalibrated()
         {
@@ -820,7 +760,7 @@ namespace PujJoycon
         }
 
         // ------------------------------------------------------------------
-        // Al terminar: resumen, sesion.json e historial
+        // Al terminar: resúmenes, sesion.json, historial y pantalla de resultados
         // ------------------------------------------------------------------
 
         private void FinalizeData(string estado)
@@ -833,7 +773,6 @@ namespace PujJoycon
                 WriteMeta(estado);
                 var results = BuildResults(estado);
                 _lastResults = results;
-                _lastResultsVersion++;
                 if (guardarEnHistorial && !_manual) SaveToHistory(results);
                 LogEvent("resumen_guardado", estado);
             }
@@ -844,62 +783,88 @@ namespace PujJoycon
             }
             _events?.Flush();
             _samples?.Flush();
-            _sheet?.Flush();
+            _raw?.Flush();
         }
 
-        private static readonly string[] SummaryHeader =
+        private static readonly string[] SummaryColumns =
         {
-            "sesion", "fecha", "participante_id", "edad", "mano_dominante", "actividad", "indice_actividad",
-            "condicion", "intento", "duracion_s", "muestras", "reba_promedio", "reba_mediana", "reba_p90",
-            "reba_max", "t_max_s", "pct_insignificante", "pct_bajo", "pct_medio", "pct_alto", "pct_muy_alto",
-            "prom_tronco", "prom_cuello", "prom_piernas", "prom_brazo_izq", "prom_brazo_der",
-            "prom_antebrazo_izq", "prom_antebrazo_der", "prom_muneca_izq", "prom_muneca_der", "estado_sesion",
+            "intentos", "duracion_total_s", "duracion_util_s", "pct_util", "acciones_completadas", "alertas_semaforo",
+            "reba_moda_total", "reba_promedio_total", "reba_p90_total",
+            "reba_moda", "reba_mediana", "reba_promedio", "reba_p90", "reba_max",
+            "pct_riesgo_insignificante", "pct_riesgo_bajo", "pct_riesgo_medio", "pct_riesgo_alto", "pct_riesgo_muy_alto",
+            "pct_tronco_mas_20", "pct_tronco_mas_60", "pct_tronco_torcido_o_inclinado", "pct_cuello_mas_20",
+            "pct_brazo_mas_45", "pct_brazo_mas_90", "pct_rodilla_mas_60",
+            "prom_p_tronco", "prom_p_cuello", "prom_p_piernas", "prom_p_brazo", "prom_p_antebrazo", "prom_p_muneca",
+            "estado_sesion",
         };
+
+        private static string Header(bool conSubtarea)
+        {
+            var h = new List<string> { "sesion", "fecha", "participante_id", "edad", "mano_dominante", "actividad", "momento" };
+            if (conSubtarea) h.Add("subtarea");
+            h.AddRange(SummaryColumns);
+            return string.Join(Sep.ToString(), h);
+        }
 
         private void WriteSummaries(string estado)
         {
-            var lines = new List<string>();
-            // Primero cada intento; después el total de cada actividad x condición ("todos").
-            foreach (var t in _tramos) lines.Add(SummaryLine(t.actividad, t.indice, t.condicion, t.intento.ToString(), t.stats, estado));
+            var participantes = new List<string>();
+            var subtareas = new List<string>();
             foreach (var g in GroupByCondition())
             {
-                lines.Add(SummaryLine(g.actividad, g.indice, g.condicion, "todos", g.stats, estado));
+                participantes.Add(SummaryLine(g, null, g.todo, estado));
+                var nombres = new List<string>(g.porSubtarea.Keys);
+                nombres.Sort(StringComparer.Ordinal);
+                foreach (var s in nombres) subtareas.Add(SummaryLine(g, s, g.porSubtarea[s], estado));
             }
+            Append(ArchivoParticipantes, Header(false), participantes);
+            Append(ArchivoSubtareas, Header(true), subtareas);
+        }
 
-            string header = string.Join(Sep.ToString(), SummaryHeader);
-            var utf8Bom = new UTF8Encoding(true);
-            File.WriteAllText(Path.Combine(_folder, "resumen.csv"), header + "\n" + string.Join("\n", lines) + "\n", utf8Bom);
-
-            // Tabla común de todas las sesiones (todos los participantes), solo con los totales.
-            string all = Path.Combine(Application.persistentDataPath, CarpetaRaiz, "resumen_todas_las_sesiones.csv");
-            bool isNew = !File.Exists(all);
-            using (var w = new StreamWriter(all, true, utf8Bom))
+        private void Append(string archivo, string header, List<string> lines)
+        {
+            string path = Path.Combine(Application.persistentDataPath, CarpetaRaiz, archivo);
+            bool isNew = !File.Exists(path);
+            using (var w = new StreamWriter(path, true, new UTF8Encoding(true)))
             {
                 if (isNew) w.WriteLine(header);
-                foreach (var line in lines)
-                {
-                    if (line.Contains($"{Sep}todos{Sep}")) w.WriteLine(line);
-                }
+                foreach (var line in lines) w.WriteLine(line);
             }
         }
 
-        private string SummaryLine(ActivityType actividad, int indice, string condicion, string intento, RebaStats s, string estado)
+        private string SummaryLine(Tramo g, string subtarea, Acumulado acc, string estado)
         {
+            RebaStats t = acc.total, u = acc.util;
+            Exposicion e = acc.exposicion;
             var v = new List<string>
             {
                 _sessionId, _sessionStart.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
                 _participantId.ToString(), CsvRow.Clean(_age), _leftHanded ? "izquierda" : "derecha",
-                actividad.ToString(), indice.ToString(), condicion, intento,
-                F(s.DurationSeconds), s.Count.ToString(), F(s.Mean), F(s.Median), F(s.Percentile(90)),
-                s.Count > 0 ? s.Max.ToString() : "", F(s.TimeOfMaxSeconds),
-                F(s.RiskPercent(RebaRisk.Negligible)), F(s.RiskPercent(RebaRisk.Low)), F(s.RiskPercent(RebaRisk.Medium)),
-                F(s.RiskPercent(RebaRisk.High)), F(s.RiskPercent(RebaRisk.VeryHigh)),
-                F(s.MeanTrunk), F(s.MeanNeck), F(s.MeanLegs), F(s.MeanUpperArmLeft), F(s.MeanUpperArmRight),
-                F(s.MeanLowerArmLeft), F(s.MeanLowerArmRight), F(s.MeanWristLeft), F(s.MeanWristRight), estado,
+                g.actividad.ToString(), g.condicion,
             };
+            if (subtarea != null) v.Add(CsvRow.Clean(subtarea));
+            v.AddRange(new[]
+            {
+                g.intento.ToString(), F(t.DurationSeconds), F(u.DurationSeconds),
+                F(t.DurationSeconds > 0 ? 100.0 * u.DurationSeconds / t.DurationSeconds : 0),
+                acc.acciones.ToString(), acc.alertas.ToString(),
+                t.Count > 0 ? t.Mode.ToString() : "", N(t, t.Mean), N(t, t.Percentile(90)),
+                u.Count > 0 ? u.Mode.ToString() : "", N(u, u.Median), N(u, u.Mean), N(u, u.Percentile(90)),
+                u.Count > 0 ? u.Max.ToString() : "",
+                N(u, u.RiskPercent(RebaRisk.Negligible)), N(u, u.RiskPercent(RebaRisk.Low)), N(u, u.RiskPercent(RebaRisk.Medium)),
+                N(u, u.RiskPercent(RebaRisk.High)), N(u, u.RiskPercent(RebaRisk.VeryHigh)),
+                N(u, e.Pct(e.troncoMas20)), N(u, e.Pct(e.troncoMas60)), N(u, e.Pct(e.troncoTorcido)), N(u, e.Pct(e.cuelloMas20)),
+                N(u, e.Pct(e.brazoMas45)), N(u, e.Pct(e.brazoMas90)), N(u, e.Pct(e.rodillaMas60)),
+                N(u, u.MeanTrunk), N(u, u.MeanNeck), N(u, u.MeanLegs), N(u, u.MeanUpperArm), N(u, u.MeanLowerArm), N(u, u.MeanWrist),
+                estado,
+            });
             return string.Join(Sep.ToString(), v);
         }
 
+        // Vacío si no hay muestras (para que en Excel no aparezca un 0 que no es real).
+        private static string N(RebaStats s, double v) => s.Count > 0 ? F(v) : "";
+
+        // Junta los intentos de cada actividad x momento.
         private List<Tramo> GroupByCondition()
         {
             var groups = new List<Tramo>();
@@ -912,12 +877,13 @@ namespace PujJoycon
                     groups.Add(g);
                 }
                 g.intento++;
-                g.stats.Merge(t.stats);
+                g.todo.Merge(t.todo);
+                foreach (var kv in t.porSubtarea) g.Subtarea(kv.Key).Merge(kv.Value);
             }
             return groups;
         }
 
-        // Resumen por actividad de la sesión (pre / tutorial / post), para el historial y la pantalla de resultados.
+        // Resumen por actividad (pre / tutorial / post), con el tiempo que cuenta.
         private List<ActividadRealizada> BuildResults(string estado)
         {
             var results = new List<ActividadRealizada>();
@@ -933,15 +899,15 @@ namespace PujJoycon
                 Tramo post = groups.Find(g => g.indice == idx && g.condicion == "post");
                 var any = pre ?? tut ?? post;
 
-                double activeSeconds = (pre?.stats.DurationSeconds ?? 0) + (post?.stats.DurationSeconds ?? 0);
-                string p90Pre = pre != null && pre.stats.Count > 0 ? F(pre.stats.Percentile(90)) : "-";
-                string p90Post = post != null && post.stats.Count > 0 ? F(post.stats.Percentile(90)) : "-";
+                double activeSeconds = (pre?.todo.total.DurationSeconds ?? 0) + (post?.todo.total.DurationSeconds ?? 0);
+                string modaPre = pre != null && pre.todo.util.Count > 0 ? pre.todo.util.Mode.ToString() : "-";
+                string modaPost = post != null && post.todo.util.Count > 0 ? post.todo.util.Mode.ToString() : "-";
 
                 results.Add(new ActividadRealizada
                 {
                     Tipo = any.actividad,
                     TiempoTomado = TimeSpan.FromSeconds(activeSeconds).ToString(@"hh\:mm\:ss"),
-                    CalificacionGeneral = $"REBA P90 pre {p90Pre} / post {p90Post}" + (estado == "completa" ? "" : $" ({estado})"),
+                    CalificacionGeneral = $"REBA más frecuente pre {modaPre} / post {modaPost}" + (estado == "completa" ? "" : $" ({estado})"),
                     Reba = new RebaData
                     {
                         PreTutorial = ToResumen(pre),
@@ -970,14 +936,15 @@ namespace PujJoycon
         private static RebaResumen ToResumen(Tramo g)
         {
             var r = new RebaResumen();
-            if (g == null || g.stats.Count == 0) return r;
-            var s = g.stats;
+            if (g == null || g.todo.util.Count == 0) return r;
+            var s = g.todo.util;
             r.HayDatos = true;
             r.Intentos = g.intento;
             r.DuracionSegundos = (float)s.DurationSeconds;
             r.Muestras = s.Count;
             r.Promedio = (float)s.Mean;
             r.Mediana = (float)s.Median;
+            r.Moda = s.Mode;
             r.Percentil90 = (float)s.Percentile(90);
             r.Maximo = s.Max;
             r.PorcentajeInsignificante = (float)s.RiskPercent(RebaRisk.Negligible);
@@ -1003,14 +970,16 @@ namespace PujJoycon
             public string sesion, fecha, estado, versionApp, versionUnity;
             public int participanteId;
             public string edad, manoDominante;
-            public float muestrasPorSegundo;
+            public float frecuenciaMuestreo;
             public bool grabarTutorial;
+            public float umbralCaminandoMs, umbralCabezaGiradaGrados;
             public RebaThresholds umbrales;
             public float gravedadArribaY;
             public int suavizadoMuestras;
             public string[] servidores;
             public SegmentMeta[] segmentos;
-            public FactoresActividad[] factores;
+            public string factoresFijos;
+            public FactoresActividad[] factoresPorActividad;
         }
 
         private void WriteMeta(string estado)
@@ -1025,12 +994,15 @@ namespace PujJoycon
                 participanteId = _participantId,
                 edad = _age,
                 manoDominante = _leftHanded ? "izquierda" : "derecha",
-                muestrasPorSegundo = muestrasPorSegundo,
+                frecuenciaMuestreo = frecuenciaMuestreo,
                 grabarTutorial = grabarTutorial,
+                umbralCaminandoMs = umbralCaminando,
+                umbralCabezaGiradaGrados = umbralCabezaGirada,
                 umbrales = estimator != null ? estimator.Thresholds : null,
                 gravedadArribaY = estimator != null ? estimator.GravityUpY : 0f,
                 suavizadoMuestras = receiver != null ? receiver.SmoothingSamples : 0,
-                factores = factores,
+                factoresFijos = "carga < 5 kg (0), agarre bueno (0), sin impactos; torsiones y desviaciones medidas por los sensores",
+                factoresPorActividad = factoresPorActividad,
             };
 
             var servers = new List<string>();
@@ -1066,12 +1038,12 @@ namespace PujJoycon
         // Prueba sin GameFlowManager y overlay
         // ------------------------------------------------------------------
 
-        /// <summary>Escena de prueba: empieza (si hace falta) y graba la condición dada de actividadPrueba.</summary>
         // Se puede grabar a mano en la escena de prueba o en Core mientras no haya una sesión en curso
         // (así se prueba con el visor, con el espejo de la sala de espera, sin crear participantes).
         private bool PuedeGrabarPrueba =>
             _manual || GameFlowManager.Instance == null || (!GameFlowManager.Instance.simulacionEnCurso && !_active);
 
+        /// <summary>Escena de prueba: empieza (si hace falta) y graba el momento dado de actividadPrueba.</summary>
         public void GrabarPrueba(string condicion)
         {
             if (!PuedeGrabarPrueba)
@@ -1114,7 +1086,8 @@ namespace PujJoycon
             GUILayout.BeginArea(new Rect(x, y, w, h), GUI.skin.box);
             if (_tramo != null)
             {
-                GUILayout.Label($"● Grabando REBA: {_tramo.actividad} · {_tramo.condicion} · intento {_tramo.intento} · {_tramo.stats.Count} muestras");
+                GUILayout.Label($"● Grabando REBA: {_tramo.actividad} · {_tramo.condicion} · {_lastSubtarea} · " +
+                                $"{_tramo.todo.util.DurationSeconds:0} s que cuentan");
             }
             else if (pending)
             {
@@ -1160,5 +1133,4 @@ namespace PujJoycon
         private static string F(double v) => CsvRow.Number(v);
         private static string SiNo(bool v) => v ? "sí" : "no";
     }
-
 }

@@ -9,7 +9,7 @@
 // que es el de Corte) y les cambia el contenido. Los datos salen de
 // RebaSessionRecorder (los mismos que van al historial del participante).
 //
-// Se usa el percentil 90 del REBA (el valor que solo se superó el 10 % del tiempo),
+// Se muestra la moda del REBA (el puntaje más repetido = la postura más frecuente),
 // igual que en la tarjeta de "Revisión REBA" del Game Master.
 
 using System.Collections;
@@ -113,9 +113,10 @@ namespace PujJoycon
         }
 
         private static string Linea(string momento, RebaResumen r) =>
-            r.HayDatos ? $"{momento}: REBA {Puntaje(r)} (riesgo {Riesgo(Puntaje(r))})" : $"{momento}: sin medición";
+            r.HayDatos ? $"{momento}: REBA más frecuente {Puntaje(r)} (riesgo {Riesgo(Puntaje(r))})" : $"{momento}: sin medición";
 
-        private static int Puntaje(RebaResumen r) => Mathf.RoundToInt(r.Percentil90);
+        // La moda; en registros viejos (antes de guardarla) se usa la mediana.
+        private static int Puntaje(RebaResumen r) => r.Moda > 0 ? r.Moda : Mathf.RoundToInt(r.Mediana);
 
         private static string Riesgo(int puntaje) => Reba.RiskName(Reba.RiskOf(puntaje)).ToLowerInvariant();
 
