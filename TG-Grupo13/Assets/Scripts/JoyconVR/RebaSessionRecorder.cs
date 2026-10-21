@@ -15,10 +15,15 @@
 //   resumen_participantes.csv  una fila por participante x actividad x momento (pre/tutorial/post).
 //   resumen_subtareas.csv      lo mismo, separado por subtarea (Cavar hueco, Cortar tallo...).
 //
+// Columna subtarea: la misma regla en pre, tutorial y post (ver RebaSubtareas): Tomar pala, Cavar
+// hueco, Arrancar ortiga, Cortar tallo... En el tutorial, paso_tutorial dice además el paso que muestra.
+//
 // Qué muestras "cuentan" (columna cuenta = 1). El resto se guarda igual, con su motivo:
-//   calibrando         la persona está en postura N para la recalibración
-//   sin tarea          en la actividad no está haciendo ninguna subtarea (camina hacia la
-//                      siguiente planta, mira alrededor...). En el tutorial siempre hay un paso.
+//   calibrando              la persona está en postura N para la recalibración
+//   esperando recalibración el momento ya empezó pero el Game Master aún no hizo su recalibración
+//                           rápida (se graba igual, para no perder nunca un momento)
+//   sin tarea               no está haciendo ninguna subtarea (camina hacia la siguiente planta,
+//                           mira alrededor...)
 //   caminando          el visor se mueve en horizontal a más de umbralCaminando
 //   mirando a un lado  la cabeza está girada más de umbralCabezaGirada respecto al tronco
 //                      (p. ej. leyendo instrucciones a un lado)
@@ -26,8 +31,8 @@
 //
 // El momento se etiqueta solo con GameFlowManager.Fase, por actividad:
 //   "pre" la actividad antes del tutorial, "tutorial", "post" la actividad después del tutorial.
-// Cada momento se graba desde que termina una recalibración del Game Master: la que se haga
-// después de que empezó, o una hecha poco antes (calibracionReciente) que no se haya usado.
+// Cada momento se graba completo, pero cuenta desde que termina una recalibración del Game Master:
+// la que se haga después de que empezó, o una hecha poco antes (calibracionReciente) que no se haya usado.
 //
 // Factores de REBA que no miden los sensores: los deciden las investigadoras, uno por actividad
 // (iguales en pre, tutorial y post). Carga < 5 kg, agarre bueno y sin impactos son fijos.
@@ -212,13 +217,11 @@ namespace PujJoycon
         // Velocidad del visor (para "caminando").
         private readonly Queue<(float t, Vector3 p)> _headTrail = new Queue<(float, Vector3)>();
 
-        // Momento que ya empezó en el juego pero espera la calibración para grabarse.
+        // El momento actual se graba desde que empieza, pero sus muestras no cuentan hasta que termine
+        // la recalibración rápida (motivo "esperando recalibración"). Así nunca se pierde un momento.
         private bool _pending;
-        private string _pendingCondicion;
-        private ActivityType _pendingActividad;
-        private int _pendingIndice;
         private int _pendingCalibraciones;
-        private int _calibracionesUsadas = -1; // la última calibración que ya abrió un momento
+        private int _calibracionesUsadas = -1; // la última calibración que ya habilitó un momento
 
         // Resultados de la última sesión terminada (para la pantalla de resultados del visor).
         private List<ActividadRealizada> _lastResults = new List<ActividadRealizada>();
@@ -256,9 +259,9 @@ namespace PujJoycon
             }
         }
 
-        /// <summary>Hay un momento (pre/tutorial/post) esperando una calibración para empezar a grabarse.</summary>
-        public bool EsperandoCalibracion => _active && _pending;
-        public string MomentoPendiente => _pending ? $"{_pendingActividad} · {_pendingCondicion}" : "";
+        /// <summary>El momento actual (pre/tutorial/post) espera la recalibración rápida para que sus muestras cuenten.</summary>
+        public bool EsperandoCalibracion => _active && _pending && _tramo != null;
+        public string MomentoPendiente => _pending && _tramo != null ? $"{_tramo.actividad} · {_tramo.condicion}" : "";
 
         private void Awake()
         {
@@ -326,11 +329,11 @@ namespace PujJoycon
                         _reachedResults = true;
                         FinalizeData("completa");
                     }
-                    // El momento pendiente empieza a grabarse cuando termina una calibración lanzada después.
+                    // Desde que termina una recalibración lanzada en este momento, sus muestras cuentan.
                     if (_pending && calibrator != null && !calibrator.IsCalibrating &&
                         calibrator.CalibracionesTerminadas > _pendingCalibraciones)
                     {
-                        StartPending(null);
+                        EndPending(null);
                     }
                 }
             }
@@ -402,22 +405,19 @@ namespace PujJoycon
                 }
             }
 
-            if (_pending) LogEvent("aviso", $"{MomentoPendiente} no se grabó: se pasó a otra fase sin calibrar");
+            if (_pending) LogEvent("aviso", $"{MomentoPendiente} terminó SIN recalibración: ninguna de sus muestras cuenta");
             _pending = false;
 
-            if (condicion != null && esperarCalibracionParaGrabar && calibrator != null && !CalibracionRecienteSinUsar())
-            {
-                // Se cierra el momento anterior y el nuevo queda esperando la calibración.
-                SetCondition(null, null, -1);
-                _pending = true;
-                _pendingCondicion = condicion;
-                _pendingActividad = actividad.Value;
-                _pendingIndice = indice;
-                _pendingCalibraciones = calibrator.CalibracionesTerminadas;
-                LogEvent("esperando_calibracion", $"{actividad} {condicion}: se graba cuando terminen la calibración");
-                return;
-            }
+            // ¿Hay que esperar la recalibración? Se decide ANTES de abrir el momento (al abrirlo se marca como usada
+            // la calibración reciente).
+            bool esperar = condicion != null && esperarCalibracionParaGrabar && calibrator != null && !CalibracionRecienteSinUsar();
             SetCondition(condicion, actividad, indice);
+            if (esperar && _tramo != null)
+            {
+                _pending = true;
+                _pendingCalibraciones = calibrator.CalibracionesTerminadas;
+                LogEvent("esperando_calibracion", $"{actividad} {condicion}: se graba desde ya, pero cuenta desde que terminen la recalibración rápida");
+            }
         }
 
         // ¿Hay una calibración terminada hace poco que todavía no abrió ningún momento?
@@ -428,13 +428,14 @@ namespace PujJoycon
             return Time.unscaledTime - calibrator.UltimaCalibracionFin <= calibracionReciente;
         }
 
-        /// <summary>Empieza a grabar el momento pendiente. motivoSinCalibrar != null: se empezó sin calibrar.</summary>
-        private void StartPending(string motivoSinCalibrar)
+        /// <summary>Desde ahora las muestras del momento cuentan. motivoSinCalibrar != null: se habilitó sin recalibrar.</summary>
+        private void EndPending(string motivoSinCalibrar)
         {
             if (!_pending) return;
             _pending = false;
-            SetCondition(_pendingCondicion, _pendingActividad, _pendingIndice);
-            if (motivoSinCalibrar != null) LogEvent("aviso", motivoSinCalibrar);
+            if (calibrator != null) _calibracionesUsadas = calibrator.CalibracionesTerminadas;
+            LogEvent(motivoSinCalibrar != null ? "aviso" : "recalibrado",
+                     motivoSinCalibrar ?? $"{_tramo?.actividad} {_tramo?.condicion}: desde aquí las muestras cuentan");
         }
 
         private void SetCondition(string condicion, ActivityType? actividad, int indice)
@@ -459,6 +460,7 @@ namespace PujJoycon
             _tramoT0 = Time.unscaledTime;
             _nextSampleT = Time.unscaledTime;
             _lastSubtarea = SinTarea;
+            _subtareas?.Reiniciar();
             _lastAcciones = _subtareas != null ? _subtareas.AccionesCompletadas(actividad) : 0;
             if (calibrator != null) _calibracionesUsadas = calibrator.CalibracionesTerminadas;
             LogEvent("inicio_tramo", $"{_tramo.actividad} {condicion} intento {n}");
@@ -521,7 +523,7 @@ namespace PujJoycon
         private void EndSession(string motivo)
         {
             if (!_active) return;
-            if (_pending) LogEvent("aviso", $"{MomentoPendiente} no se grabó: nunca se calibró");
+            if (_pending) LogEvent("aviso", $"{MomentoPendiente} terminó SIN recalibración: ninguna de sus muestras cuenta");
             _pending = false;
             SetCondition(null, null, -1);
             if (!_finalized) FinalizeData(motivo);
@@ -574,8 +576,9 @@ namespace PujJoycon
             // Subtarea y acciones.
             var fase = _manual ? (_tramo.condicion == "tutorial" ? FaseSesion.Tutorial : FaseSesion.Actividad)
                                : (GameFlowManager.Instance != null ? GameFlowManager.Instance.Fase : FaseSesion.Actividad);
-            string subtarea = _subtareas != null ? _subtareas.Subtarea(fase, _tramo.actividad) : "";
+            string subtarea = _subtareas != null ? _subtareas.Subtarea(_tramo.actividad) : "";
             if (string.IsNullOrEmpty(subtarea)) subtarea = SinTarea;
+            string pasoTutorial = _subtareas != null ? _subtareas.PasoTutorial(fase, _tramo.actividad) : "";
             int acciones = _subtareas != null ? _subtareas.AccionesCompletadas(_tramo.actividad) : 0;
             if (acciones > _lastAcciones)
             {
@@ -589,12 +592,13 @@ namespace PujJoycon
             var a = estimator.CurrentAngles;
             string motivo = "";
             if (calibrator != null && calibrator.IsCalibrating) motivo = "calibrando";
+            else if (_pending) motivo = "esperando recalibración";
             else if (subtarea == SinTarea && !_manual) motivo = SinTarea;
             else if (HeadSpeed() > umbralCaminando) motivo = "caminando";
             else if (a.hasNeck && Mathf.Abs(a.neckTwist) > umbralCabezaGirada) motivo = "mirando a un lado";
             bool cuenta = motivo == "";
 
-            WriteSampleRow(now, subtarea, acciones, cuenta, motivo);
+            WriteSampleRow(now, subtarea, pasoTutorial, acciones, cuenta, motivo);
             if (_raw != null) WriteRawRow(now);
 
             if (motivo != "calibrando")
@@ -612,7 +616,7 @@ namespace PujJoycon
             _lastSubtarea = subtarea;
         }
 
-        private void WriteSampleRow(float now, string subtarea, int acciones, bool cuenta, string motivo)
+        private void WriteSampleRow(float now, string subtarea, string pasoTutorial, int acciones, bool cuenta, string motivo)
         {
             var r = _row;
             var a = estimator.CurrentAngles;
@@ -627,6 +631,7 @@ namespace PujJoycon
             r.Add("intento", _tramo.intento);
             r.Add("t_momento_s", now - _tramoT0);
             r.Add("subtarea", subtarea);
+            r.Add("paso_tutorial", pasoTutorial); // solo en el tutorial: el paso que muestra la pantalla
             r.Add("acciones_completadas", acciones);
             r.Add("cuenta", cuenta);
             r.Add("motivo", motivo);
@@ -1084,25 +1089,25 @@ namespace PujJoycon
             float w = 420, h = 90 + (inTutorial ? 60 : 0) + (pending ? 60 : 0);
             float x = Screen.width - w - 10, y = Screen.height - h - 10;
             GUILayout.BeginArea(new Rect(x, y, w, h), GUI.skin.box);
-            if (_tramo != null)
+            if (pending)
+            {
+                GUILayout.Label($"● Grabando {MomentoPendiente}, pero NO cuenta hasta la recalibración rápida.");
+            }
+            else if (_tramo != null)
             {
                 GUILayout.Label($"● Grabando REBA: {_tramo.actividad} · {_tramo.condicion} · {_lastSubtarea} · " +
                                 $"{_tramo.todo.util.DurationSeconds:0} s que cuentan");
-            }
-            else if (pending)
-            {
-                GUILayout.Label($"REBA en espera: {MomentoPendiente}. Se graba al terminar la recalibración rápida.");
             }
             else
             {
                 GUILayout.Label(_active ? "REBA: sesión abierta, sin actividad en curso" : "REBA: no está grabando");
             }
 
-            // Plan B si la persona no puede quedarse quieta para calibrar: graba igual, queda el aviso en eventos.csv.
+            // Plan B si la persona no puede quedarse quieta para calibrar: cuenta igual, queda el aviso en eventos.csv.
             if (pending && !(calibrator != null && calibrator.IsCalibrating) &&
-                GUILayout.Button("Grabar SIN recalibrar (queda anotado)", GUILayout.Height(30)))
+                GUILayout.Button("Contar SIN recalibrar (queda anotado)", GUILayout.Height(30)))
             {
-                StartPending($"{MomentoPendiente} se empezó a grabar SIN recalibrar (decisión del Game Master)");
+                EndPending($"{MomentoPendiente}: cuenta SIN recalibrar (decisión del Game Master)");
             }
 
             // El tutorial lanza solo la actividad (post) al terminar. Si no se puede terminar, se lanza desde aquí

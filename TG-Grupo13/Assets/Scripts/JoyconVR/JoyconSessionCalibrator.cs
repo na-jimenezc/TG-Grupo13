@@ -323,7 +323,7 @@ namespace PujJoycon
             if (running && !_fullDoneThisSession)
                 GUILayout.Label("Falta la CALIBRACIÓN COMPLETA de este participante.", _warnStyle);
             else if (running && _recorder != null && _recorder.EsperandoCalibracion)
-                GUILayout.Label($"{_recorder.MomentoPendiente}: haga la RECALIBRACIÓN RÁPIDA para empezar a grabar.", _warnStyle);
+                GUILayout.Label($"{_recorder.MomentoPendiente}: haga la RECALIBRACIÓN RÁPIDA para que los datos cuenten.", _warnStyle);
             else if (running)
                 GUILayout.Label("Calibrado. Puede seguir.", _okStyle);
             else

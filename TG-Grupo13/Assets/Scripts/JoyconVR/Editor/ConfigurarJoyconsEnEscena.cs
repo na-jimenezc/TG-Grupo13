@@ -282,7 +282,8 @@ public static class ConfigurarJoyconsEnEscena
             var segment = layout[i].segment;
             rastreados.TryGetValue(segment, out var t);
             b.FindPropertyRelative("segment").enumValueIndex = (int)segment;
-            b.FindPropertyRelative("sensorIndex").intValue = layout[i].sensorIndex;
+            // Si el segmento lo da el visor o el avatar (Tracked Transform), no usa Joy-Con: -1.
+            b.FindPropertyRelative("sensorIndex").intValue = t != null ? -1 : layout[i].sensorIndex;
             b.FindPropertyRelative("trackedTransform").objectReferenceValue = t;
             b.FindPropertyRelative("mountingEuler").vector3Value =
                 mountings.TryGetValue((int)segment, out var m) ? m : Vector3.zero;

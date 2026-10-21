@@ -426,8 +426,11 @@ namespace PujJoycon
             Vector3 axis = toTarget / distance;
             distance = Mathf.Clamp(distance, Mathf.Abs(a - b) + 1e-3f, a + b - 1e-3f);
 
-            // Hacia dónde sale el codo: donde lo dejó el Joy-Con, sin la parte que va hacia el control.
-            Vector3 pole = Vector3.ProjectOnPlane(elbow - shoulder, axis);
+            // Hacia dónde sale el codo: siempre hacia donde se dobla un codo real (abajo, atrás y un poco hacia
+            // afuera del cuerpo). Antes salía hacia donde estuviera el codo de Meta, y cuando ese brazo venía casi
+            // estirado o un poco adelante, el codo se doblaba al revés (hacia adelante).
+            bool izquierdo = upperBone == HumanBodyBones.LeftUpperArm;
+            Vector3 pole = Vector3.ProjectOnPlane(PoloCodo(izquierdo), axis);
             if (pole.sqrMagnitude < 1e-8f) pole = Vector3.ProjectOnPlane(Vector3.down, axis);
             if (pole.sqrMagnitude < 1e-8f) return;
             pole.Normalize();
@@ -442,6 +445,19 @@ namespace PujJoycon
             if (foreNow.sqrMagnitude < 1e-8f || foreWanted.sqrMagnitude < 1e-8f) return;
             Quaternion foreFix = Quaternion.FromToRotation(foreNow, foreWanted);
             fore.rotation = Quaternion.Slerp(Quaternion.identity, foreFix, weight) * fore.rotation;
+        }
+
+        // Dirección natural del codo en el mundo: abajo, hacia atrás y hacia el lado del brazo, según hacia
+        // dónde mira la persona (cámara del visor; sin visor, el avatar).
+        private Vector3 PoloCodo(bool izquierdo)
+        {
+            Vector3 frente = headReference != null ? headReference.forward : avatar.transform.forward;
+            frente = Vector3.ProjectOnPlane(frente, Vector3.up);
+            if (frente.sqrMagnitude < 1e-6f) frente = avatar.transform.forward;
+            frente.Normalize();
+            Vector3 derecha = Vector3.Cross(Vector3.up, frente);
+            float lado = izquierdo ? -1f : 1f;
+            return Vector3.down - 0.5f * frente + 0.4f * lado * derecha;
         }
 
         private float LowestFootY()

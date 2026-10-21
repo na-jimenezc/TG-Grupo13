@@ -1,22 +1,20 @@
 // RebaSubtareas.cs
 //
-// Dice en qué subtarea está la persona en cada momento, para etiquetar cada muestra
-// de REBA (columna "subtarea") y poder comparar pre / tutorial / post por subtarea.
-// Usa los mismos nombres en los tres momentos.
+// Dice en qué subtarea está la persona en cada momento, para etiquetar cada muestra de REBA
+// (columna "subtarea") y comparar pre / tutorial / post por subtarea. Usa LA MISMA REGLA en los
+// tres momentos, así "Cavar hueco" significa lo mismo antes, durante y después del tutorial:
 //
-//   Tutorial: el paso actual del tutorial del equipo (TutorialManagerBase).
-//   Actividad (pre y post): no hay pasos, así que se infiere de lo que la persona
-//   tiene en la mano (Grabbable de Meta) y de los avisos que ya lanzan los objetos:
-//     Siembra   canasta en la mano -> Esparcir bulbos
-//               pala en la mano    -> Cavar hueco
-//               bulbo en la mano   -> Sembrar bulbo
-//     Deshierbe ortiga en la mano, aún en la tierra -> Arrancar ortiga
-//               ortiga en la mano, ya arrancada     -> Dejar ortiga
-//     Corte     con las tijeras: Cortar tallo -> (tallo cortado) Deshojar tallo ->
-//               (ramo completo) Cortar parejo -> (nivelado) Armar ramo ->
-//               (capuchón puesto) Depositar ramo -> (depositado) Cortar tallo
-//               capuchón en la mano -> Armar ramo; ramo terminado en la mano -> Depositar ramo
-//   Sin nada de eso: "" (sin tarea: caminando hacia la siguiente planta, mirando…).
+//   1. Lo que tiene en la mano (Grabbable de Meta) dice qué está haciendo:
+//        Siembra   canasta -> Esparcir bulbos · pala -> Cavar hueco · bulbo -> Sembrar bulbo
+//        Deshierbe ortiga aún en la tierra -> Arrancar ortiga · ortiga ya arrancada -> Dejar ortiga
+//        Corte     tijeras -> Cortar tallo / Deshojar tallo / Cortar parejo (según los avisos de los objetos)
+//                  capuchón -> Armar ramo · ramo terminado -> Depositar ramo
+//   2. Si no tiene nada de eso pero una mano está cerca (distanciaTomar) de un objeto que se puede agarrar:
+//        Tomar canasta / Tomar pala / Tomar bulbo / Tomar bolsa / Tomar ortiga / Tomar tijeras
+//   3. Si no: "" (sin tarea: camina hacia la siguiente planta, mira alrededor...).
+//
+// Los nombres son los mismos de los pasos del tutorial. Aparte, en el tutorial se guarda el paso
+// que muestra la pantalla (PasoTutorial), como referencia.
 //
 // No modifica los scripts del equipo: solo lee su estado y escucha sus eventos.
 
@@ -28,7 +26,7 @@ namespace PujJoycon
 {
     public class RebaSubtareas : MonoBehaviour
     {
-        // Nombres de los pasos de cada tutorial, en el orden de los TutorialStepData de su escena.
+        // Pasos de cada tutorial, en el orden de los TutorialStepData de su escena.
         private static readonly string[] PasosSiembra =
             { "Tomar canasta", "Esparcir bulbos", "Tomar pala", "Tomar bulbo", "Cavar hueco", "Sembrar bulbo" };
         private static readonly string[] PasosDeshierbe =
@@ -36,16 +34,18 @@ namespace PujJoycon
         private static readonly string[] PasosCorte =
             { "Tomar tijeras", "Cortar tallo", "Deshojar tallo", "Cortar parejo", "Armar ramo", "Depositar ramo" };
 
-        public const string CortarTallo = "Cortar tallo", DeshojarTallo = "Deshojar tallo", CortarParejo = "Cortar parejo",
-                            ArmarRamo = "Armar ramo", DepositarRamo = "Depositar ramo";
+        private const string CortarTallo = "Cortar tallo", DeshojarTallo = "Deshojar tallo", CortarParejo = "Cortar parejo",
+                             ArmarRamo = "Armar ramo", DepositarRamo = "Depositar ramo";
 
+        [Tooltip("Distancia (m) de una mano a un objeto para considerar que lo está tomando.")]
+        [SerializeField] private float distanciaTomar = 0.5f;
         [Tooltip("Cada cuánto se vuelven a buscar los objetos de la actividad (aparecen bulbos nuevos al esparcir).")]
         [SerializeField] private float segundosEntreBusquedas = 1f;
 
         private readonly List<(Component objeto, Grabbable agarre)> _objetos = new List<(Component, Grabbable)>();
         private float _proximaBusqueda;
-        private IActivityManager _manager;
         private string _faseCorte = CortarTallo;
+        private Transform _manoIzq, _manoDer;
 
         private void OnEnable()
         {
@@ -77,13 +77,18 @@ namespace PujJoycon
             return corte != null && corte.TallosEnRamoActual >= corte.TallosPorRamo;
         }
 
-        /// <summary>Subtarea actual ("" = sin tarea).</summary>
-        public string Subtarea(FaseSesion fase, ActivityType? actividad)
+        /// <summary>Se llama al empezar cada momento (pre, tutorial, post): cada escena empieza de cero.</summary>
+        public void Reiniciar()
+        {
+            _faseCorte = CortarTallo;
+            _proximaBusqueda = 0f;
+            _objetos.Clear();
+        }
+
+        /// <summary>Subtarea actual ("" = sin tarea). Misma regla en pre, tutorial y post.</summary>
+        public string Subtarea(ActivityType? actividad)
         {
             if (actividad == null) return "";
-            if (fase == FaseSesion.Tutorial) return PasoTutorial(actividad.Value);
-            if (fase != FaseSesion.Actividad) return "";
-
             ActualizarObjetos();
             switch (actividad.Value)
             {
@@ -92,6 +97,18 @@ namespace PujJoycon
                 case ActivityType.Corte: return SubtareaCorte();
                 default: return "";
             }
+        }
+
+        /// <summary>Paso que muestra el tutorial ("" fuera del tutorial).</summary>
+        public string PasoTutorial(FaseSesion fase, ActivityType? actividad)
+        {
+            if (fase != FaseSesion.Tutorial || actividad == null) return "";
+            var tutorial = TutorialManagerBase.Actual;
+            if (tutorial == null) return "";
+            string[] pasos = actividad == ActivityType.Siembra ? PasosSiembra
+                           : actividad == ActivityType.Deshierbe ? PasosDeshierbe : PasosCorte;
+            int i = tutorial.PasoActual;
+            return i >= 0 && i < pasos.Length ? pasos[i] : $"Paso {i + 1}";
         }
 
         /// <summary>Cuántas unidades lleva: bulbos sembrados, ortigas depositadas o tallos procesados.</summary>
@@ -111,28 +128,18 @@ namespace PujJoycon
             }
         }
 
-        private static string PasoTutorial(ActivityType actividad)
-        {
-            var tutorial = TutorialManagerBase.Actual;
-            if (tutorial == null) return "";
-            string[] pasos = actividad == ActivityType.Siembra ? PasosSiembra
-                           : actividad == ActivityType.Deshierbe ? PasosDeshierbe : PasosCorte;
-            int i = tutorial.PasoActual;
-            return i >= 0 && i < pasos.Length ? pasos[i] : $"Paso {i + 1}";
-        }
-
         private string SubtareaSiembra()
         {
             if (Agarrado<Bulbo>(out _)) return "Sembrar bulbo";
             if (Agarrado<Pala>(out _)) return "Cavar hueco";
             if (Agarrado<Canasta>(out _)) return "Esparcir bulbos";
-            return "";
+            return Cercano(("Tomar bulbo", typeof(Bulbo)), ("Tomar pala", typeof(Pala)), ("Tomar canasta", typeof(Canasta)));
         }
 
         private string SubtareaDeshierbe()
         {
             if (Agarrado<Ortiga>(out var ortiga)) return ortiga.EstaExtraida ? "Dejar ortiga" : "Arrancar ortiga";
-            return "";
+            return Cercano(("Tomar ortiga", typeof(Ortiga)), ("Tomar bolsa", typeof(Bolsa)));
         }
 
         private string SubtareaCorte()
@@ -140,7 +147,7 @@ namespace PujJoycon
             if (Agarrado<RamoTerminado>(out _)) return DepositarRamo;
             if (Agarrado<Capuchon>(out _)) return ArmarRamo;
             if (Agarrado<Tijeras>(out _)) return _faseCorte;
-            return "";
+            return Cercano(("Tomar tijeras", typeof(Tijeras)), (DepositarRamo, typeof(RamoTerminado)), (ArmarRamo, typeof(Capuchon)));
         }
 
         private bool Agarrado<T>(out T objeto) where T : Component
@@ -157,17 +164,51 @@ namespace PujJoycon
             return false;
         }
 
-        // Los objetos de la actividad cambian (bulbos que aparecen, ortigas que se destruyen):
-        // se vuelven a buscar cada segundo, y la fase de Corte se reinicia al cambiar de actividad.
+        // El objeto que se puede agarrar más cercano a una de las manos (sin contar los que ya tiene en la mano
+        // ni los que no se pueden agarrar, como los bulbos todavía dentro de la canasta).
+        private string Cercano(params (string nombre, System.Type tipo)[] candidatos)
+        {
+            BuscarManos();
+            if (_manoIzq == null && _manoDer == null) return "";
+
+            string mejor = "";
+            float mejorDistancia = distanciaTomar;
+            foreach (var (o, agarre) in _objetos)
+            {
+                if (o == null || agarre == null || !agarre.isActiveAndEnabled || agarre.SelectingPointsCount > 0) continue;
+                foreach (var (nombre, tipo) in candidatos)
+                {
+                    if (!tipo.IsInstanceOfType(o)) continue;
+                    Vector3 p = o.transform.position;
+                    float d = Mathf.Min(_manoIzq != null ? Vector3.Distance(p, _manoIzq.position) : float.MaxValue,
+                                        _manoDer != null ? Vector3.Distance(p, _manoDer.position) : float.MaxValue);
+                    if (d < mejorDistancia)
+                    {
+                        mejorDistancia = d;
+                        mejor = nombre;
+                    }
+                }
+            }
+            return mejor;
+        }
+
+        // Los controles del visor (LeftHandAnchor / RightHandAnchor del Camera Rig).
+        private void BuscarManos()
+        {
+            if (_manoIzq != null && _manoDer != null) return;
+            var camara = Camera.main;
+            if (camara == null) return;
+            foreach (var t in camara.transform.root.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "LeftHandAnchor") _manoIzq = t;
+                else if (t.name == "RightHandAnchor") _manoDer = t;
+            }
+        }
+
+        // Los objetos cambian (bulbos que aparecen, ortigas que se destruyen, escenas que se cargan):
+        // se vuelven a buscar cada segundo.
         private void ActualizarObjetos()
         {
-            var manager = ActivityManagerBase.Current;
-            if (!ReferenceEquals(manager, _manager))
-            {
-                _manager = manager;
-                _faseCorte = CortarTallo;
-                _proximaBusqueda = 0f;
-            }
             if (Time.unscaledTime < _proximaBusqueda) return;
             _proximaBusqueda = Time.unscaledTime + segundosEntreBusquedas;
 
@@ -176,6 +217,7 @@ namespace PujJoycon
             Buscar<Pala>();
             Buscar<Canasta>();
             Buscar<Ortiga>();
+            Buscar<Bolsa>();
             Buscar<Tijeras>();
             Buscar<Capuchon>();
             Buscar<RamoTerminado>();
