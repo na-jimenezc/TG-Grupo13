@@ -1132,11 +1132,11 @@ namespace PujJoycon
                 StartPending($"{MomentoPendiente} se empezó a grabar SIN recalibrar (decisión del Game Master)");
             }
 
-            // El tutorial lanza solo la actividad (post) al terminar. Si no se puede terminar, se lanza desde aquí.
-            // Ojo: "Continuar" del panel del equipo pasa a la SIGUIENTE actividad y se pierde el post.
+            // El tutorial lanza solo la actividad (post) al terminar. Si no se puede terminar, se lanza desde aquí
+            // (o con "Saltar a la actividad" en el panel del Game Master).
             if (inTutorial)
             {
-                GUILayout.Label("Tutorial: NO presione 'Continuar' hasta grabar el post.");
+                GUILayout.Label("Tutorial: al terminar se lanza la actividad POST.");
                 if (GUILayout.Button($"Terminar tutorial → {flow.ActividadActual} POST", GUILayout.Height(30)))
                 {
                     LogEvent("tutorial_terminado_a_mano", $"{flow.ActividadActual}");

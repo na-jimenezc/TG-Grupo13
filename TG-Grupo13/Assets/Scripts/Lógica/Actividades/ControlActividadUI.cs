@@ -6,13 +6,19 @@ public class ControlActividadUI : MonoBehaviour
 {
     [SerializeField] private TMP_Text tituloActividadText;
 
-    //Texto del botón "Comenzar", que se reutiliza como "Continuar" una vez la actividad ya fue lanzada.
-    //Así el panel mantiene siempre solo dos botones (Tutorial y Comenzar/Continuar), como en la Figura 19 del documento.
+    //Botón principal del panel. Para comparar la postura antes y después del tutorial, cada actividad sigue siempre
+    //el mismo orden y el botón cambia de texto en cada momento:
+    //Menú ("Comenzar") -> Actividad pre ("Ir al tutorial") -> Tutorial ("Saltar a la actividad") -> Actividad post ("Continuar").
     [SerializeField] private TMP_Text comenzarButtonTexto;
     [SerializeField] private UnityEngine.UI.Button comenzarButton;
-    private bool _actividadLanzada = false;
+    private bool _avanzando = false;
     private IActivityManager _managerSuscrito;
     private Coroutine _esperaManager;
+
+    private enum Etapa { Menu, ActividadPre, Tutorial, ActividadPost }
+
+    [Header("Botón Tutorial (se oculta: el tutorial va siempre entre la actividad pre y la post)")]
+    [SerializeField] private UnityEngine.UI.Button tutorialButton;
 
     [Header("Indicador de progreso (opcional)")]
     [SerializeField] private UnityEngine.UI.Image indicadorCondicion;
@@ -46,6 +52,26 @@ public class ControlActividadUI : MonoBehaviour
             progresoAdmin = ProgresoAdminUI.Crear((RectTransform)transform, tituloActividadText != null ? tituloActividadText.font : null);
 
         PrepararBotonTerminar();
+        OcultarBotonTutorial();
+    }
+
+    //Con un botón aparte el Game Master podía abrir el tutorial desde el menú y saltarse la actividad pre.
+    //Se busca por el método que tiene conectado, para no tener que modificar la escena Core.
+    private void OcultarBotonTutorial()
+    {
+        if (tutorialButton == null)
+        {
+            foreach (var boton in GetComponentsInChildren<UnityEngine.UI.Button>(true))
+            {
+                for (int i = 0; i < boton.onClick.GetPersistentEventCount(); i++)
+                {
+                    if (boton.onClick.GetPersistentMethodName(i) == nameof(OnTutorialPresionado))
+                        tutorialButton = boton;
+                }
+            }
+        }
+
+        if (tutorialButton != null) tutorialButton.gameObject.SetActive(false);
     }
 
     //Crea (si no está asignado) el botón para cortar la sesión en cualquier momento, p. ej. si el participante se marea.
@@ -114,8 +140,7 @@ public class ControlActividadUI : MonoBehaviour
 
     void OnEnable()
     {
-        _actividadLanzada = false;
-        if (comenzarButton != null) comenzarButton.interactable = true;
+        _avanzando = false;
         ReiniciarBotonTerminar();
         ActualizarTitulo();
         ActualizarTextoComenzar();
@@ -136,16 +161,54 @@ public class ControlActividadUI : MonoBehaviour
             GameFlowManager.Instance.OnEstadoCambiado -= AlCambiarEstadoSesion;
     }
 
-    //Al terminar el tutorial, este lanza la actividad por su cuenta (sin pasar por el botón "Comenzar"),
-    //así que el panel se pone al día: el botón pasa a "Continuar" y se empieza a seguir la condición de la actividad.
+    //El botón se bloquea mientras carga la escena del siguiente momento: un doble clic en "Ir al tutorial"
+    //lanzaba la actividad post antes de que el tutorial terminara de cargar.
+    void Update()
+    {
+        if (comenzarButton != null)
+            comenzarButton.interactable = !_avanzando && EtapaCargada();
+    }
+
+    private bool EtapaCargada()
+    {
+        switch (EtapaActual())
+        {
+            case Etapa.Tutorial: return TutorialManagerBase.Actual != null;
+            case Etapa.ActividadPre:
+            case Etapa.ActividadPost: return ActivityManagerBase.Current != null;
+            default: return true;
+        }
+    }
+
+    private Etapa EtapaActual()
+    {
+        GameFlowManager flujo = GameFlowManager.Instance;
+        if (flujo == null) return Etapa.Menu;
+
+        switch (flujo.Fase)
+        {
+            case FaseSesion.Tutorial: return Etapa.Tutorial;
+            case FaseSesion.Actividad: return flujo.TutorialVistoEnActividadActual ? Etapa.ActividadPost : Etapa.ActividadPre;
+            default: return Etapa.Menu;
+        }
+    }
+
+    //Cada cambio de momento (también cuando el tutorial termina y lanza la actividad post por su cuenta)
+    //pone al día el texto del botón y vuelve a seguir la condición de la actividad que se esté mostrando.
     private void AlCambiarEstadoSesion()
     {
-        if (_actividadLanzada || GameFlowManager.Instance.Fase != FaseSesion.Actividad) return;
-
-        _actividadLanzada = true;
         ActualizarTextoComenzar();
-        if (_esperaManager == null)
+
+        if (panelConfirmacionAvanceForzado != null)
+            panelConfirmacionAvanceForzado.SetActive(false);
+
+        if (_esperaManager != null) StopCoroutine(_esperaManager);
+        _esperaManager = null;
+        DesuscribirseDelManager();
+
+        if (GameFlowManager.Instance.Fase == FaseSesion.Actividad)
             _esperaManager = StartCoroutine(EsperarManagerYSuscribir());
+        ActualizarIndicador();
     }
     void ActualizarTitulo()
     {
@@ -155,12 +218,20 @@ public class ControlActividadUI : MonoBehaviour
 
     void ActualizarTextoComenzar()
     {
-        if (comenzarButtonTexto != null)
-            comenzarButtonTexto.text = _actividadLanzada ? "Continuar" : "Comenzar";
+        if (comenzarButtonTexto == null) return;
+
+        comenzarButtonTexto.text = EtapaActual() switch
+        {
+            Etapa.ActividadPre => "Ir al tutorial",
+            Etapa.Tutorial => "Saltar a la actividad",
+            Etapa.ActividadPost => "Continuar",
+            _ => "Comenzar"
+        };
     }
 
     //Se le pide al GameFlowManager (que siempre está cargado) y no al Menú de la actividad, porque el Menú se descarga
     //al abrir el Tutorial; antes, presionar un botón durante el tutorial no hacía nada.
+    //El botón Tutorial se oculta (el tutorial se abre con el botón principal), pero se deja por si se vuelve a conectar.
     public void OnTutorialPresionado()
     {
         GameFlowManager flujo = GameFlowManager.Instance;
@@ -168,24 +239,24 @@ public class ControlActividadUI : MonoBehaviour
             flujo.MostrarTutorialActividad(tipo);
     }
 
-    //Un solo botón para las dos funciones: la primera vez lanza la actividad real; una vez lanzada,
-    //el mismo botón (ya renombrado a "Continuar") avanza a la siguiente actividad de la cola.
+    //Un solo botón que lleva la actividad por sus momentos: lanza la actividad pre, pasa al tutorial,
+    //lanza la actividad post (si el tutorial no se puede terminar) y, al final, avanza a la siguiente actividad.
     public void OnComenzarOContinuarPresionado()
     {
-        if (!_actividadLanzada)
+        GameFlowManager flujo = GameFlowManager.Instance;
+        if (flujo == null || !(flujo.ActividadActual is ActivityType tipo)) return;
+
+        switch (EtapaActual())
         {
-            GameFlowManager flujo = GameFlowManager.Instance;
-            if (flujo == null || !(flujo.ActividadActual is ActivityType tipo)) return;
+            case Etapa.Menu:
+            case Etapa.Tutorial:
+                flujo.LanzarActividadDirecta(tipo);
+                return;
 
-            //Se marca antes de lanzar, porque el cambio de fase a "Actividad" llega en este mismo clic
-            //(AlCambiarEstadoSesion) y así no se suscribe dos veces al manager.
-            _actividadLanzada = true;
-            ActualizarTextoComenzar();
-            flujo.LanzarActividadDirecta(tipo);
-
-            if (_esperaManager == null)
-                _esperaManager = StartCoroutine(EsperarManagerYSuscribir());
-            return;
+            //La actividad pre es solo para medir la postura inicial: se pasa al tutorial sin exigir la meta.
+            case Etapa.ActividadPre:
+                flujo.MostrarTutorialActividad(tipo);
+                return;
         }
 
         bool condicionCumplida = ActivityManagerBase.Current == null
@@ -222,6 +293,7 @@ public class ControlActividadUI : MonoBehaviour
     private void Avanzar()
     {
         //Mientras carga la siguiente actividad se bloquea el botón, para que un doble clic no salte una actividad.
+        _avanzando = true;
         if (comenzarButton != null) comenzarButton.interactable = false;
         DesuscribirseDelManager();
         GameFlowManager.Instance?.ContinuarConSiguienteActividad();

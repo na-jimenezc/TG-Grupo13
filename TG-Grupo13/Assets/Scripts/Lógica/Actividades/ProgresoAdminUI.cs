@@ -132,13 +132,14 @@ public class ProgresoAdminUI : MonoBehaviour
                 break;
 
             case FaseSesion.Actividad:
-                _faseText.text = $"{encabezado}  |  Actividad en curso";
-                MostrarActividad(ActivityManagerBase.Current);
+                bool post = flujo.TutorialVistoEnActividadActual;
+                _faseText.text = $"{encabezado}  |  Actividad {(post ? "post (después del tutorial)" : "pre (antes del tutorial)")}";
+                MostrarActividad(ActivityManagerBase.Current, post);
                 break;
 
             default:
                 _faseText.text = $"{encabezado}  |  Menú de la actividad";
-                _detalleText.text = "El usuario está viendo el menú de la actividad.\nElija \"Tutorial\" o \"Comenzar\".";
+                _detalleText.text = "El usuario está viendo el menú de la actividad.\nPresione \"Comenzar\" para la actividad pre (antes del tutorial).";
                 _barra.SetActive(false);
                 break;
         }
@@ -159,7 +160,7 @@ public class ProgresoAdminUI : MonoBehaviour
         PonerBarra((float)paso / tutorial.TotalPasos, colorActual);
     }
 
-    private void MostrarActividad(IActivityManager manager)
+    private void MostrarActividad(IActivityManager manager, bool post)
     {
         if (manager == null)
         {
@@ -168,8 +169,9 @@ public class ProgresoAdminUI : MonoBehaviour
             return;
         }
 
+        string siguientePaso = post ? "\"Continuar\"" : "\"Ir al tutorial\"";
         _detalleText.text = manager.ActividadCompletada
-            ? $"{manager.ResumenProgreso}\nMeta cumplida: puede presionar \"Continuar\"."
+            ? $"{manager.ResumenProgreso}\nMeta cumplida: puede presionar {siguientePaso}."
             : manager.ResumenProgreso;
         PonerBarra(manager.FraccionProgreso, manager.ActividadCompletada ? colorCompletada : colorActual);
     }

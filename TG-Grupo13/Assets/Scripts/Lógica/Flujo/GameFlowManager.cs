@@ -75,6 +75,10 @@ public class GameFlowManager : MonoBehaviour
     public IReadOnlyList<ActivityType> ActividadesSesion => _actividadesSesion;
     public int IndiceActividadActual { get; private set; } = -1;
 
+    //Cada actividad se hace antes (pre) y después (post) de su tutorial, para comparar la postura.
+    //true cuando ya se mostró el tutorial de la actividad actual: la siguiente vez que se lance es la "post".
+    public bool TutorialVistoEnActividadActual { get; private set; }
+
     public FaseSesion Fase { get; private set; } = FaseSesion.SinSesion;
     //Se dispara cada vez que cambia la fase o la actividad actual (lo escucha el panel del Game Master).
     public event Action OnEstadoCambiado;
@@ -220,6 +224,7 @@ public class GameFlowManager : MonoBehaviour
         _actividadActual = siguiente;
         _escenaActividadActual = NombreEscenaParaActividad(siguiente);
         IndiceActividadActual++;
+        TutorialVistoEnActividadActual = false;
         CambiarFase(FaseSesion.MenuActividad);
 
         yield return CargarEscenaAditiva(_escenaActividadActual);
@@ -266,10 +271,12 @@ public class GameFlowManager : MonoBehaviour
         };
     }
 
-    //Llamado por el Menú de cada actividad (MenuSiembraUI/MenuDeshierbeUI/MenuCorteUI) al presionar "Tutorial"
-    //en el panel de control del Game Master. Descarga el Menú de la actividad y muestra su Tutorial.
+    //Llamado desde el panel de control del Game Master ("Ir al tutorial") al terminar la actividad pre.
+    //Descarga la actividad pre y muestra el Tutorial; al terminarlo, este lanza la actividad post.
     public void MostrarTutorialActividad(ActivityType tipo)
     {
+        //Se marca antes del cambio de fase, para que quienes escuchan OnEstadoCambiado ya vean que la próxima actividad es la post.
+        TutorialVistoEnActividadActual = true;
         StartCoroutine(RutinaMostrarContenidoActividad(NombreEscenaTutorial(tipo), FaseSesion.Tutorial));
     }
 
@@ -461,6 +468,7 @@ public class GameFlowManager : MonoBehaviour
         _escenaContenidoActual = null;
         _actividadesSesion.Clear();
         IndiceActividadActual = -1;
+        TutorialVistoEnActividadActual = false;
         CambiarFase(FaseSesion.SinSesion);
 
         if (waitScreenCanvas != null)
