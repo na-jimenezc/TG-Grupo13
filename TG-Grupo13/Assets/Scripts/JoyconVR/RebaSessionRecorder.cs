@@ -1043,10 +1043,8 @@ namespace PujJoycon
         // Prueba sin GameFlowManager y overlay
         // ------------------------------------------------------------------
 
-        // Se puede grabar a mano en la escena de prueba o en Core mientras no haya una sesión en curso
-        // (así se prueba con el visor, con el espejo de la sala de espera, sin crear participantes).
-        private bool PuedeGrabarPrueba =>
-            _manual || GameFlowManager.Instance == null || (!GameFlowManager.Instance.simulacionEnCurso && !_active);
+        // Se graba a mano solo en la escena de prueba (sin GameFlowManager).
+        private bool PuedeGrabarPrueba => _manual || GameFlowManager.Instance == null;
 
         /// <summary>Escena de prueba: empieza (si hace falta) y graba el momento dado de actividadPrueba.</summary>
         public void GrabarPrueba(string condicion)
@@ -1082,11 +1080,8 @@ namespace PujJoycon
         private void OnGUI()
         {
             if (!showOverlay) return;
-            var flow = GameFlowManager.Instance;
-            bool inTutorial = flow != null && !_manual && _active && flow.Fase == FaseSesion.Tutorial && flow.ActividadActual != null;
-
             bool pending = EsperandoCalibracion;
-            float w = 420, h = 90 + (inTutorial ? 60 : 0) + (pending ? 60 : 0);
+            float w = 420, h = (PuedeGrabarPrueba ? 90 : 62) + (pending ? 40 : 0);
             float x = Screen.width - w - 10, y = Screen.height - h - 10;
             GUILayout.BeginArea(new Rect(x, y, w, h), GUI.skin.box);
             if (pending)
@@ -1110,18 +1105,8 @@ namespace PujJoycon
                 EndPending($"{MomentoPendiente}: cuenta SIN recalibrar (decisión del Game Master)");
             }
 
-            // El tutorial lanza solo la actividad (post) al terminar. Si no se puede terminar, se lanza desde aquí
-            // (o con "Saltar a la actividad" en el panel del Game Master).
-            if (inTutorial)
-            {
-                GUILayout.Label("Tutorial: al terminar se lanza la actividad POST.");
-                if (GUILayout.Button($"Terminar tutorial → {flow.ActividadActual} POST", GUILayout.Height(30)))
-                {
-                    LogEvent("tutorial_terminado_a_mano", $"{flow.ActividadActual}");
-                    flow.LanzarActividadDirecta(flow.ActividadActual.Value);
-                }
-            }
-
+            // Botones de prueba: solo en la escena de prueba (sin GameFlowManager). En Core el flujo lo lleva
+            // el panel del Game Master.
             if (PuedeGrabarPrueba)
             {
                 GUILayout.BeginHorizontal();

@@ -64,6 +64,14 @@ namespace PujJoycon
                  "calibrar). Evita que, al caminar o inclinarse, el tronco o los hombros del avatar queden delante " +
                  "de los ojos y se vea todo gris. Si está activo, manda sobre 'Pies en el piso'.")]
         [SerializeField] private bool keepHeadAtCamera = true;
+        [Tooltip("El pie de apoyo se queda quieto en el piso y la cadera se mueve sobre él (p. ej. al sacar la cadera " +
+                 "a un lado, se mueve la cadera y no los pies). La cabeza puede separarse de la cámara hasta " +
+                 "'Max Separacion Cabeza'; si hace falta más (al caminar), el pie de apoyo se suelta y sigue a la persona.")]
+        [SerializeField] private bool anclarPies = true;
+        [Tooltip("Metros que la cabeza del avatar puede separarse de la cámara para mantener los pies quietos.")]
+        [SerializeField, Range(0f, 0.3f)] private float maxSeparacionCabeza = 0.10f;
+        [Tooltip("Metros que el otro pie debe estar más abajo para pasar a ser el pie de apoyo (evita saltos).")]
+        [SerializeField, Range(0f, 0.1f)] private float histeresisPie = 0.03f;
 
         [Header("Pies en el piso (solo sin visor, o con 'Cabeza en la cámara' apagado)")]
         [Tooltip("Sube o baja todo el avatar para que el pie más bajo quede en el piso (la altura de los pies al " +
@@ -109,6 +117,10 @@ namespace PujJoycon
         private Quaternion _headLocalRest, _headOffset;
         private bool _headOffsetValid;
         private Vector3 _headPositionInCamera; // dónde va el hueso de la cabeza respecto al visor (tomado al calibrar)
+
+        // Pies anclados: pie de apoyo y dónde está fijo en el piso (solo X y Z).
+        private Transform _pieApoyo;
+        private Vector3 _ancla;
 
         // Manos: igual que la cabeza, solo se fuerzan si Meta las reescribió este frame (su rotación local
         // cambió respecto a la que dejamos); si no, se acumularía el mismo error.
@@ -213,6 +225,7 @@ namespace PujJoycon
 
             _hipsTracked0 = TrackedHipsRotation();
             _hipsBone0 = _hipsTracked0;
+            _pieApoyo = null; // el pie de apoyo se vuelve a elegir con la postura nueva
 
             // Cabeza derecha sobre el cuello (postura de reposo del modelo), mirando a donde mira el visor.
             // Se usa el reposo y no la rotación actual del hueso, que pudo quedar torcida.
@@ -312,8 +325,10 @@ namespace PujJoycon
             // Antes de apuntar los antebrazos: mover la cadera mueve los codos.
             if (keepHeadAtCamera && _headOffsetValid)
             {
-                // Todo el cuerpo se corre para que la cabeza quede en el visor (manda sobre los pies en el piso).
+                // Todo el cuerpo se corre para que la cabeza quede en el visor (manda sobre los pies en el piso)...
                 _hips.position += headReference.TransformPoint(_headPositionInCamera) - _head.position;
+                // ...y, si se pide, el pie de apoyo se mantiene quieto moviendo la cadera (dentro de un margen).
+                if (anclarPies) AnclarPieDeApoyo();
                 _groundApplied = false;
             }
             else if (groundFeet) GroundFeet();
@@ -458,6 +473,36 @@ namespace PujJoycon
             Vector3 derecha = Vector3.Cross(Vector3.up, frente);
             float lado = izquierdo ? -1f : 1f;
             return Vector3.down - 0.5f * frente + 0.4f * lado * derecha;
+        }
+
+        // El pie de apoyo (el más bajo, con histéresis) se queda donde estaba en el piso: se corre la cadera en
+        // horizontal para devolverlo a su ancla. Así, si la persona saca la cadera a un lado, en el avatar se
+        // mueve la cadera y no los pies. La corrección está limitada para que la cabeza no se aleje de la cámara
+        // (eso metía la cámara dentro del cuerpo); si no alcanza (al caminar), el ancla sigue al pie.
+        private void AnclarPieDeApoyo()
+        {
+            if (_leftFoot == null || _rightFoot == null) return;
+
+            Transform otro = _pieApoyo == _leftFoot ? _rightFoot : _leftFoot;
+            bool cambia = _pieApoyo == null || otro.position.y < _pieApoyo.position.y - histeresisPie;
+            if (cambia)
+            {
+                _pieApoyo = _pieApoyo == null ? (_leftFoot.position.y <= _rightFoot.position.y ? _leftFoot : _rightFoot) : otro;
+                _ancla = _pieApoyo.position;
+                return;
+            }
+
+            Vector3 desliz = _ancla - _pieApoyo.position;
+            desliz.y = 0f;
+            Vector3 correccion = Vector3.ClampMagnitude(desliz, maxSeparacionCabeza);
+            _hips.position += correccion;
+
+            // Lo que no se pudo corregir: el pie se deja ir y el ancla queda donde está ahora.
+            if (desliz.sqrMagnitude > correccion.sqrMagnitude + 1e-8f)
+            {
+                Vector3 pie = _pieApoyo.position;
+                _ancla = new Vector3(pie.x, _ancla.y, pie.z);
+            }
         }
 
         private float LowestFootY()
