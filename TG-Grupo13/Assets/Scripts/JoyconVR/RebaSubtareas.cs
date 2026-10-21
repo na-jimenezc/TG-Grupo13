@@ -5,10 +5,12 @@
 // tres momentos, así "Cavar hueco" significa lo mismo antes, durante y después del tutorial:
 //
 //   1. Lo que tiene en la mano (Grabbable de Meta) dice qué está haciendo:
-//        Siembra   canasta -> Esparcir bulbos · pala -> Cavar hueco · bulbo -> Sembrar bulbo
+//        Siembra   bulbo -> Sembrar bulbo · canasta -> Esparcir bulbos
+//                  pala junto a un hueco sin cavar -> Cavar hueco (llevar la pala no es cavar);
+//                  pala en una mano y la otra cerca de un bulbo -> Tomar bulbo
 //        Deshierbe ortiga aún en la tierra -> Arrancar ortiga · ortiga ya arrancada -> Dejar ortiga
-//        Corte     tijeras -> Cortar tallo / Deshojar tallo / Cortar parejo (según los avisos de los objetos)
-//                  capuchón -> Armar ramo · ramo terminado -> Depositar ramo
+//        Corte     tijeras junto a un tallo plantado -> Cortar tallo; luego, según los avisos de los objetos,
+//                  Deshojar tallo / Cortar parejo · capuchón -> Armar ramo · ramo terminado -> Depositar ramo
 //   2. Si no tiene nada de eso pero una mano está cerca (distanciaTomar) de un objeto que se puede agarrar:
 //        Tomar canasta / Tomar pala / Tomar bulbo / Tomar bolsa / Tomar ortiga / Tomar tijeras
 //   3. Si no: "" (sin tarea: camina hacia la siguiente planta, mira alrededor...).
@@ -39,10 +41,14 @@ namespace PujJoycon
 
         [Tooltip("Distancia (m) de una mano a un objeto para considerar que lo está tomando.")]
         [SerializeField] private float distanciaTomar = 0.5f;
+        [Tooltip("Distancia (m) de la herramienta (pala, tijeras) a un hueco o tallo para considerar que lo está trabajando.")]
+        [SerializeField] private float distanciaHerramienta = 0.35f;
         [Tooltip("Cada cuánto se vuelven a buscar los objetos de la actividad (aparecen bulbos nuevos al esparcir).")]
         [SerializeField] private float segundosEntreBusquedas = 1f;
 
         private readonly List<(Component objeto, Grabbable agarre)> _objetos = new List<(Component, Grabbable)>();
+        private readonly List<PlantingSlot> _huecos = new List<PlantingSlot>();
+        private readonly List<TalloEnPlantacion> _tallos = new List<TalloEnPlantacion>();
         private float _proximaBusqueda;
         private string _faseCorte = CortarTallo;
         private Transform _manoIzq, _manoDer;
@@ -131,9 +137,26 @@ namespace PujJoycon
         private string SubtareaSiembra()
         {
             if (Agarrado<Bulbo>(out _)) return "Sembrar bulbo";
-            if (Agarrado<Pala>(out _)) return "Cavar hueco";
             if (Agarrado<Canasta>(out _)) return "Esparcir bulbos";
-            return Cercano(("Tomar bulbo", typeof(Bulbo)), ("Tomar pala", typeof(Pala)), ("Tomar canasta", typeof(Canasta)));
+            string tomar = Cercano(("Tomar bulbo", typeof(Bulbo)), ("Tomar pala", typeof(Pala)), ("Tomar canasta", typeof(Canasta)));
+            if (Agarrado<Pala>(out var pala))
+            {
+                // Tener la pala no es cavar: solo cuenta como "Cavar hueco" junto a un hueco sin cavar.
+                // Con la pala en una mano y la otra cerca de un bulbo, está recogiendo el bulbo.
+                if (tomar == "Tomar bulbo") return tomar;
+                return CercaDeHuecoSinCavar(pala) ? "Cavar hueco" : "";
+            }
+            return tomar;
+        }
+
+        private bool CercaDeHuecoSinCavar(Component pala)
+        {
+            foreach (var hueco in _huecos)
+            {
+                if (hueco != null && hueco.Estado == EstadoSlot.Vacio && Distancia(pala, hueco.transform.position) <= distanciaHerramienta)
+                    return true;
+            }
+            return false;
         }
 
         private string SubtareaDeshierbe()
@@ -146,8 +169,42 @@ namespace PujJoycon
         {
             if (Agarrado<RamoTerminado>(out _)) return DepositarRamo;
             if (Agarrado<Capuchon>(out _)) return ArmarRamo;
-            if (Agarrado<Tijeras>(out _)) return _faseCorte;
+            if (Agarrado<Tijeras>(out var tijeras))
+            {
+                // Tener las tijeras no es cortar: "Cortar tallo" solo junto a un tallo plantado.
+                if (_faseCorte != CortarTallo) return _faseCorte;
+                return CercaDeTallo(tijeras) ? CortarTallo : "";
+            }
             return Cercano(("Tomar tijeras", typeof(Tijeras)), (DepositarRamo, typeof(RamoTerminado)), (ArmarRamo, typeof(Capuchon)));
+        }
+
+        private bool CercaDeTallo(Component tijeras)
+        {
+            Vector3 centro = Centro(tijeras);
+            foreach (var tallo in _tallos)
+            {
+                if (tallo != null && tallo.isActiveAndEnabled && Distancia(tallo, centro) <= distanciaHerramienta) return true;
+            }
+            return false;
+        }
+
+        // Distancia de un punto al objeto (a sus colliders si tiene; si no, a su posición).
+        private static float Distancia(Component objeto, Vector3 punto)
+        {
+            float mejor = float.MaxValue;
+            foreach (var c in objeto.GetComponentsInChildren<Collider>())
+            {
+                if (!c.enabled) continue;
+                mejor = Mathf.Min(mejor, Vector3.Distance(c.bounds.ClosestPoint(punto), punto));
+            }
+            return mejor < float.MaxValue ? mejor : Vector3.Distance(objeto.transform.position, punto);
+        }
+
+        private static Vector3 Centro(Component objeto)
+        {
+            foreach (var c in objeto.GetComponentsInChildren<Collider>())
+                if (c.enabled) return c.bounds.center;
+            return objeto.transform.position;
         }
 
         private bool Agarrado<T>(out T objeto) where T : Component
@@ -221,6 +278,11 @@ namespace PujJoycon
             Buscar<Tijeras>();
             Buscar<Capuchon>();
             Buscar<RamoTerminado>();
+
+            _huecos.Clear();
+            _huecos.AddRange(FindObjectsByType<PlantingSlot>(FindObjectsSortMode.None));
+            _tallos.Clear();
+            _tallos.AddRange(FindObjectsByType<TalloEnPlantacion>(FindObjectsSortMode.None));
         }
 
         private void Buscar<T>() where T : Component
