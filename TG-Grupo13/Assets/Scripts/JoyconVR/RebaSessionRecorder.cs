@@ -22,9 +22,10 @@
 //   calibrando              la persona está en postura N para la recalibración
 //   esperando recalibración el momento ya empezó pero el Game Master aún no hizo su recalibración
 //                           rápida (se graba igual, para no perder nunca un momento)
-//   sin tarea               no está haciendo ninguna subtarea (camina hacia la siguiente planta,
-//                           mira alrededor...)
-//   caminando          el visor se mueve en horizontal a más de umbralCaminando
+//   sin tarea               no está haciendo ninguna subtarea. Solo si excluirSinTarea está activo
+//                           (apagado por defecto: en el pre simulado no se tocan objetos, así que casi
+//                           todo saldría "sin tarea"; la columna subtarea se llena igual)
+//   caminando         el visor se mueve en horizontal a más de umbralCaminando
 //   mirando a un lado  la cabeza está girada más de umbralCabezaGirada respecto al tronco, solo en
 //                      el tutorial (leyendo instrucciones o mirando los maniquíes)
 // El resumen trae el REBA de todo el tiempo (_total) y el del tiempo que cuenta (el resto).
@@ -108,6 +109,9 @@ namespace PujJoycon
         [SerializeField] private float calibracionReciente = 90f;
 
         [Header("Qué muestras cuentan para el análisis")]
+        [Tooltip("Excluir las muestras sin subtarea detectada. Apagado: en el pre la actividad se simula sin " +
+                 "objetos y casi todo saldría 'sin tarea'; así cuentan con la misma regla en pre, tutorial y post.")]
+        [SerializeField] private bool excluirSinTarea = false;
         [Tooltip("Velocidad horizontal del visor (m/s) desde la que se considera que la persona camina.")]
         [SerializeField] private float umbralCaminando = 0.4f;
         [Tooltip("Giro de la cabeza respecto al tronco (grados) desde el que se considera que mira a un lado.")]
@@ -595,7 +599,7 @@ namespace PujJoycon
             string motivo = "";
             if (calibrator != null && calibrator.IsCalibrating) motivo = "calibrando";
             else if (_pending) motivo = "esperando recalibración";
-            else if (subtarea == SinTarea && !_manual) motivo = SinTarea;
+            else if (excluirSinTarea && subtarea == SinTarea && !_manual) motivo = SinTarea;
             else if (HeadSpeed() > umbralCaminando) motivo = "caminando";
             // Leer instrucciones a un lado solo pasa en el tutorial (las actividades no tienen panel de instrucciones):
             // en pre y post mirar a los lados es parte del trabajo y cuenta igual en los dos.
@@ -984,6 +988,9 @@ namespace PujJoycon
             public bool grabarTutorial;
             public float umbralCaminandoMs, umbralCabezaGiradaGrados;
             public bool mirandoALadoSoloEnTutorial;
+            public bool excluirSinTarea;
+            // true desde que visor y brazos se miden sin el giro del joystick (sesiones anteriores no lo traen).
+            public bool cabezaYBrazosSinGiroDeJoystick;
             public RebaThresholds umbrales;
             public float gravedadArribaY;
             public int suavizadoMuestras;
@@ -1010,6 +1017,8 @@ namespace PujJoycon
                 umbralCaminandoMs = umbralCaminando,
                 umbralCabezaGiradaGrados = umbralCabezaGirada,
                 mirandoALadoSoloEnTutorial = mirandoALadoSoloEnTutorial,
+                excluirSinTarea = excluirSinTarea,
+                cabezaYBrazosSinGiroDeJoystick = true,
                 umbrales = estimator != null ? estimator.Thresholds : null,
                 gravedadArribaY = estimator != null ? estimator.GravityUpY : 0f,
                 suavizadoMuestras = receiver != null ? receiver.SmoothingSamples : 0,
