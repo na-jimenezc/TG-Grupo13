@@ -4,11 +4,9 @@ using UnityEngine.SceneManagement;
 
 /*Evita que el jugador "vuele" o se hunda (mareo) al agacharse a recoger objetos.
  *
- * 1. Objetos fuera de la cápsula: el "cuerpo" físico del jugador en el rig de Meta (Locomotor -> CharacterController)
- *    es una cápsula que choca con Default, TransparentFX, Ignore Raycast y Water, y que se sube a lo que mida hasta
- *    30 cm (_maxStep). Los objetos de las actividades estaban en Default: la cápsula se subía a ellos y la cámara subía.
- *    Aquí lo que se puede agarrar pasa a la capa "Jugador", que choca con el piso, las manos y los demás objetos (la
- *    física y los agarres siguen igual), pero que la cápsula ignora.
+ * 1. (APAGADO) Objetos fuera de la cápsula: pasar los objetos agarrables a la capa "Jugador" para que la cápsula del
+ *    rig de Meta no se suba a ellos. Se probó y hacía que las herramientas empujaran los bulbos y los tallos, así que
+ *    queda desactivado (moverObjetosDeCapa = false). La altura fija resuelve el problema sin tocar los objetos.
  *
  * 2. Altura fija: los pisos de las actividades son planos, así que el rig nunca necesita subir ni bajar. Si algo lo
  *    mueve en vertical (lo que sea), se devuelve a la altura del piso antes de dibujar la imagen. La altura se toma
@@ -26,6 +24,8 @@ public class ObjetosFueraDeLaCapsula : MonoBehaviour
 
     [Tooltip("Mantener el rig a la altura del piso (sin subir ni bajar).")]
     [SerializeField] private bool fijarAltura = true;
+    [Tooltip("Pasar los objetos agarrables a la capa Jugador. APAGADO: hacía que las herramientas empujaran los bulbos y tallos.")]
+    [SerializeField] private bool moverObjetosDeCapa = false;
     [Tooltip("Segundos después de cargar una escena para tomar la altura del piso (el rig ya se acomodó).")]
     [SerializeField] private float esperaTomarAltura = 1.5f;
     [Tooltip("Correcciones más pequeñas que esto (m) no se anotan en el diagnóstico.")]
@@ -78,11 +78,10 @@ public class ObjetosFueraDeLaCapsula : MonoBehaviour
 
     private void Update()
     {
-        if (_capa < 0 || Time.unscaledTime < _proxima) return;
+        // Cambiar de capa los objetos hacía que las herramientas (pala, tijeras) empujaran los bulbos y los tallos
+        // ("se repelían"). Queda apagado: la altura fija (abajo) ya evita que el jugador suba o baje.
+        if (!moverObjetosDeCapa || _capa < 0 || Time.unscaledTime < _proxima) return;
         _proxima = Time.unscaledTime + SegundosEntreRevisiones;
-
-        // Solo lo que se puede agarrar (bulbos, canasta, pala, ortigas, bolsa, tijeras, capuchones, ramos...): es lo que
-        // queda suelto en el piso. Los huecos y tallos plantados no se tocan (de eso ya se encarga la altura fija).
         foreach (var agarrable in FindObjectsByType<Grabbable>(FindObjectsSortMode.None)) Mover(agarrable.gameObject);
     }
 

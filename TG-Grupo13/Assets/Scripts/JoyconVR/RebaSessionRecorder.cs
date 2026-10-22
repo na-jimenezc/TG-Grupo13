@@ -25,8 +25,8 @@
 //   sin tarea               no está haciendo ninguna subtarea (camina hacia la siguiente planta,
 //                           mira alrededor...)
 //   caminando          el visor se mueve en horizontal a más de umbralCaminando
-//   mirando a un lado  la cabeza está girada más de umbralCabezaGirada respecto al tronco
-//                      (p. ej. leyendo instrucciones a un lado)
+//   mirando a un lado  la cabeza está girada más de umbralCabezaGirada respecto al tronco, solo en
+//                      el tutorial (leyendo instrucciones o mirando los maniquíes)
 // El resumen trae el REBA de todo el tiempo (_total) y el del tiempo que cuenta (el resto).
 //
 // El momento se etiqueta solo con GameFlowManager.Fase, por actividad:
@@ -112,6 +112,8 @@ namespace PujJoycon
         [SerializeField] private float umbralCaminando = 0.4f;
         [Tooltip("Giro de la cabeza respecto al tronco (grados) desde el que se considera que mira a un lado.")]
         [SerializeField] private float umbralCabezaGirada = 45f;
+        [Tooltip("Excluir 'mirando a un lado' solo en el tutorial (donde hay instrucciones que leer a un lado).")]
+        [SerializeField] private bool mirandoALadoSoloEnTutorial = true;
 
         [Header("Factores de REBA que no miden los sensores (uno por actividad)")]
         [Tooltip("Iguales en pre, tutorial y post. Carga < 5 kg, agarre bueno y sin impactos son fijos.")]
@@ -616,7 +618,10 @@ namespace PujJoycon
             else if (_pending) motivo = "esperando recalibración";
             else if (subtarea == SinTarea && !_manual) motivo = SinTarea;
             else if (HeadSpeed() > umbralCaminando) motivo = "caminando";
-            else if (a.hasNeck && Mathf.Abs(a.neckTwist) > umbralCabezaGirada) motivo = "mirando a un lado";
+            // Leer instrucciones a un lado solo pasa en el tutorial (las actividades no tienen panel de instrucciones):
+            // en pre y post mirar a los lados es parte del trabajo y cuenta igual en los dos.
+            else if (a.hasNeck && Mathf.Abs(a.neckTwist) > umbralCabezaGirada &&
+                     (_tramo.condicion == "tutorial" || !mirandoALadoSoloEnTutorial)) motivo = "mirando a un lado";
             bool cuenta = motivo == "";
 
             WriteSampleRow(now, subtarea, pasoTutorial, acciones, cuenta, motivo);
@@ -999,6 +1004,7 @@ namespace PujJoycon
             public float frecuenciaMuestreo;
             public bool grabarTutorial;
             public float umbralCaminandoMs, umbralCabezaGiradaGrados;
+            public bool mirandoALadoSoloEnTutorial;
             public RebaThresholds umbrales;
             public float gravedadArribaY;
             public int suavizadoMuestras;
@@ -1024,6 +1030,7 @@ namespace PujJoycon
                 grabarTutorial = grabarTutorial,
                 umbralCaminandoMs = umbralCaminando,
                 umbralCabezaGiradaGrados = umbralCabezaGirada,
+                mirandoALadoSoloEnTutorial = mirandoALadoSoloEnTutorial,
                 umbrales = estimator != null ? estimator.Thresholds : null,
                 gravedadArribaY = estimator != null ? estimator.GravityUpY : 0f,
                 suavizadoMuestras = receiver != null ? receiver.SmoothingSamples : 0,
