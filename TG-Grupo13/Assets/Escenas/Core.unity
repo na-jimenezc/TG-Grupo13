@@ -9715,6 +9715,7 @@ MonoBehaviour:
   tituloActividadText: {fileID: 1274132172}
   comenzarButtonTexto: {fileID: 218962087}
   comenzarButton: {fileID: 1514197702}
+  tutorialButton: {fileID: 0}
   indicadorCondicion: {fileID: 843504327}
   colorCondicionCumplida: {r: 0, g: 0.4245283, b: 0.000000025303859, a: 1}
   colorCondicionPendiente: {r: 0.6792453, g: 0, b: 0, a: 1}
@@ -21038,136 +21039,32 @@ MonoBehaviour:
   estimator: {fileID: 1659203175}
   receiver: {fileID: 1659203176}
   calibrator: {fileID: 1659203173}
-  muestrasPorSegundo: 10
+  frecuenciaMuestreo: 5
   grabarTutorial: 1
+  guardarCrudos: 1
   esperarCalibracionParaGrabar: 1
-  factores:
+  calibracionReciente: 90
+  umbralCaminando: 0.4
+  umbralCabezaGirada: 45
+  factoresPorActividad:
   - actividad: 0
-    condicion: 0
-    cargaKg: 0
-    impactoOFuerzaBrusca: 0
-    agarre: 0
     hombroElevado: 0
     brazoApoyadoOAFavorDeGravedad: 0
     partesEstaticas: 0
     movimientosRepetitivos: 0
     cambiosPosturalesOInestables: 0
-    troncoRotacionOInclinacion: 0
-    cuelloTorsionOInclinacion: 0
-    brazoRotado: 0
-    munecaTorsionODesviacion: 0
-  - actividad: 0
-    condicion: 1
-    cargaKg: 0
-    impactoOFuerzaBrusca: 0
-    agarre: 0
-    hombroElevado: 0
-    brazoApoyadoOAFavorDeGravedad: 0
-    partesEstaticas: 0
-    movimientosRepetitivos: 0
-    cambiosPosturalesOInestables: 0
-    troncoRotacionOInclinacion: 0
-    cuelloTorsionOInclinacion: 0
-    brazoRotado: 0
-    munecaTorsionODesviacion: 0
-  - actividad: 0
-    condicion: 2
-    cargaKg: 0
-    impactoOFuerzaBrusca: 0
-    agarre: 0
-    hombroElevado: 0
-    brazoApoyadoOAFavorDeGravedad: 0
-    partesEstaticas: 0
-    movimientosRepetitivos: 0
-    cambiosPosturalesOInestables: 0
-    troncoRotacionOInclinacion: 0
-    cuelloTorsionOInclinacion: 0
-    brazoRotado: 0
-    munecaTorsionODesviacion: 0
   - actividad: 1
-    condicion: 0
-    cargaKg: 0
-    impactoOFuerzaBrusca: 0
-    agarre: 0
     hombroElevado: 0
     brazoApoyadoOAFavorDeGravedad: 0
     partesEstaticas: 0
     movimientosRepetitivos: 0
     cambiosPosturalesOInestables: 0
-    troncoRotacionOInclinacion: 0
-    cuelloTorsionOInclinacion: 0
-    brazoRotado: 0
-    munecaTorsionODesviacion: 0
-  - actividad: 1
-    condicion: 1
-    cargaKg: 0
-    impactoOFuerzaBrusca: 0
-    agarre: 0
-    hombroElevado: 0
-    brazoApoyadoOAFavorDeGravedad: 0
-    partesEstaticas: 0
-    movimientosRepetitivos: 0
-    cambiosPosturalesOInestables: 0
-    troncoRotacionOInclinacion: 0
-    cuelloTorsionOInclinacion: 0
-    brazoRotado: 0
-    munecaTorsionODesviacion: 0
-  - actividad: 1
-    condicion: 2
-    cargaKg: 0
-    impactoOFuerzaBrusca: 0
-    agarre: 0
-    hombroElevado: 0
-    brazoApoyadoOAFavorDeGravedad: 0
-    partesEstaticas: 0
-    movimientosRepetitivos: 0
-    cambiosPosturalesOInestables: 0
-    troncoRotacionOInclinacion: 0
-    cuelloTorsionOInclinacion: 0
-    brazoRotado: 0
-    munecaTorsionODesviacion: 0
   - actividad: 2
-    condicion: 0
-    cargaKg: 0
-    impactoOFuerzaBrusca: 0
-    agarre: 0
     hombroElevado: 0
     brazoApoyadoOAFavorDeGravedad: 0
     partesEstaticas: 0
     movimientosRepetitivos: 0
     cambiosPosturalesOInestables: 0
-    troncoRotacionOInclinacion: 0
-    cuelloTorsionOInclinacion: 0
-    brazoRotado: 0
-    munecaTorsionODesviacion: 0
-  - actividad: 2
-    condicion: 1
-    cargaKg: 0
-    impactoOFuerzaBrusca: 0
-    agarre: 0
-    hombroElevado: 0
-    brazoApoyadoOAFavorDeGravedad: 0
-    partesEstaticas: 0
-    movimientosRepetitivos: 0
-    cambiosPosturalesOInestables: 0
-    troncoRotacionOInclinacion: 0
-    cuelloTorsionOInclinacion: 0
-    brazoRotado: 0
-    munecaTorsionODesviacion: 0
-  - actividad: 2
-    condicion: 2
-    cargaKg: 0
-    impactoOFuerzaBrusca: 0
-    agarre: 0
-    hombroElevado: 0
-    brazoApoyadoOAFavorDeGravedad: 0
-    partesEstaticas: 0
-    movimientosRepetitivos: 0
-    cambiosPosturalesOInestables: 0
-    troncoRotacionOInclinacion: 0
-    cuelloTorsionOInclinacion: 0
-    brazoRotado: 0
-    munecaTorsionODesviacion: 0
   guardarEnHistorial: 1
   actividadPrueba: 0
   participantePruebaId: 0
@@ -21229,6 +21126,15 @@ MonoBehaviour:
   keepHeadFromTracking: 1
   keepHandsFromTracking: 1
   aimForearmsAtTrackedHands: 1
+  driveTorso: 1
+  leftController: {fileID: 0}
+  rightController: {fileID: 0}
+  leftHandOffsetCm: {x: 0, y: 0, z: 0}
+  rightHandOffsetCm: {x: 0, y: 0, z: 0}
+  keepHeadAtCamera: 1
+  groundFeet: 1
+  maxGroundCorrection: 0.25
+  groundSmoothing: 12
 --- !u!114 &1659203175
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -21248,8 +21154,8 @@ MonoBehaviour:
     trackedTransform: {fileID: 0}
     mountingEuler: {x: 0, y: 0, z: 0}
   - segment: 3
-    sensorIndex: 1
-    trackedTransform: {fileID: 0}
+    sensorIndex: -1
+    trackedTransform: {fileID: 232115366}
     mountingEuler: {x: 0, y: 0, z: 0}
   - segment: 9
     sensorIndex: 2
@@ -21264,8 +21170,8 @@ MonoBehaviour:
     trackedTransform: {fileID: 0}
     mountingEuler: {x: 0, y: 0, z: 0}
   - segment: 6
-    sensorIndex: 5
-    trackedTransform: {fileID: 0}
+    sensorIndex: -1
+    trackedTransform: {fileID: 232115339}
     mountingEuler: {x: 0, y: 0, z: 0}
   - segment: 11
     sensorIndex: 6
@@ -21438,7 +21344,7 @@ MonoBehaviour:
   serverHost: 172.20.10.3
   serverPort: 60123
   additionalServers:
-  - host: 172.20.10.2
+  - host: 172.20.10.4
     port: 60123
     sensorOffset: 4
   staleAfterSeconds: 0.5
