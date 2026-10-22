@@ -46,7 +46,7 @@ public class ActualizarPerfilUI : MonoBehaviour
         EtiquetaCampoUI.Etiquetar(edadInput, "Edad *", $"Entre {ValidacionEdad.EDAD_MINIMA} y {ValidacionEdad.EDAD_MAXIMA}");
         ValidacionEdad.Configurar(edadInput);
         EtiquetaCampoUI.Etiquetar(correoInput, "Correo electrónico", "Ej: ana@correo.com");
-        EtiquetaCampoUI.Etiquetar(rolDropdown, "Rol");
+        RolUI.Configurar(rolDropdown);
         EtiquetaCampoUI.Etiquetar(passwordInput, "Nueva contraseña", "Vacío = no cambiar");
         ManoDominanteUI.Configurar(manoDropdown);
     }
@@ -58,9 +58,11 @@ public class ActualizarPerfilUI : MonoBehaviour
     }
 
     //Actualiza la visibilidad del campo de contraseña según el rol seleccionado
+    //La mano dominante solo importa para los participantes, así que a los administradores no se les pregunta.
     void ActualizarVisibilidadPassword()
     {
         passwordInputObject.SetActive(rolDropdown.value == 1);
+        if (manoDropdown != null) manoDropdown.gameObject.SetActive(rolDropdown.value != 1);
     }
 
     //Maneja la lógica de actualización del perfil del usuario

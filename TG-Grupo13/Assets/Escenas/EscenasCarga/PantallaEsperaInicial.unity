@@ -3550,6 +3550,7 @@ MonoBehaviour:
   puntoSpawnMesa: {fileID: 1726000131}
   alturaMinimaAntesDeRecuperar: 0.3
   tiempoAntesDeRecuperar: 2
+  permitirCualquierMano: 1
 --- !u!114 &1726000104
 MonoBehaviour:
   m_ObjectHideFlags: 0

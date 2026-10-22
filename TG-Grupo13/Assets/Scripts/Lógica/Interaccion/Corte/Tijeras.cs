@@ -22,6 +22,11 @@ public class Tijeras : MonoBehaviour
     [SerializeField] private float alturaMinimaAntesDeRecuperar = 0.3f; //Altura mínima antes de que se considere que las tijeras cayeron de la mesa
     [SerializeField] private float tiempoAntesDeRecuperar = 2f; //Tiempo que deben permanecer caídas antes de que se reubiquen en la mesa
 
+    //En la pantalla de espera inicial el jugador explora libremente, así que ahí se corta con el gatillo de cualquier mano
+    [Header("Lateralidad")]
+    [Tooltip("Si está activo, se corta con el gatillo de cualquier mano y no solo con el de la mano dominante del perfil")]
+    [SerializeField] private bool permitirCualquierMano = false;
+
     private Grabbable _grabbable;
     private Rigidbody _rb;
     private TalloEnPlantacion _talloCercano;
@@ -91,8 +96,8 @@ public class Tijeras : MonoBehaviour
         //Lógica de uso mientras están agarradas
         if (_equipadas)
         {
-            //Detectar pulsación del gatillo de la mano dominante para cortar tallos o ramas
-            if (Lateralidad.GatilloDominantePresionado) CortarCercano();
+            //Detectar pulsación del gatillo de la mano dominante (o de cualquiera, si se permite) para cortar tallos o ramas
+            if (GatilloCortePresionado()) CortarCercano();
 
             //Manejo de desenganche del holster con un pequeño retraso
             if (_equipadas && _enHolster)
@@ -130,6 +135,13 @@ public class Tijeras : MonoBehaviour
             CortarCercano();
         }
 #endif
+    }
+
+    private bool GatilloCortePresionado()
+    {
+        if (!permitirCualquierMano) return Lateralidad.GatilloDominantePresionado;
+        return OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, OVRInput.Controller.LTouch) ||
+               OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, OVRInput.Controller.RTouch);
     }
 
     //Se prioriza el corte del tallo, y si no, intenta nivelar el ramo

@@ -28,7 +28,7 @@ public class CrearPerfilUI : MonoBehaviour
         EtiquetaCampoUI.Etiquetar(nombreInput, "Nombre *", "Ej: Ana Gómez");
         EtiquetaCampoUI.Etiquetar(correoInput, "Correo electrónico", "Ej: ana@correo.com");
         EtiquetaCampoUI.Etiquetar(edadInput, "Edad *", $"Entre {ValidacionEdad.EDAD_MINIMA} y {ValidacionEdad.EDAD_MAXIMA}");
-        EtiquetaCampoUI.Etiquetar(rolDropdown, "Rol");
+        RolUI.Configurar(rolDropdown);
         EtiquetaCampoUI.Etiquetar(passwordInput, "Contraseña *", "Contraseña");
         ManoDominanteUI.Configurar(manoDropdown);
         ValidacionEdad.Configurar(edadInput);
@@ -57,10 +57,12 @@ public class CrearPerfilUI : MonoBehaviour
     }
 
     //Actualiza la visibilidad del campo de contraseña según el rol seleccionado. Si es administrador, se muestra; si es usuario normal, se oculta.
+    //La mano dominante solo importa para los participantes, así que a los administradores no se les pregunta.
     void ActualizarVisibilidadPassword()
     {
         bool esAdmin = rolDropdown.value == 1;
         passwordInputObject.SetActive(esAdmin);
+        if (manoDropdown != null) manoDropdown.gameObject.SetActive(!esAdmin);
     }
 
     //Cuando se presiona el botón de crear perfil, se validan los datos ingresados y se crea el usuario si todo es correcto.

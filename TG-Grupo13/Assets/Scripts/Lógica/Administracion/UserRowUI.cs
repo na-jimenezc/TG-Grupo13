@@ -29,13 +29,26 @@ public class UserRowUI : MonoBehaviour
     {
         _usuario = usuario;
         _listaPadre = listaPadre;
-        nombreText.text = usuario.Nombre;
+        //Los administradores no hacen capacitaciones: se marcan y no se les muestra "Más Info" ni "Revisión REBA"
+        //(solo Actualizar, para cambiar la contraseña, y Eliminar).
+        bool esAdmin = usuario.EsAdministrador;
+        nombreText.text = esAdmin ? $"{usuario.Nombre} (admin)" : usuario.Nombre;
 
         //Siempre se limpian los listener anteriores para evitar que se acumulen y luego agrega los nuevos listener para cada botón
 
         masInfoButton.onClick.RemoveAllListeners();
         //Se vincula el botón de más info para que llame al método MostrarInfo del contenedor, pasando el usuario actual
         masInfoButton.onClick.AddListener(() => _listaPadre.MostrarInfo(_usuario));
+        masInfoButton.gameObject.SetActive(!esAdmin);
+
+        //El botón "Revisión REBA" del prefab no tiene campo propio: se busca por su nombre (RevisionREBAButton)
+        Button revisionRebaButton = BuscarBoton("RevisionREBAButton");
+        if (revisionRebaButton != null)
+        {
+            revisionRebaButton.onClick.RemoveAllListeners();
+            revisionRebaButton.onClick.AddListener(() => _listaPadre.MostrarRevisionReba(_usuario));
+            revisionRebaButton.gameObject.SetActive(!esAdmin);
+        }
 
         actualizarButton.onClick.RemoveAllListeners();
         //Se vincula el botón de actualizar para que llame al método MostrarActualizar del contenedor, pasando el usuario actual
@@ -47,6 +60,13 @@ public class UserRowUI : MonoBehaviour
         if (_textoEliminar != null && _textoEliminarOriginal == null) _textoEliminarOriginal = _textoEliminar.text;
         _esperandoConfirmacion = false;
         eliminarButton.onClick.AddListener(OnEliminarPresionado);
+    }
+
+    private Button BuscarBoton(string nombre)
+    {
+        foreach (var boton in GetComponentsInChildren<Button>(true))
+            if (boton.name == nombre) return boton;
+        return null;
     }
 
     private void OnEliminarPresionado()

@@ -75,7 +75,17 @@ public class LateralidadJugador : MonoBehaviour
 
     private static void Reubicar(Transform rol, Transform mano)
     {
-        if (rol == null || mano == null || rol.parent == mano) return;
+        if (rol == null || mano == null) return;
+
+        //Si el anchor de la mano está desactivado, el rol queda apagado con él: lo que se sostiene (tallos, ramo)
+        //no se ve y sus colliders no detectan nada. Se activa para que ambas manos funcionen sin importar el perfil.
+        if (!mano.gameObject.activeSelf)
+        {
+            Debug.LogWarning($"[LateralidadJugador] {mano.name} estaba desactivado; se activa para que {rol.name} funcione.");
+            mano.gameObject.SetActive(true);
+        }
+
+        if (rol.parent == mano) return;
         rol.SetParent(mano, worldPositionStays: false);
         rol.localPosition = Vector3.zero;
         rol.localRotation = Quaternion.identity;
