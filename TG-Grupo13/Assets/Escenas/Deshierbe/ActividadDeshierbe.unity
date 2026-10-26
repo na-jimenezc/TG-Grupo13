@@ -31035,7 +31035,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: af60cc0ef6eaa644baefdf76d050afd7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DeshierbeActivityManager
-  metaOrtigas: 20
+  metaOrtigas: 10
   contadorText: {fileID: 1182300597}
 --- !u!4 &1903309406
 Transform:

@@ -9,7 +9,7 @@ public class SiembraActivityManager : ActivityManagerBase
     public static SiembraActivityManager Instance { get; private set; }
 
     //Meta de plantas a sembrar para completar la actividad
-    [SerializeField] private int metaPlantas = 10;
+    [SerializeField] private int metaPlantas = 5;
     [SerializeField] private TMP_Text contadorText;
 
     //Contador de plantas sembradas hasta el momento

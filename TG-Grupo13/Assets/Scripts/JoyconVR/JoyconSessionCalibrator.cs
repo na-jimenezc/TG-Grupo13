@@ -20,6 +20,11 @@
 // El panel avisa si falta la calibración completa del participante o si hay un
 // momento esperando la recalibración rápida, pero no hace nada por su cuenta.
 //
+// Antes de cada "cero" en postura N revisa con el visor y los controles que la persona
+// tenga las manos abajo a los lados y mire al frente (EsperarPosturaN). Si no, le dice
+// qué corregir y espera; el Game Master ve el motivo y puede "Calibrar igual".
+// Cada revisión queda en eventos.csv ("postura_n").
+//
 // El mensaje se muestra en el TMP_Text asignado; si no hay ninguno, se crea un
 // texto 3D flotando delante de la cámara del visor.
 
@@ -71,6 +76,24 @@ namespace PujJoycon
         [Tooltip("Vuelve a tomar solo el 'cero' en postura N (sin sentadilla: el montaje no cambia). Así lo que " +
                  "se corran los Joy-Cons sobre la piel no se acumula de una actividad a otra.")]
         [SerializeField] private float quickPoseSeconds = 4f;
+
+        [Header("Revisión de la postura N (antes de cada 'cero')")]
+        [Tooltip("Antes de tomar el 'cero' revisa con el visor y los controles que la persona esté en postura N: manos " +
+                 "abajo a los lados y mirando al frente. Si no, le dice qué corregir y espera; el Game Master puede " +
+                 "calibrar igual. En la visita 1, 19 momentos quedaron con los brazos desfasados por calibrar sin postura N.")]
+        [SerializeField] private bool revisarPosturaN = true;
+        [Tooltip("Cada control (mano) al menos esta distancia (m) por debajo de los ojos.")]
+        [SerializeField] private float manosBajoOjosMin = 0.5f;
+        [Tooltip("Cada control a lo sumo esta distancia (m) en horizontal de la cabeza (brazos a los lados, no al frente).")]
+        [SerializeField] private float manosDistanciaHorizontalMax = 0.4f;
+        [Tooltip("Inclinación máxima de la cabeza hacia arriba o hacia abajo (grados).")]
+        [SerializeField] private float cabezaInclinacionMax = 20f;
+        [Tooltip("Segundos seguidos en postura N antes de tomar el 'cero'.")]
+        [SerializeField] private float posturaSostenidaSegundos = 1f;
+
+        private string _problemaPostura = "";
+        private bool _calibrarIgual;
+        private bool _avisoSinControles;
 
         private Coroutine _routine;
         private GameObject _runtimeMessage;
@@ -134,6 +157,7 @@ namespace PujJoycon
             StopCoroutine(_routine);
             _routine = null;
             _step = "";
+            _problemaPostura = "";
             HideMessage();
             Debug.Log("[Joycon] Calibración cancelada por el Game Master.", this);
         }
@@ -165,6 +189,7 @@ namespace PujJoycon
                 ShowMessage($"Recalibración rápida\n\n{poseInstructions}\n\nQuédese quieto: {Mathf.CeilToInt(left)}");
                 yield return null;
             }
+            yield return EsperarPosturaN("Recalibración rápida", "rápida");
             estimator.Calibrate(); // mismo montaje, nuevo "cero" (y nueva postura del avatar)
             if (estimator.IsCalibrated)
             {
@@ -216,6 +241,7 @@ namespace PujJoycon
                 yield return null;
             }
 
+            yield return EsperarPosturaN("Calibración de sensores", "completa, paso 1");
             estimator.Calibrate();
             if (!estimator.IsCalibrated)
             {
@@ -254,6 +280,7 @@ namespace PujJoycon
                         yield return null;
                     }
                     // Nuevo "cero" con el montaje ya calculado (también vuelve a tomar la postura del avatar).
+                    yield return EsperarPosturaN("Último paso: postura inicial", "completa, paso 3");
                     estimator.Calibrate();
                 }
             }
@@ -262,6 +289,98 @@ namespace PujJoycon
             CalibracionesTerminadas++; // también vale como recalibración del momento actual
             UltimaCalibracionFin = Time.unscaledTime;
             yield return Finish("¡Listo! Ya puede moverse.", 2.5f);
+        }
+
+        // ------------------------------------------------------------------
+        // Revisión de la postura N
+        // ------------------------------------------------------------------
+
+        /// <summary>Botón del Game Master: tomar el 'cero' aunque la postura N no se haya podido confirmar.</summary>
+        public void CalibrarIgual() => _calibrarIgual = true;
+
+        // Espera a que la persona esté en postura N (sostenida posturaSostenidaSegundos) antes de tomar el "cero".
+        // Mientras no lo esté, el visor le dice qué corregir y el panel del Game Master muestra por qué espera.
+        private IEnumerator EsperarPosturaN(string titulo, string cual)
+        {
+            if (!revisarPosturaN) yield break;
+            _calibrarIgual = false;
+            float bien = 0f;
+            string ultimo = null, medidas = "";
+            while (true)
+            {
+                string problema = RevisarPosturaN(out string paraPersona, out medidas);
+                if (problema == null)
+                {
+                    bien += Time.unscaledDeltaTime;
+                    if (bien >= posturaSostenidaSegundos) break;
+                }
+                else bien = 0f;
+
+                if (_calibrarIgual)
+                {
+                    _recorder?.RegistrarEvento("postura_n", $"{cual}: calibrada SIN confirmar la postura N ({ultimo ?? problema}) | {medidas}");
+                    _problemaPostura = "";
+                    yield break;
+                }
+
+                if (problema != null)
+                {
+                    ultimo = problema;
+                    _problemaPostura = problema;
+                    ShowMessage($"{titulo}\n\n{paraPersona}\n\n{poseInstructions}");
+                }
+                yield return null;
+            }
+            _problemaPostura = "";
+            _recorder?.RegistrarEvento("postura_n", $"{cual}: OK{(ultimo != null ? $" (antes: {ultimo})" : "")} | {medidas}");
+        }
+
+        // null si está en postura N. Si no, devuelve el problema para el Game Master; paraPersona es el aviso del visor.
+        // Se mide en el espacio del visor (TrackingSpace): no depende del giro con joystick ni de la altura del rig.
+        private string RevisarPosturaN(out string paraPersona, out string medidas)
+        {
+            paraPersona = ""; medidas = "";
+            Transform cabeza = headReference != null ? headReference : (Camera.main != null ? Camera.main.transform : null);
+            Transform espacio = cabeza != null ? cabeza.parent : null;
+            Transform izq = espacio != null ? espacio.Find("LeftHandAnchor") : null;
+            Transform der = espacio != null ? espacio.Find("RightHandAnchor") : null;
+            if (cabeza == null || izq == null || der == null)
+            {
+                if (!_avisoSinControles) Debug.LogWarning("[Joycon] Postura N: no se encontraron el visor y los controles (LeftHandAnchor / RightHandAnchor); no se revisa.", this);
+                _avisoSinControles = true;
+                return null;
+            }
+
+            Vector3 ojos = espacio.InverseTransformPoint(cabeza.position);
+            Vector3 frente = espacio.InverseTransformDirection(cabeza.forward);
+            float inclinacion = Mathf.Asin(Mathf.Clamp(frente.y, -1f, 1f)) * Mathf.Rad2Deg;
+            string Mano(Transform m, string nombre, out float abajo, out float lado)
+            {
+                Vector3 p = espacio.InverseTransformPoint(m.position);
+                abajo = ojos.y - p.y;
+                lado = new Vector2(p.x - ojos.x, p.z - ojos.z).magnitude;
+                if (m.localPosition.sqrMagnitude < 1e-6f) return $"control {nombre} sin seguimiento";
+                if (abajo < manosBajoOjosMin) return $"mano {nombre} muy alta ({abajo:0.00} m bajo los ojos; mínimo {manosBajoOjosMin:0.00})";
+                if (lado > manosDistanciaHorizontalMax) return $"mano {nombre} lejos del cuerpo ({lado:0.00} m; máximo {manosDistanciaHorizontalMax:0.00})";
+                return null;
+            }
+            string pi = Mano(izq, "izquierda", out float ai, out float li);
+            string pd = Mano(der, "derecha", out float ad, out float ld);
+            medidas = $"mano izq. {ai:0.00} m abajo y {li:0.00} m al lado; mano der. {ad:0.00} m abajo y {ld:0.00} m al lado; cabeza {inclinacion:0}°";
+
+            if (pi != null || pd != null)
+            {
+                paraPersona = pi != null && pi.Contains("sin seguimiento") || pd != null && pd.Contains("sin seguimiento")
+                    ? "Mantenga los controles en las manos,\ndonde el visor los vea."
+                    : "Baje los brazos y déjelos\ncolgando a los lados.";
+                return pi ?? pd;
+            }
+            if (Mathf.Abs(inclinacion) > cabezaInclinacionMax)
+            {
+                paraPersona = "Mire al frente, con la cabeza derecha.";
+                return $"cabeza {(inclinacion < 0 ? "hacia abajo" : "hacia arriba")} {Mathf.Abs(inclinacion):0}° (máximo {cabezaInclinacionMax:0})";
+            }
+            return null;
         }
 
         private IEnumerator Finish(string message, float seconds)
@@ -292,7 +411,9 @@ namespace PujJoycon
             }
 
             // Angosto, para no tapar los botones del panel del Game Master (p. ej. "Volver").
-            const float w = 330f, h = 165f;
+            bool esperandoPostura = _routine != null && !string.IsNullOrEmpty(_problemaPostura);
+            const float w = 330f;
+            float h = esperandoPostura ? 230f : 165f;
             GUILayout.BeginArea(new Rect(10, Screen.height - h - 10, w, h), GUI.skin.box);
 
             // Estado de los servidores en una línea (el detalle está en "Diagnóstico").
@@ -313,6 +434,11 @@ namespace PujJoycon
             if (_routine != null)
             {
                 GUILayout.Label($"Calibrando… {_step}", _okStyle);
+                if (esperandoPostura)
+                {
+                    GUILayout.Label($"Esperando la postura N: {_problemaPostura}", _warnStyle);
+                    if (GUILayout.Button("Calibrar igual (no recomendado)", GUILayout.Height(26))) CalibrarIgual();
+                }
                 if (GUILayout.Button("Cancelar calibración", GUILayout.Height(30))) CancelarCalibracion();
                 GUILayout.EndArea();
                 return;

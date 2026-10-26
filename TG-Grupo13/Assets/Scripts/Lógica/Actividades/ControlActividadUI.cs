@@ -201,6 +201,8 @@ public class ControlActividadUI : MonoBehaviour
 
         if (panelConfirmacionAvanceForzado != null)
             panelConfirmacionAvanceForzado.SetActive(false);
+        _accionAlConfirmar = null;
+        _momentoAlConfirmar = null;
 
         if (_esperaManager != null) StopCoroutine(_esperaManager);
         _esperaManager = null;
@@ -253,27 +255,42 @@ public class ControlActividadUI : MonoBehaviour
                 flujo.LanzarActividadDirecta(tipo);
                 return;
 
-            //La actividad pre es solo para medir la postura inicial: se pasa al tutorial sin exigir la meta.
+            //Pre y post se comparan, así que piden la misma cantidad de trabajo (la meta de la actividad): el pre
+            //también exige la meta antes de pasar al tutorial (antes se podía pasar en cualquier momento).
             case Etapa.ActividadPre:
-                flujo.MostrarTutorialActividad(tipo);
+                PedirMetaOAvanzar(() => flujo.MostrarTutorialActividad(tipo), "pre");
                 return;
         }
 
+        PedirMetaOAvanzar(Avanzar, "post");
+    }
+
+    //Si la meta no se cumplió, pide confirmación (mismo panel en pre y post). Si se avanza igual, queda en eventos.csv
+    //de REBA para saber en el análisis qué momentos quedaron incompletos.
+    private System.Action _accionAlConfirmar;
+    private string _momentoAlConfirmar;
+
+    private void PedirMetaOAvanzar(System.Action accion, string momento)
+    {
         bool condicionCumplida = ActivityManagerBase.Current == null
             || ActivityManagerBase.Current.ActividadCompletada;
 
-        if (condicionCumplida)
+        if (!condicionCumplida && panelConfirmacionAvanceForzado != null)
         {
-            Avanzar();
-        }
-        else if (panelConfirmacionAvanceForzado != null)
-        {
+            _accionAlConfirmar = accion;
+            _momentoAlConfirmar = momento;
             panelConfirmacionAvanceForzado.SetActive(true);
+            return;
         }
-        else
-        {
-            Avanzar();
-        }
+        if (!condicionCumplida) RegistrarAvanceSinMeta(momento);
+        accion();
+    }
+
+    private static void RegistrarAvanceSinMeta(string momento)
+    {
+        var grabador = FindAnyObjectByType<PujJoycon.RebaSessionRecorder>();
+        string progreso = ActivityManagerBase.Current != null ? ActivityManagerBase.Current.ResumenProgreso : "";
+        if (grabador != null) grabador.RegistrarEvento("avance_sin_meta", $"{momento}: el Game Master avanzó sin cumplir la meta ({progreso})");
     }
 
     public void OnConfirmarAvanceForzado()
@@ -281,13 +298,19 @@ public class ControlActividadUI : MonoBehaviour
         if (panelConfirmacionAvanceForzado != null)
             panelConfirmacionAvanceForzado.SetActive(false);
 
-        Avanzar();
+        RegistrarAvanceSinMeta(_momentoAlConfirmar ?? "post");
+        var accion = _accionAlConfirmar ?? Avanzar;
+        _accionAlConfirmar = null;
+        _momentoAlConfirmar = null;
+        accion();
     }
 
     public void OnCancelarAvanceForzado()
     {
         if (panelConfirmacionAvanceForzado != null)
             panelConfirmacionAvanceForzado.SetActive(false);
+        _accionAlConfirmar = null;
+        _momentoAlConfirmar = null;
     }
 
     private void Avanzar()

@@ -21154,8 +21154,8 @@ MonoBehaviour:
     trackedTransform: {fileID: 0}
     mountingEuler: {x: 0, y: 0, z: 0}
   - segment: 3
-    sensorIndex: -1
-    trackedTransform: {fileID: 232115366}
+    sensorIndex: 1
+    trackedTransform: {fileID: 0}
     mountingEuler: {x: 0, y: 0, z: 0}
   - segment: 9
     sensorIndex: 2
@@ -21170,8 +21170,8 @@ MonoBehaviour:
     trackedTransform: {fileID: 0}
     mountingEuler: {x: 0, y: 0, z: 0}
   - segment: 6
-    sensorIndex: -1
-    trackedTransform: {fileID: 232115339}
+    sensorIndex: 5
+    trackedTransform: {fileID: 0}
     mountingEuler: {x: 0, y: 0, z: 0}
   - segment: 11
     sensorIndex: 6

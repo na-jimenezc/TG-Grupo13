@@ -8,7 +8,7 @@ public class DeshierbeActivityManager : ActivityManagerBase
     //Singleton instance
     public static DeshierbeActivityManager Instance { get; private set; }
 
-    [SerializeField] private int metaOrtigas = 20; //Cuántas malezas requiere arrancar
+    [SerializeField] private int metaOrtigas = 10; //Cuántas malezas requiere arrancar
     [SerializeField] private TMP_Text contadorText;
 
     //Sobrescribe la evaluación de condición base

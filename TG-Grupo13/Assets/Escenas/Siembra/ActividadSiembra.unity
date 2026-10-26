@@ -18559,7 +18559,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9fda675e12ee3e9429eb16e9e787bfe3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SiembraActivityManager
-  metaPlantas: 10
+  metaPlantas: 5
   contadorText: {fileID: 1733378784}
 --- !u!1 &1782283000
 GameObject:

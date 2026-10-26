@@ -24281,7 +24281,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CorteActivityManager
   tallosParaRamo: 5
-  ramosParaCompletar: 5
+  ramosParaCompletar: 1
   contadorTallosText: {fileID: 484705413}
   contadorRamosText: {fileID: 1590038529}
 --- !u!82 &1830940624

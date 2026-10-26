@@ -6,8 +6,10 @@
 //   muestras.csv  5 filas por segundo mientras hay actividad o tutorial: subtarea, si la muestra
 //                 cuenta para el análisis (y si no, por qué), ángulos clave, puntos de cada parte
 //                 y REBA. Es la tabla para gráficas en el tiempo y análisis por muestra.
-//   crudos.csv    la orientación de cada segmento (cuaternión) en las mismas filas, para poder
-//                 recalcular todo después con otros criterios.
+//   crudos.csv    en las mismas filas, para poder recalcular todo después con otros criterios: la
+//                 orientación de cada segmento (cuaternión, 5 decimales), la orientación cruda de cada
+//                 Joy-Con (sin calibrar), y la posición y orientación del visor y de los dos controles en
+//                 el espacio del visor, más el giro del rig con el joystick.
 //   eventos.csv   calibraciones, cambios de fase, avisos del semáforo, sensores perdidos.
 //   sesion.json   cómo se midió: umbrales, sensores, montajes, factores, criterios de "cuenta".
 //
@@ -699,22 +701,70 @@ namespace PujJoycon
             {
                 r.Add($"pc{s + 1}_recibiendo", receiver != null && s < receiver.ServerCount && receiver.GetServerStatus(s).IsReceiving);
             }
+            // Orientación de cada segmento en el marco del cuerpo (lo que usa REBA), con 5 decimales.
             foreach (BodySegment seg in Enum.GetValues(typeof(BodySegment)))
             {
                 string n = SegmentColumn(seg);
                 bool ok = estimator.TryGetSegment(seg, out var q);
                 r.Add($"{n}_ok", ok);
-                r.Add($"{n}_qx", q.x, ok);
-                r.Add($"{n}_qy", q.y, ok);
-                r.Add($"{n}_qz", q.z, ok);
-                r.Add($"{n}_qw", q.w, ok);
+                AddQuat(r, n, q, ok);
             }
+            // Orientación cruda de cada Joy-Con (sin calibrar): permite volver a calibrar después con otra postura de referencia.
+            for (int i = 0; i < SensoresCrudos; i++)
+            {
+                Quaternion qs = Quaternion.identity;
+                bool ok = receiver != null && receiver.TryGetRotation(i, out qs);
+                r.Add($"joycon{i}_ok", ok);
+                AddQuat(r, $"joycon{i}", qs, ok);
+            }
+            // Visor y controles en el espacio del visor (TrackingSpace), y el giro del rig con el joystick: con esto se
+            // pueden reconstruir los brazos desde los controles si el avatar falla.
+            BuscarRig();
+            AddPose(r, "visor", _rigCabeza);
+            AddPose(r, "control_izq", _rigManoIzq);
+            AddPose(r, "control_der", _rigManoDer);
+            r.Add("rig_giro_grados", _rigEspacio != null ? _rigEspacio.eulerAngles.y : 0f, _rigEspacio != null);
             if (!_rawHeaderWritten)
             {
                 _raw.WriteLine(r.Header(Sep));
                 _rawHeaderWritten = true;
             }
             _raw.WriteLine(r.Values(Sep));
+        }
+
+        private const int SensoresCrudos = 8; // distribución estándar: 4 Joy-Cons por PC, 2 PCs
+        private const int DecimalesCrudos = 5;
+        private Transform _rigEspacio, _rigCabeza, _rigManoIzq, _rigManoDer;
+
+        private static void AddQuat(CsvRow r, string n, Quaternion q, bool ok)
+        {
+            r.Add($"{n}_qx", q.x, ok, DecimalesCrudos);
+            r.Add($"{n}_qy", q.y, ok, DecimalesCrudos);
+            r.Add($"{n}_qz", q.z, ok, DecimalesCrudos);
+            r.Add($"{n}_qw", q.w, ok, DecimalesCrudos);
+        }
+
+        // Posición (m) y orientación de t en el espacio del visor. Vacío si no se encontró.
+        private void AddPose(CsvRow r, string n, Transform t)
+        {
+            bool ok = t != null && _rigEspacio != null;
+            Vector3 p = ok ? _rigEspacio.InverseTransformPoint(t.position) : Vector3.zero;
+            Quaternion q = ok ? Quaternion.Inverse(_rigEspacio.rotation) * t.rotation : Quaternion.identity;
+            r.Add($"{n}_px", p.x, ok, DecimalesCrudos);
+            r.Add($"{n}_py", p.y, ok, DecimalesCrudos);
+            r.Add($"{n}_pz", p.z, ok, DecimalesCrudos);
+            AddQuat(r, n, q, ok);
+        }
+
+        private void BuscarRig()
+        {
+            if (_rigEspacio != null && _rigCabeza != null) return;
+            var cam = Camera.main;
+            if (cam == null || cam.transform.parent == null) return;
+            _rigCabeza = cam.transform;                 // CenterEyeAnchor
+            _rigEspacio = cam.transform.parent;         // TrackingSpace
+            _rigManoIzq = _rigEspacio.Find("LeftHandAnchor");
+            _rigManoDer = _rigEspacio.Find("RightHandAnchor");
         }
 
         private static string SegmentColumn(BodySegment s)

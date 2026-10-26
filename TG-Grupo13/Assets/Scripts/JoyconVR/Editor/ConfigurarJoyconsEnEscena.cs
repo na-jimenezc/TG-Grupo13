@@ -50,15 +50,15 @@ public static class ConfigurarJoyconsEnEscena
         var calibrator = Asegurar<JoyconSessionCalibrator>(joycons);
         ConectarGrabador(joycons, estimator, receiver, calibrator);
 
-        // Cabeza = visor; brazos, antebrazos y manos = huesos del avatar, que mueve Meta con los
-        // controles. Los Joy-Cons de los brazos no se usan: en las pruebas con visor el brazo giraba
-        // sobre su eje y los controles resultaron más precisos. (Si un segmento tiene Tracked
-        // Transform, se usa ese en vez de su Joy-Con.)
+        // Cabeza = visor; brazos = Joy-Cons (sensores 1 y 5); antebrazos y manos = huesos del avatar, que
+        // sigue a los controles. (Si un segmento tiene Tracked Transform, se usa ese en vez de su Joy-Con.)
+        // Visita 1: los brazos salieron del avatar y en 19 momentos quedaron desfasados (el avatar los
+        // estiraba hacia el control y dependían de la postura al calibrar). Con Joy-Con, el brazo se mide
+        // contra el Joy-Con del tronco, sin pasar por el avatar. El avatar sigue igual a la vista: el IK de
+        // ReachHand ubica el codo para que la mano llegue al control.
         var rastreados = new Dictionary<BodySegment, Transform>
         {
             { BodySegment.Head, cabeza },
-            { BodySegment.UpperArmLeft, avatar.GetBoneTransform(HumanBodyBones.LeftUpperArm) },
-            { BodySegment.UpperArmRight, avatar.GetBoneTransform(HumanBodyBones.RightUpperArm) },
             { BodySegment.ForearmLeft, avatar.GetBoneTransform(HumanBodyBones.LeftLowerArm) },
             { BodySegment.HandLeft, avatar.GetBoneTransform(HumanBodyBones.LeftHand) },
             { BodySegment.ForearmRight, avatar.GetBoneTransform(HumanBodyBones.RightLowerArm) },
@@ -95,6 +95,7 @@ public static class ConfigurarJoyconsEnEscena
             $"Se configuró 'Joycons' en {escena.name}:\n" +
             $"  - avatar: {avatar.name}\n" +
             $"  - cabeza (visor): {cabeza.name}\n" +
+            "  - brazos: Joy-Cons 1 (izquierdo) y 5 (derecho)\n" +
             "  - antebrazos y manos: desde los controles (a través del avatar)\n" +
             "  - 8 Joy-Cons con la distribución estándar:\n" + DistribucionTexto + "\n\n" +
             "Falta:\n" +

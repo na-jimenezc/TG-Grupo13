@@ -10,7 +10,7 @@ public class CorteActivityManager : ActivityManagerBase
 
     [Header("Metas")]
     [SerializeField] private int tallosParaRamo = 5; //Tallos que se necesitan para completar un ramo
-    [SerializeField] private int ramosParaCompletar = 5;  //Ramos que se necesitan para completar la actividad
+    [SerializeField] private int ramosParaCompletar = 1;  //Ramos que se necesitan para completar la actividad
     [SerializeField] private TMP_Text contadorTallosText;
     [SerializeField] private TMP_Text contadorRamosText;
 
