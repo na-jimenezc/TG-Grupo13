@@ -103,6 +103,12 @@ namespace PujJoycon
                  "se usa el Transform del segmento Head. Lo necesitan las fuentes rastreadas (visor, controles).")]
         [SerializeField] private Transform bodyForwardReference;
 
+        [Tooltip("Espacio del visor (TrackingSpace, padre de CenterEyeAnchor). Si está vacío se toma solo. " +
+                 "Cuando la persona gira con el joystick, el rig gira en el mundo pero el cuerpo real no: " +
+                 "las fuentes rastreadas (visor, huesos del avatar) se leen en este espacio para que ese giro " +
+                 "no aparezca como torsión del cuello ni de los brazos frente a los Joy-Cons.")]
+        [SerializeField] private Transform espacioDelRig;
+
         /// <summary>
         /// Distribución de 8 Joy-Cons en 2 PCs (el segundo con sensorOffset 4):
         ///   PC 1: 0 tronco, 1 brazo izq., 2 muslo izq., 3 pierna izq.
@@ -515,7 +521,7 @@ namespace PujJoycon
                 }
             }
             if (reference == null) return Quaternion.identity;
-            Vector3 forward = reference.forward;
+            Vector3 forward = PostureMath.Inverse(RotacionDelRig()) * reference.forward;
             forward.y = 0f;
             return forward.sqrMagnitude < 1e-6f
                 ? Quaternion.identity
@@ -526,11 +532,32 @@ namespace PujJoycon
         {
             if (b.trackedTransform != null)
             {
-                q = b.trackedTransform.rotation;
+                // En el espacio del rig: así el giro con joystick (que no mueve el cuerpo real) no cuenta.
+                q = PostureMath.Inverse(RotacionDelRig()) * b.trackedTransform.rotation;
                 return true;
             }
             q = Quaternion.identity;
             return b.sensorIndex >= 0 && receiver != null && receiver.TryGetRotation(b.sensorIndex, out q);
+        }
+
+        // Rotación del espacio del visor en el mundo (cambia al girar con el joystick).
+        private Quaternion RotacionDelRig()
+        {
+            if (espacioDelRig == null)
+            {
+                Transform cabeza = bodyForwardReference;
+                if (cabeza == null)
+                {
+                    foreach (var b in bindings)
+                    {
+                        if (b.segment == BodySegment.Head && b.trackedTransform != null) cabeza = b.trackedTransform;
+                    }
+                }
+                if (cabeza == null && Camera.main != null) cabeza = Camera.main.transform;
+                if (cabeza == null || cabeza.parent == null) return Quaternion.identity;
+                espacioDelRig = cabeza.parent; // CenterEyeAnchor -> TrackingSpace
+            }
+            return espacioDelRig.rotation;
         }
 
         private bool Has(BodySegment s) => _hasSegment[(int)s];
