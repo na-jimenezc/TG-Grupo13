@@ -5,8 +5,25 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
+/*Qué parte del tutorial se muestra:
+ * Postural: escena de tutorial. Solo maniquíes con la postura correcta (sin modelos de controles ni íconos de botones).
+ * GuiaControles: escena de actividad, en el pre. Solo los controles (texto y modelos 3D de mano + control, sin maniquíes),
+ * para que la persona aprenda a usar el simulador sin que se le enseñe la postura. No aparece en el post.*/
+public enum ModoTutorial { Postural, GuiaControles }
+
 public abstract class TutorialManagerBase : MonoBehaviour
 {
+    [Header("Modo")]
+    [Tooltip("Postural: escena de tutorial (solo maniquíes). GuiaControles: guía del pre en la escena de actividad " +
+             "(solo controles; se oculta en el post). La crea el menú TG-Grupo13 > Agregar guía de controles al pre.")]
+    [SerializeField] protected ModoTutorial modo = ModoTutorial.Postural;
+
+    [Tooltip("Solo en la guía de controles: cuántas veces se pide el gesto en los pasos con contador (aprender el control, no hacer la tarea completa)")]
+    [SerializeField] protected int metaEnGuia = 1;
+
+    [Tooltip("Solo en la guía de controles: lo que se oculta en el post y al terminar la guía (panel de la guía y puntos de los controles)")]
+    [SerializeField] protected GameObject[] ocultarSinGuia;
+
     [Header("Secuencia de pasos")]
     [SerializeField] protected TutorialStepData[] pasos;
 
@@ -41,10 +58,43 @@ public abstract class TutorialManagerBase : MonoBehaviour
     //Contador del paso actual (p. ej. "3/5" bulbos sembrados), vacío si el paso no lleva contador.
     public string ContadorActual { get; private set; } = "";
 
+    protected bool EsGuia => modo == ModoTutorial.GuiaControles;
+
+    //En la guía de controles basta con hacer el gesto unas pocas veces (metaEnGuia); en el tutorial postural se pide la meta completa.
+    protected int Meta(int metaTutorial) => EsGuia ? Mathf.Max(1, metaEnGuia) : metaTutorial;
+
     protected virtual void Start()
     {
+        if (EsGuia)
+        {
+            //La guía solo va en el pre: en el post (ya se vio el tutorial) la escena de actividad queda como siempre.
+            //Sin GameFlowManager (escena abierta a mano para probar) se muestra.
+            var flujo = GameFlowManager.Instance;
+            if (flujo != null && flujo.TutorialVistoEnActividadActual)
+            {
+                OcultarGuia();
+                return;
+            }
+            //No se registra como tutorial Actual: el panel del Game Master y REBA siguen viendo una actividad pre.
+            BuscarObjetosEnEscena();
+            MostrarPaso(0);
+            return;
+        }
+
         Actual = this;
         MostrarPaso(0);
+    }
+
+    //En la guía los objetos de práctica son los de la escena de actividad (algunos aparecen al empezar, como los bulbos):
+    //cada subclase los busca si no están asignados.
+    protected virtual void BuscarObjetosEnEscena() { }
+
+    private void OcultarGuia()
+    {
+        LimpiarPosesAnteriores();
+        if (ocultarSinGuia != null)
+            foreach (var go in ocultarSinGuia) if (go != null) go.SetActive(false);
+        enabled = false;
     }
 
     protected virtual void OnDisable()
@@ -86,8 +136,9 @@ public abstract class TutorialManagerBase : MonoBehaviour
         var paso = pasos[index];
 
         LimpiarPosesAnteriores();
-        InstanciarPoses(paso.prefabsPose);
-        InstanciarControles(paso.prefabsControles);
+        //Tutorial postural: solo maniquíes. Guía del pre: solo controles.
+        if (EsGuia) InstanciarControles(paso.prefabsControles);
+        else InstanciarPoses(paso.prefabsPose);
         ActualizarTextoEIconos(paso);
         DesuscribirEventosDePractica(); // cada subclase implementa qué desuscribir
 
@@ -242,10 +293,14 @@ public abstract class TutorialManagerBase : MonoBehaviour
 
     private void ActualizarTextoEIconos(TutorialStepData paso)
     {
-        textoInstruccion.text = Lateralidad.Formatear(paso.instruccion);
+        string texto = !EsGuia && !string.IsNullOrWhiteSpace(paso.instruccionPostura) ? paso.instruccionPostura : paso.instruccion;
+        if (textoInstruccion != null) textoInstruccion.text = Lateralidad.Formatear(texto);
+        if (iconosBotonUI == null) return;
         for (int i = 0; i < iconosBotonUI.Length; i++)
         {
-            bool hay = paso.iconosBoton != null && i < paso.iconosBoton.Length;
+            if (iconosBotonUI[i] == null) continue;
+            //Los íconos de botones son de controles: solo en la guía del pre.
+            bool hay = EsGuia && paso.iconosBoton != null && i < paso.iconosBoton.Length;
             iconosBotonUI[i].gameObject.SetActive(hay);
             if (hay) iconosBotonUI[i].sprite = paso.iconosBoton[i];
         }
@@ -262,6 +317,15 @@ public abstract class TutorialManagerBase : MonoBehaviour
 
     protected virtual void FinalizarTutorial()
     {
+        //La guía del pre termina y se quita; la persona sigue con la actividad pre (no se lanza nada).
+        if (EsGuia)
+        {
+            DesuscribirEventosDePractica();
+            OcultarGuia();
+            OnPasoCambiado?.Invoke();
+            return;
+        }
+
         if (GameFlowManager.Instance != null)
         {
             GameFlowManager.Instance.LanzarActividadDirecta(tipoActividad);

@@ -11,7 +11,13 @@ public class TutorialCorteManager : TutorialManagerBase
     private int _tallosDeshojados = 0;
 
     //La meta se lee del ramo de la escena para que siempre coincida con lo que habilita el corte parejo
-    private int MetaTallosTutorial => RamoEnProgreso.Instance != null ? RamoEnProgreso.Instance.TallosNecesarios : 0;
+    private int MetaTallosTutorial => Meta(RamoEnProgreso.Instance != null ? RamoEnProgreso.Instance.TallosNecesarios : 0);
+
+    //Guía de controles del pre: usa las tijeras de la escena de actividad (pueden aparecer al empezar, por eso se buscan en cada paso).
+    protected override void BuscarObjetosEnEscena()
+    {
+        if (tijerasPractica == null) tijerasPractica = FindAnyObjectByType<Tijeras>();
+    }
 
     //Los eventos estáticos sobreviven a la escena, así que se limpian al descargar el tutorial
     private void OnDestroy() => DesuscribirEventosDePractica();
@@ -19,10 +25,12 @@ public class TutorialCorteManager : TutorialManagerBase
     //Suscribe a los eventos de los objetos de práctica según el tipo de espera del paso actual
     protected override void SuscribirEventoDelPaso(TipoEsperaTutorial tipo)
     {
+        if (EsGuia) BuscarObjetosEnEscena();
+
         switch (tipo)
         {
             case TipoEsperaTutorial.EsperaAgarrarTijeras:
-                tijerasPractica.OnAgarradas += AvanzarPaso;
+                if (tijerasPractica != null) tijerasPractica.OnAgarradas += AvanzarPaso;
                 break;
 
             case TipoEsperaTutorial.EsperaCortarTallo:

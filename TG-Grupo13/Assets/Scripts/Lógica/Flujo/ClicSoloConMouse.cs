@@ -41,10 +41,14 @@ public class ClicSoloConMouse : MonoBehaviour
     {
         if (_clic == null)
         {
-            _clic = new InputAction("ClicSoloMouse", InputActionType.PassThrough, "<Mouse>/leftButton", expectedControlType: "Button");
-            _clic.Enable();
-            _sinSubmit = new InputAction("SubmitDesactivado", InputActionType.Button);
-            _sinSubmit.Enable();
+            //El Input System solo deja crear referencias (InputActionReference) a acciones que estén dentro de un
+            //InputActionAsset: sin esto fallaba al iniciar y el gatillo de los controles volvía a contar como clic.
+            var acciones = ScriptableObject.CreateInstance<InputActionAsset>();
+            acciones.name = "ClicSoloConMouse";
+            var mapa = acciones.AddActionMap("PanelGameMaster");
+            _clic = mapa.AddAction("ClicSoloMouse", InputActionType.PassThrough, "<Mouse>/leftButton", expectedControlLayout: "Button");
+            _sinSubmit = mapa.AddAction("SubmitDesactivado", InputActionType.Button);
+            acciones.Enable();
         }
 
         int n = 0;

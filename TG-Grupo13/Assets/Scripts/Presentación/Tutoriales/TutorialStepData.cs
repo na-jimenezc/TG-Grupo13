@@ -8,6 +8,10 @@ public class TutorialStepData : ScriptableObject
     [Tooltip("Se puede escribir {dominante} o {secundaria} y se cambia por \"derecha\" o \"izquierda\" según la mano dominante del perfil")]
     [TextArea] public string instruccion;
 
+    [Tooltip("Texto para el tutorial postural (sin botones ni controles). Si se deja vacío se muestra la instrucción de arriba. " +
+             "También acepta {dominante} y {secundaria}")]
+    [TextArea] public string instruccionPostura;
+
     [Tooltip("Prefabs de Maniquí")]
     public GameObject[] prefabsPose;
 

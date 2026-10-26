@@ -27,6 +27,19 @@ public class TutorialSiembraManager : TutorialManagerBase
             canastaPractica.OnBulbosEsparcidos += RecibirBulbosEsparcidos;
     }
 
+    //Guía de controles del pre: usa la canasta, la pala y los huecos de la escena de actividad.
+    protected override void BuscarObjetosEnEscena()
+    {
+        if (canastaPractica == null)
+        {
+            canastaPractica = FindAnyObjectByType<Canasta>();
+            if (canastaPractica != null) canastaPractica.OnBulbosEsparcidos += RecibirBulbosEsparcidos;
+        }
+        if (palaPractica == null) palaPractica = FindAnyObjectByType<Pala>();
+        if (slotsPractica == null || slotsPractica.Length == 0)
+            slotsPractica = FindObjectsByType<PlantingSlot>(FindObjectsSortMode.None);
+    }
+
     //Se desuscribe de los eventos de la canasta para evitar fugas de memoria
     private void OnDestroy()
     {
@@ -43,19 +56,20 @@ public class TutorialSiembraManager : TutorialManagerBase
     //Suscribe a los eventos de los objetos de práctica según el tipo de espera del paso actual
     protected override void SuscribirEventoDelPaso(TipoEsperaTutorial tipo)
     {
-        
+        if (EsGuia) BuscarObjetosEnEscena();
+
         switch (tipo)
         {
             case TipoEsperaTutorial.EsperaAgarrarCanastaDosManos:
-                canastaPractica.OnAgarradaDosManos += AvanzarPaso;
+                if (canastaPractica != null) canastaPractica.OnAgarradaDosManos += AvanzarPaso;
                 break;
 
             case TipoEsperaTutorial.EsperaInclinarCanasta:
-                canastaPractica.OnEsparcida += AvanzarPaso;
+                if (canastaPractica != null) canastaPractica.OnEsparcida += AvanzarPaso;
                 break;
 
             case TipoEsperaTutorial.EsperaAgarrarPala:
-                palaPractica.OnAgarrada += AvanzarPaso;
+                if (palaPractica != null) palaPractica.OnAgarrada += AvanzarPaso;
                 break;
 
             case TipoEsperaTutorial.EsperaAgarrarBulbo:
@@ -68,7 +82,7 @@ public class TutorialSiembraManager : TutorialManagerBase
 
             case TipoEsperaTutorial.EsperaSembrarBulbo:
                 _bulbosSembrados = 0; // Reinicio de seguridad
-                ActualizarContador(_bulbosSembrados, metaBulbosTutorial);
+                ActualizarContador(_bulbosSembrados, Meta(metaBulbosTutorial));
 
                 //Se suscribe a un método intermedio en lugar de avanzar de inmediato
                 SuscribirTodosLosSlots(s => s.OnSembrado += ContarBulboYAvanzar);
@@ -85,9 +99,9 @@ public class TutorialSiembraManager : TutorialManagerBase
     {
         //Se cuenta el bulbo sembrado y se actualiza el contador en pantalla
         _bulbosSembrados++;
-        ActualizarContador(_bulbosSembrados, metaBulbosTutorial);
+        ActualizarContador(_bulbosSembrados, Meta(metaBulbosTutorial));
 
-        if (_bulbosSembrados >= metaBulbosTutorial)
+        if (_bulbosSembrados >= Meta(metaBulbosTutorial))
         {
             DesuscribirEventosDePractica();
             AvanzarPaso();
@@ -119,8 +133,10 @@ public class TutorialSiembraManager : TutorialManagerBase
     //Métodos auxiliares para suscribirse a todos los bulbos o slots de práctica, evitando null reference exceptions
     private void SuscribirTodosLosBulbos(System.Action<Bulbo> accion)
     {
-        if (_bulbosPractica == null) return;
-        foreach (var bulbo in _bulbosPractica)
+        //En la escena de actividad los bulbos pueden existir sin haberlos esparcido en esta guía: se toman todos los de la escena.
+        IEnumerable<Bulbo> bulbos = EsGuia ? FindObjectsByType<Bulbo>(FindObjectsSortMode.None) : _bulbosPractica;
+        if (bulbos == null) return;
+        foreach (var bulbo in bulbos)
         {
             if (bulbo != null) accion(bulbo);
         }

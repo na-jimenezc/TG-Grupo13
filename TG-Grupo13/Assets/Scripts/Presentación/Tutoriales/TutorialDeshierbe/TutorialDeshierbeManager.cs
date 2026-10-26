@@ -14,14 +14,22 @@ public class TutorialDeshierbeManager : TutorialManagerBase
     [SerializeField] private int metaOrtigasTutorial = 8;
     private int _ortigasDepositadas = 0;
 
+    //Guía de controles del pre: usa la bolsa de la escena de actividad (las ortigas se buscan en cada paso).
+    protected override void BuscarObjetosEnEscena()
+    {
+        if (bolsaPractica == null) bolsaPractica = FindAnyObjectByType<Bolsa>();
+    }
+
     /* Suscribe a los eventos de los objetos de práctica según el tipo de espera del paso actual*/
     protected override void SuscribirEventoDelPaso(TipoEsperaTutorial tipo)
     {
+        if (EsGuia) BuscarObjetosEnEscena();
+
         //Se recibe le tipo de evento y se avanza al siguiente paso cuando se cumple la condición de ese evento
         switch (tipo)
         {
             case TipoEsperaTutorial.EsperaAgarrarBolsa:
-                bolsaPractica.OnAgarrada += AvanzarPaso;
+                if (bolsaPractica != null) bolsaPractica.OnAgarrada += AvanzarPaso;
                 break;
 
             case TipoEsperaTutorial.EsperaAgarrarOrtiga:
@@ -34,7 +42,7 @@ public class TutorialDeshierbeManager : TutorialManagerBase
 
             case TipoEsperaTutorial.EsperaDepositarOrtiga:
                 _ortigasDepositadas = 0; //Reinicio de seguridad
-                ActualizarContador(_ortigasDepositadas, metaOrtigasTutorial);
+                ActualizarContador(_ortigasDepositadas, Meta(metaOrtigasTutorial));
 
                 //Se suscribe a un método intermedio en lugar de avanzar de inmediato
                 SuscribirTodasLasOrtigas(o => o.OnDepositada += ContarOrtigaYAvanzar);
@@ -50,9 +58,9 @@ public class TutorialDeshierbeManager : TutorialManagerBase
     private void ContarOrtigaYAvanzar()
     {
         _ortigasDepositadas++;
-        ActualizarContador(_ortigasDepositadas, metaOrtigasTutorial);
+        ActualizarContador(_ortigasDepositadas, Meta(metaOrtigasTutorial));
 
-        if (_ortigasDepositadas >= metaOrtigasTutorial)
+        if (_ortigasDepositadas >= Meta(metaOrtigasTutorial))
         {
             DesuscribirEventosDePractica();
             AvanzarPaso();
@@ -77,8 +85,10 @@ public class TutorialDeshierbeManager : TutorialManagerBase
     //Suscribe a todos los eventos de las ortigas de práctica para el evento
     private void SuscribirTodasLasOrtigas(System.Action<Ortiga> accion)
     {
-        if (ortigasPractica == null) return;
-        foreach (var ortiga in ortigasPractica)
+        //En la escena de actividad se toman todas las ortigas de la escena.
+        var ortigas = EsGuia ? FindObjectsByType<Ortiga>(FindObjectsSortMode.None) : ortigasPractica;
+        if (ortigas == null) return;
+        foreach (var ortiga in ortigas)
         {
             if (ortiga != null) accion(ortiga);
         }
