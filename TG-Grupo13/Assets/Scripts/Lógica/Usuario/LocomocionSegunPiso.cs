@@ -11,6 +11,7 @@ using LocomotionCharacter = Oculus.Interaction.Locomotion.CharacterController;
  * el inicio.
  * Este componente vuelve a activar el movimiento apenas hay piso debajo. Además, si al descargar una escena el
  * jugador se queda sin piso (p. ej. en Continuar), lo pausa para que no caiga y lo reactiva cuando llega el siguiente.
+ * También hace que el jugador frene en el aire igual que en el piso (ver Awake).
  * Se agrega solo al locomotor al iniciar el juego (no hay que ponerlo en ninguna escena).*/
 public class LocomocionSegunPiso : MonoBehaviour
 {
@@ -44,6 +45,11 @@ public class LocomocionSegunPiso : MonoBehaviour
         _personaje = GetComponentInChildren<LocomotionCharacter>(true);
         if (_personaje == null) _personaje = FindFirstObjectByType<LocomotionCharacter>(FindObjectsInactive.Include);
         _raizJugador = transform.root;
+
+        //Que frene igual en el aire que en el piso. Si la cápsula del jugador queda apoyada en un objeto (pala, bulbo,
+        //tallo...), Meta cree que está en el aire y casi no frena (Air Damping 1 frente a 40 en el piso): el jugador
+        //seguía deslizándose hasta chocar con una pared. Aquí no hay saltos y los pisos son planos, así que no cambia nada más.
+        if (_locomotor != null) _locomotor.AirDamping = _locomotor.GroundDamping;
     }
 
     private void OnEnable() => SceneManager.sceneUnloaded += AlDescargarEscena;
